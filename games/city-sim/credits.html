@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>City Sim · credits</title>
+<style>
+body{margin:0;background:#0b1016;color:#e8eef5;font:15px/1.5 system-ui,sans-serif}
+main{max-width:820px;margin:0 auto;padding:28px 18px 60px}
+a{color:#3fe0b0} pre{white-space:pre-wrap;background:#141c26;border:1px solid #2a3a4a;border-radius:12px;padding:16px;font-size:13px}
+</style></head><body><main>
+<p><a href="./index.html">← Menu</a></p>
+<h1>Credits & licenses</h1>
+<p id="credver">City Sim</p>
+<pre># Asset licenses (City Sim)
+
+All assets below are **CC0 1.0 Universal** (public domain dedication) unless noted. Free for commercial use; attribution appreciated but not required. Mirrored copies pulled from [Papyszoo/CC0-Public-Domain-Models](https://github.com/Papyszoo/CC0-Public-Domain-Models), [LuanDucate/Ducz.CharacterCreator](https://github.com/LuanDucate/Ducz.CharacterCreator), and [OpenGameArt Kenney Car Kit](https://opengameart.org/content/car-kit).
+
+| Asset | Creator | Source URL | License | Used in |
+| --- | --- | --- | --- | --- |
+| Ultimate Modular Men / Women (m_casual2, m_hoodie, m_suit, m_worker, f_casual, f_formal, f_worker, f_punk) — Idle, Walk, Run | Quaternius | https://quaternius.com/assets/ultimatemodularcharacters · https://quaternius.com/assets/ultimatemodularwomen · redistrib. https://github.com/LuanDucate/Ducz.CharacterCreator | CC0 | People, player, character creator |
+| Car Kit (sedan, suv, taxi) | Kenney | https://kenney.nl/assets/car-kit | CC0 | Cars |
+| City Kit Commercial / Roads / Suburban (buildings, lights, trees) | Kenney | https://kenney.nl | CC0 | Street scenery |
+| Engine: three.js r170 | three.js authors | https://threejs.org/ | MIT | Runtime |
+| Bungee | The Bungee Project Authors | https://github.com/google/fonts/tree/main/ofl/bungee | SIL OFL 1.1 | Display type (headings, buttons, HUD numbers) |
+| Rajdhani | Indian Type Foundry | https://github.com/google/fonts/tree/main/ofl/rajdhani | SIL OFL 1.1 | Body type (prompts, loadout, labels) |
+
+**v0.5.1 packaging:** Playable original character (creator + walk/run) uses the same Modular Men/Women packs, meshopt-compressed, Idle/Walk/Run kept. The live `index.html` loads models over HTTP; `city-sim.html` is a single self-contained file for `file://` / offline. Cache API is optional. Setting and story names (Port Calloway and its residents) are original and shipped as data only in this version. Cars use the Kenney Car Kit (enter/exit and AI lane traffic).
+
+**Not used:** Rockstar / GTA characters, names, maps, logos, music, or mission recreations. No likeness of real or famous people. Kenney Animated Blocky Characters are not included. Scene layout (asphalt, sidewalks, curbs, grass, lane paint) authored for this project.
+
+The v0.6 city grid, traffic lights, planters, and minimap are original procedural geometry (not third-party). Buildings, lamps, trees, and cars remain Kenney / Quaternius CC0 as listed above.
+</pre>
+<script src="./version.js"></script>
+<script>document.getElementById('credver').textContent='City Sim · '+(window.VERSION||'');</script>
+</main></body></html>
