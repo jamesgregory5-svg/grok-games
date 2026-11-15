@@ -130,19 +130,150 @@
     @media (max-width: 600px) {
       .wrap, footer { width: calc(100% - 32px); }
     }
+  
+    header { justify-content: flex-start; }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .userbar {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .who {
+      font-size: 13px;
+      color: #444;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 28vw;
+    }
+    .signout {
+      height: 32px;
+      padding: 0 12px;
+      background: #fff;
+      color: #111;
+      border: 1px solid #e6e6e6;
+      border-radius: 8px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      cursor: pointer;
+    }
+    .signout:hover { background: #f7f7f7; }
+    .auth {
+      width: min(360px, 100%);
+    }
+    .auth h2 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.04em;
+    }
+    .auth .lead {
+      margin: 0 0 24px;
+      font-size: 14px;
+      line-height: 1.45;
+      color: #444;
+    }
+    .auth form {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .auth label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .auth input {
+      height: 40px;
+      padding: 0 12px;
+      border: 1px solid #e6e6e6;
+      border-radius: 8px;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      color: #111;
+      background: #fff;
+      outline: none;
+    }
+    .auth input:focus { border-color: #111; }
+    .auth .error {
+      margin: 0;
+      min-height: 18px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #b42318;
+    }
+    .auth button[type="submit"] {
+      height: 40px;
+      margin-top: 4px;
+      padding: 0 16px;
+      background: #111;
+      color: #fff;
+      border: 0;
+      border-radius: 8px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      cursor: pointer;
+    }
+    .auth button[type="submit"]:hover { filter: brightness(1.15); }
+    .hidden { display: none !important; }
+    @media (max-height: 640px) {
+      .auth h2 { font-size: 18px; }
+      .auth .lead { margin-bottom: 16px; }
+      .auth form { gap: 10px; }
+      .auth input, .auth button[type="submit"] { height: 36px; }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <header>
-      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path fill="#111" d="M12 1.15c.32 3.55 2.28 6.62 6.5 8.15-4.22 1.53-6.18 4.6-6.5 8.15-.32-3.55-2.28-6.62-6.5-8.15C9.72 7.77 11.68 4.7 12 1.15z"/>
-      </svg>
-      <h1 class="wordmark">GROK GAMES</h1>
+      <div class="brand">
+        <svg class="mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path fill="#111" d="M12 1.15c.32 3.55 2.28 6.62 6.5 8.15-4.22 1.53-6.18 4.6-6.5 8.15-.32-3.55-2.28-6.62-6.5-8.15C9.72 7.77 11.68 4.7 12 1.15z"/>
+        </svg>
+        <h1 class="wordmark">GROK GAMES</h1>
+      </div>
+      <div class="userbar hidden" id="userbar">
+        <span class="who" id="who"></span>
+        <button type="button" class="signout" id="signout">Sign out</button>
+      </div>
     </header>
-    <main class="grid" id="games"></main>
+    <section class="auth hidden" id="auth-panel">
+      <h2 id="auth-title">Create account</h2>
+      <p class="lead" id="auth-lead">One account per device. Choose a username and password to get started.</p>
+      <form id="auth-form" autocomplete="on">
+        <label>Username
+          <input id="auth-user" name="username" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+        </label>
+        <label>Password
+          <input id="auth-pass" name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <label id="auth-confirm-wrap">Confirm password
+          <input id="auth-confirm" name="confirm" type="password" autocomplete="new-password">
+        </label>
+        <p class="error" id="auth-error" role="alert"></p>
+        <button type="submit" id="auth-submit">Create account</button>
+      </form>
+    </section>
+    <main class="grid hidden" id="games"></main>
   </div>
   <footer>Fan-made game hub by James</footer>
+  <script src="auth.js"></script>
   <script>
     /* Add a game: put a folder in games/ and add one object here. */
     const GAMES = [
@@ -161,19 +292,98 @@
         accent: "linear-gradient(160deg, #ffd0e8 0%, #ff8a5b 48%, #6a2a8a 100%)"
       }
     ];
+
     const host = document.getElementById("games");
-    for (const g of GAMES) {
-      const el = document.createElement("article");
-      el.className = "card";
-      el.innerHTML =
-        '<div class="thumb" style="background:' + g.accent + '" aria-hidden="true"></div>' +
-        '<div class="body">' +
-          '<h2>' + g.title + '</h2>' +
-          '<p>' + g.description + '</p>' +
-          '<a class="play" href="' + g.href + '">Play</a>' +
-        '</div>';
-      host.appendChild(el);
+    const panel = document.getElementById("auth-panel");
+    const userbar = document.getElementById("userbar");
+    const who = document.getElementById("who");
+    const titleEl = document.getElementById("auth-title");
+    const leadEl = document.getElementById("auth-lead");
+    const form = document.getElementById("auth-form");
+    const userInput = document.getElementById("auth-user");
+    const passInput = document.getElementById("auth-pass");
+    const confirmWrap = document.getElementById("auth-confirm-wrap");
+    const confirmInput = document.getElementById("auth-confirm");
+    const errorEl = document.getElementById("auth-error");
+    const submitBtn = document.getElementById("auth-submit");
+
+    let cardsBuilt = false;
+
+    function buildCards() {
+      if (cardsBuilt) return;
+      cardsBuilt = true;
+      for (const g of GAMES) {
+        const el = document.createElement("article");
+        el.className = "card";
+        el.innerHTML =
+          '<div class="thumb" style="background:' + g.accent + '" aria-hidden="true"></div>' +
+          '<div class="body">' +
+            '<h2>' + g.title + '</h2>' +
+            '<p>' + g.description + '</p>' +
+            '<a class="play" href="' + g.href + '">Play</a>' +
+          '</div>';
+        host.appendChild(el);
+      }
     }
+
+    function showLauncher() {
+      panel.classList.add("hidden");
+      host.classList.remove("hidden");
+      userbar.classList.remove("hidden");
+      who.textContent = GrokAuth.currentUser() || "";
+      buildCards();
+    }
+
+    function showAuth() {
+      host.classList.add("hidden");
+      userbar.classList.add("hidden");
+      panel.classList.remove("hidden");
+      errorEl.textContent = "";
+      form.reset();
+      const hasAccount = GrokAuth.hasAccount();
+      if (hasAccount) {
+        titleEl.textContent = "Sign in";
+        leadEl.textContent = "This device is linked to one account.";
+        confirmWrap.classList.add("hidden");
+        confirmInput.required = false;
+        confirmInput.value = "";
+        submitBtn.textContent = "Sign in";
+        passInput.autocomplete = "current-password";
+      } else {
+        titleEl.textContent = "Create account";
+        leadEl.textContent = "One account per device. Choose a username and password to get started.";
+        confirmWrap.classList.remove("hidden");
+        confirmInput.required = true;
+        submitBtn.textContent = "Create account";
+        passInput.autocomplete = "new-password";
+      }
+      setTimeout(function () { try { userInput.focus(); } catch (e) {} }, 0);
+    }
+
+    function render() {
+      if (GrokAuth.isSignedIn()) showLauncher();
+      else showAuth();
+    }
+
+    form.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      errorEl.textContent = "";
+      const username = userInput.value;
+      const password = passInput.value;
+      const task = GrokAuth.hasAccount()
+        ? GrokAuth.signIn(username, password)
+        : GrokAuth.createAccount(username, password, confirmInput.value);
+      task.then(render).catch(function (err) {
+        errorEl.textContent = (err && err.message) ? err.message : "Something went wrong.";
+      });
+    });
+
+    document.getElementById("signout").addEventListener("click", function () {
+      GrokAuth.signOut();
+      render();
+    });
+
+    render();
   </script>
 </body>
 </html>
