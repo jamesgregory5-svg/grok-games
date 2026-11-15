@@ -1,6 +1,6 @@
 # Grok Games
 
-A fan-made game hub by James. One download for [Tour Sim](games/tour-sim/), [City Sim](games/city-sim/), and any game added later.
+A fan-made game hub by James. One download for [Tour Sim](games/tour-sim/), [City Sim](games/city-sim/), [Clean Viewer](games/clean-viewer/), and any game added later.
 
 This is not an official xAI or Grok product.
 
@@ -11,7 +11,7 @@ This is not an official xAI or Grok product.
 
 The first time you open the hub, create an account (username and password). That account is stored on this device only — one account per device. Sign out and sign back in anytime; a different username is rejected.
 
-Tour Sim is included from Tour Sim v4 Final (v4.48). The copy in this hub does not use Tour Sim's original password gate. City Sim is v3.7.7.
+Tour Sim is included from Tour Sim v4 Final (v4.48). The copy in this hub does not use Tour Sim's original password gate. City Sim is v3.7.7. Clean Viewer plays YouTube links through the official IFrame embed. The viewer UI works from `file://`, but YouTube itself often blocks playback there (error 153) — use the online Pages site to watch videos.
 
 The wordmark uses [Inter Tight](https://github.com/googlefonts/inter-tight) (SIL Open Font License 1.1).
 
