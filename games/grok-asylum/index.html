@@ -67,7 +67,14 @@ button.mode span{display:block;font-size:12px;color:#9a8e84;margin-top:3px}
 .seed{color:var(--muted);font-size:11px;letter-spacing:.08em;font-family:"Segoe UI",system-ui,sans-serif}
 .time{position:absolute;top:36px;right:14px;font-family:"Segoe UI",system-ui,sans-serif;font-size:13px;letter-spacing:.08em;color:#c9bdb0;text-shadow:0 1px 6px #000}
 
-.popup{pointer-events:auto}
+.hurt.near{opacity:.45;transition:opacity .35s}
+.scare{position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,rgba(255,230,210,.55),rgba(80,0,0,.8) 55%,rgba(0,0,0,.2) 100%);opacity:0;pointer-events:none;z-index:6}
+.scare.on{opacity:1;transition:none}
+.scare{transition:opacity .28s ease-out}
+.lock-hint{position:absolute;bottom:26%;left:50%;transform:translateX(-50%);background:rgba(8,6,5,.82);border:1px solid #6a5a50;padding:8px 14px;font-size:14px;letter-spacing:.06em;opacity:0;pointer-events:none}
+.lock-hint.on{opacity:1}
+.settings #sens-val{min-width:2.4em;text-align:right;color:#c9bdb0;font-variant-numeric:tabular-nums}
+
 </style>
 </head>
 <body>
@@ -88,10 +95,12 @@ button.mode span{display:block;font-size:12px;color:#9a8e84;margin-top:3px}
   <div class="time" id="hud-time"></div>
   <div class="cross"></div>
   <div class="prompt" id="prompt"></div>
+  <div class="lock-hint" id="lock-hint">Click to look</div>
   <div class="obj" id="obj-line"></div>
   <div class="vignette"></div>
   <div class="grain"></div>
   <div class="hurt" id="hurt"></div>
+  <div class="scare" id="scare"></div>
 </div>
 <div class="popup" id="obj-pop" hidden>
   <h3>Objective</h3>
@@ -114,23 +123,25 @@ const t="160",e={LEFT:0,MIDDLE:1,RIGHT:2,ROTATE:0,DOLLY:1,PAN:2},n={ROTATE:0,PAN
 function AsylumAudio() {
   var ctx = null, master, droneGain, tenseGain, heartGain, muteDrone = 1, heartT = 0;
   var started = false;
+  var staticGain = null, staticFilter = null, breathGain = null;
   function ac() {
     if (!ctx) {
       var AC = window.AudioContext || window.webkitAudioContext;
       ctx = new AC();
-      master = ctx.createGain(); master.gain.value = 0.7; master.connect(ctx.destination);
+      master = ctx.createGain(); master.gain.value = 0.72; master.connect(ctx.destination);
       droneGain = ctx.createGain(); droneGain.gain.value = 0.12; droneGain.connect(master);
       tenseGain = ctx.createGain(); tenseGain.gain.value = 0; tenseGain.connect(master);
       heartGain = ctx.createGain(); heartGain.gain.value = 0; heartGain.connect(master);
+      breathGain = ctx.createGain(); breathGain.gain.value = 0; breathGain.connect(master);
     }
     return ctx;
   }
   function now() { return ac().currentTime; }
   function envGain(g, t, a, h, d, peak) {
     g.gain.cancelScheduledValues(t);
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(peak, t + a);
-    g.gain.setValueAtTime(peak, t + a + h);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t + Math.max(a, 0.005));
+    g.gain.setValueAtTime(Math.max(peak, 0.0002), t + a + h);
     g.gain.exponentialRampToValueAtTime(0.0001, t + a + h + d);
   }
   function noiseBuf(sec) {
@@ -155,9 +166,9 @@ function AsylumAudio() {
     started = true;
     ac().resume();
     var t = now();
-    function osc(type, freq, dest, det) {
+    function osc(type, freq, dest, det, vol) {
       var o = ac().createOscillator(); o.type = type; o.frequency.value = freq;
-      var g = ac().createGain(); g.gain.value = 0.4;
+      var g = ac().createGain(); g.gain.value = vol == null ? 0.4 : vol;
       o.connect(g); g.connect(dest);
       o.start(t);
       if (det) {
@@ -167,73 +178,135 @@ function AsylumAudio() {
       }
       return o;
     }
-    osc("sine", 46, droneGain, 0.07);
-    osc("sine", 49.5, droneGain, 0.05);
-    osc("triangle", 92, droneGain, 0.04);
-    var n = noiseSrc("lowpass", 140, 0.5);
-    var ng = ac().createGain(); ng.gain.value = 0.18;
+    osc("sine", 41, droneGain, 0.07, 0.45);
+    osc("sine", 46, droneGain, 0.09, 0.4);
+    osc("sine", 52.5, droneGain, 0.05, 0.22);
+    osc("triangle", 87, droneGain, 0.04, 0.16);
+    var n = noiseSrc("lowpass", 120, 0.5);
+    var ng = ac().createGain(); ng.gain.value = 0.22;
     n.out.connect(ng); ng.connect(droneGain); n.src.start(t);
-    var n2 = noiseSrc("bandpass", 900, 0.4);
-    var ng2 = ac().createGain(); ng2.gain.value = 0.03;
+    var n2 = noiseSrc("bandpass", 740, 0.5);
+    var ng2 = ac().createGain(); ng2.gain.value = 0.035;
     n2.out.connect(ng2); ng2.connect(droneGain); n2.src.start(t);
-    osc("sawtooth", 38, tenseGain, 0.2);
-    osc("sine", 155, tenseGain, 0.11);
+    osc("sawtooth", 34, tenseGain, 0.22, 0.55);
+    osc("sine", 155, tenseGain, 0.11, 0.3);
+    osc("triangle", 220, tenseGain, 0.07, 0.12);
+    var br = noiseSrc("lowpass", 420, 0.8);
+    var brg = ac().createGain(); brg.gain.value = 0.8;
+    br.out.connect(brg); brg.connect(breathGain); br.src.start(t);
   }
   function thump(t, vol) {
-    var o = ac().createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(28, t + 0.18);
-    var g = ac().createGain(); envGain(g, t, 0.01, 0.02, 0.22, vol || 0.9);
-    o.connect(g); g.connect(heartGain); o.start(t); o.stop(t + 0.3);
+    var o = ac().createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(78, t); o.frequency.exponentialRampToValueAtTime(26, t + 0.2);
+    var g = ac().createGain(); envGain(g, t, 0.008, 0.02, 0.24, vol || 0.9);
+    o.connect(g); g.connect(heartGain); o.start(t); o.stop(t + 0.32);
   }
-  function tick(dt, hunterProx, spriting) {
+  function tick(dt, hunterProx, sprinting) {
     if (!started) return;
     var t = now();
-    var target = hunterProx > 0 ? 0.35 + hunterProx * 0.7 : 0.12;
-    var dg = droneGain.gain;
-    var want = target * muteDrone;
-    dg.setTargetAtTime(want, t, 0.25);
-    tenseGain.gain.setTargetAtTime(hunterProx * 0.22, t, 0.3);
-    var hWant = hunterProx > 0.18 ? Math.min(1, (hunterProx - 0.15) * 1.6) : (spriting ? 0.08 : 0);
+    var target = hunterProx > 0 ? 0.38 + hunterProx * 0.75 : 0.12;
+    droneGain.gain.setTargetAtTime(target * muteDrone, t, 0.25);
+    tenseGain.gain.setTargetAtTime(hunterProx * 0.28, t, 0.28);
+    var hWant = hunterProx > 0.16 ? Math.min(1, (hunterProx - 0.12) * 1.7) : (sprinting ? 0.08 : 0);
     heartGain.gain.setTargetAtTime(hWant, t, 0.15);
+    breathGain.gain.setTargetAtTime(hunterProx > 0.45 ? (hunterProx - 0.4) * 0.35 : 0, t, 0.2);
     if (hWant > 0.05) {
-      heartT += dt * (1.1 + hunterProx * 2.2);
-      if (heartT >= 1) { heartT -= 1; thump(t, 0.7 + hunterProx * 0.4); setTimeout(function () { if (started) thump(now(), 0.45); }, 90); }
+      heartT += dt * (1.15 + hunterProx * 2.4);
+      if (heartT >= 1) { heartT -= 1; thump(t, 0.75 + hunterProx * 0.4); setTimeout(function () { if (started) thump(now(), 0.48); }, 88); }
     }
   }
   function silence(sec) {
     if (!started) return;
-    muteDrone = 0.02;
+    muteDrone = 0.015;
     setTimeout(function () { muteDrone = 1; }, (sec || 4) * 1000);
   }
   function scream() {
     if (!started) return;
     var t = now();
-    var n = noiseSrc("bandpass", 1200, 4);
-    var g = ac().createGain(); envGain(g, t, 0.08, 0.15, 0.7, 0.55);
+    var n = noiseSrc("bandpass", 1100, 5);
+    var g = ac().createGain(); envGain(g, t, 0.05, 0.18, 0.95, 0.62);
     var f = n.filter;
-    f.frequency.setValueAtTime(700, t);
-    f.frequency.linearRampToValueAtTime(1800, t + 0.2);
-    f.frequency.linearRampToValueAtTime(400, t + 0.9);
-    n.out.connect(g); g.connect(master); n.src.start(t); n.src.stop(t + 1.1);
-    var o = ac().createOscillator(); o.type = "sawtooth"; o.frequency.setValueAtTime(420, t); o.frequency.exponentialRampToValueAtTime(140, t + 0.8);
-    var og = ac().createGain(); envGain(og, t, 0.05, 0.1, 0.6, 0.12);
-    o.connect(og); og.connect(master); o.start(t); o.stop(t + 0.9);
+    f.frequency.setValueAtTime(560, t);
+    f.frequency.linearRampToValueAtTime(2100, t + 0.18);
+    f.frequency.linearRampToValueAtTime(280, t + 1.05);
+    n.out.connect(g); g.connect(master); n.src.start(t); n.src.stop(t + 1.3);
+    var o = ac().createOscillator(); o.type = "sawtooth"; o.frequency.setValueAtTime(510, t); o.frequency.exponentialRampToValueAtTime(110, t + 0.95);
+    var og = ac().createGain(); envGain(og, t, 0.04, 0.12, 0.8, 0.16);
+    o.connect(og); og.connect(master); o.start(t); o.stop(t + 1.1);
+    var o2 = ac().createOscillator(); o2.type = "square"; o2.frequency.setValueAtTime(180, t); o2.frequency.exponentialRampToValueAtTime(55, t + 0.7);
+    var og2 = ac().createGain(); envGain(og2, t, 0.02, 0.08, 0.55, 0.1);
+    o2.connect(og2); og2.connect(master); o2.start(t); o2.stop(t + 0.85);
+  }
+  function distantScream() {
+    if (!started) return;
+    var t = now();
+    var n = noiseSrc("bandpass", 700, 3.2);
+    var lp = ac().createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 900;
+    var g = ac().createGain(); envGain(g, t, 0.2, 0.3, 1.6, 0.22);
+    n.filter.frequency.setValueAtTime(400, t);
+    n.filter.frequency.linearRampToValueAtTime(1400, t + 0.4);
+    n.filter.frequency.linearRampToValueAtTime(300, t + 1.8);
+    n.out.connect(lp); lp.connect(g); g.connect(master); n.src.start(t); n.src.stop(t + 2.2);
   }
   function whisper() {
     if (!started) return;
     var t = now();
-    var n = noiseSrc("bandpass", 1500, 2.2);
-    var g = ac().createGain(); envGain(g, t, 0.2, 0.4, 0.8, 0.12);
-    n.out.connect(g); g.connect(master); n.src.start(t); n.src.stop(t + 1.6);
+    var n = noiseSrc("bandpass", 1600, 2.4);
+    var g = ac().createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.13, t + 0.25);
+    for (var i = 0; i < 6; i++) {
+      var tt = t + 0.3 + i * 0.22;
+      g.gain.setValueAtTime(0.13, tt);
+      g.gain.linearRampToValueAtTime(i % 2 ? 0.04 : 0.12, tt + 0.12);
+    }
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 2.0);
+    n.out.connect(g); g.connect(master); n.src.start(t); n.src.stop(t + 2.1);
   }
   function sting() {
     if (!started) return;
     var t = now();
-    var o = ac().createOscillator(); o.type = "square"; o.frequency.setValueAtTime(90, t); o.frequency.linearRampToValueAtTime(40, t + 0.4);
-    var g = ac().createGain(); envGain(g, t, 0.005, 0.05, 0.5, 0.7);
-    o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.6);
-    var n = noiseSrc("highpass", 2000, 0.7);
-    var ng = ac().createGain(); envGain(ng, t, 0.005, 0.04, 0.25, 0.5);
-    n.out.connect(ng); ng.connect(master); n.src.start(t); n.src.stop(t + 0.4);
+    var o = ac().createOscillator(); o.type = "square"; o.frequency.setValueAtTime(70, t); o.frequency.linearRampToValueAtTime(28, t + 0.45);
+    var g = ac().createGain(); envGain(g, t, 0.003, 0.06, 0.55, 0.85);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.7);
+    var o2 = ac().createOscillator(); o2.type = "sawtooth"; o2.frequency.setValueAtTime(240, t); o2.frequency.exponentialRampToValueAtTime(60, t + 0.35);
+    var g2 = ac().createGain(); envGain(g2, t, 0.003, 0.04, 0.4, 0.28);
+    o2.connect(g2); g2.connect(master); o2.start(t); o2.stop(t + 0.5);
+    var n = noiseSrc("highpass", 1800, 0.8);
+    var ng = ac().createGain(); envGain(ng, t, 0.002, 0.04, 0.32, 0.62);
+    n.out.connect(ng); ng.connect(master); n.src.start(t); n.src.stop(t + 0.45);
+    var o3 = ac().createOscillator(); o3.type = "sine"; o3.frequency.setValueAtTime(48, t); o3.frequency.exponentialRampToValueAtTime(18, t + 0.6);
+    var g3 = ac().createGain(); envGain(g3, t, 0.004, 0.08, 0.5, 0.5);
+    o3.connect(g3); g3.connect(master); o3.start(t); o3.stop(t + 0.7);
+  }
+  function bang() {
+    if (!started) return;
+    var t = now();
+    var o = ac().createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(35, t + 0.5);
+    var g = ac().createGain(); envGain(g, t, 0.004, 0.03, 0.7, 0.7);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.8);
+    var n = noiseSrc("lowpass", 500, 0.6);
+    var ng = ac().createGain(); envGain(ng, t, 0.003, 0.04, 0.45, 0.45);
+    n.out.connect(ng); ng.connect(master); n.src.start(t); n.src.stop(t + 0.55);
+  }
+  function knock() {
+    if (!started) return;
+    var t = now();
+    function hit(at, f, v) {
+      var o = ac().createOscillator(); o.type = "sine"; o.frequency.value = f;
+      var g = ac().createGain(); envGain(g, at, 0.004, 0.01, 0.12, v);
+      o.connect(g); g.connect(master); o.start(at); o.stop(at + 0.18);
+    }
+    hit(t, 220, 0.35); hit(t + 0.16, 200, 0.28); hit(t + 0.42, 180, 0.4);
+  }
+  function scrape() {
+    if (!started) return;
+    var t = now();
+    var n = noiseSrc("bandpass", 900, 3);
+    n.filter.frequency.setValueAtTime(400, t);
+    n.filter.frequency.linearRampToValueAtTime(1600, t + 0.8);
+    n.filter.frequency.linearRampToValueAtTime(500, t + 1.4);
+    var g = ac().createGain(); envGain(g, t, 0.08, 0.4, 0.9, 0.22);
+    n.out.connect(g); g.connect(master); n.src.start(t); n.src.stop(t + 1.5);
   }
   function bump() {
     if (!started) return;
@@ -249,6 +322,16 @@ function AsylumAudio() {
     var g = ac().createGain(); envGain(g, t, 0.005, 0.01, 0.08, vol || 0.12);
     n.out.connect(g); g.connect(master); n.src.start(t); n.src.stop(t + 0.12);
   }
+  function drag(vol) {
+    if (!started) return;
+    var t = now();
+    var n = noiseSrc("lowpass", 220, 0.9);
+    var g = ac().createGain(); envGain(g, t, 0.02, 0.05, 0.22, vol || 0.16);
+    n.out.connect(g); g.connect(master); n.src.start(t); n.src.stop(t + 0.32);
+    var o = ac().createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.2);
+    var og = ac().createGain(); envGain(og, t, 0.01, 0.02, 0.18, (vol || 0.16) * 0.5);
+    o.connect(og); og.connect(master); o.start(t); o.stop(t + 0.25);
+  }
   function buzz() {
     if (!started) return;
     var t = now();
@@ -256,8 +339,35 @@ function AsylumAudio() {
     var g = ac().createGain(); envGain(g, t, 0.01, 0.05, 0.12, 0.2);
     o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.2);
   }
+  function ensureStatic() {
+    if (staticGain) return;
+    var n = noiseSrc("bandpass", 1800, 0.9);
+    staticFilter = n.filter;
+    staticGain = ac().createGain();
+    staticGain.gain.value = 0.0001;
+    n.out.connect(staticGain); staticGain.connect(master);
+    n.src.start(now());
+  }
+  function setStatic(level, tuned) {
+    if (!started) return;
+    ensureStatic();
+    var t = now();
+    var vol = tuned ? 0.025 : 0.05 + Math.max(0, Math.min(1, level)) * 0.3;
+    staticGain.gain.setTargetAtTime(vol, t, 0.04);
+    if (staticFilter) staticFilter.frequency.setTargetAtTime(tuned ? 700 : 900 + Math.max(0, Math.min(1, level)) * 2200, t, 0.05);
+  }
+  function stopStatic() {
+    if (!started || !staticGain) return;
+    staticGain.gain.setTargetAtTime(0.0001, now(), 0.08);
+  }
   function click() { bump(); }
-  return { start: startDrones, tick: tick, silence: silence, scream: scream, whisper: whisper, sting: sting, bump: bump, foot: foot, buzz: buzz, click: click, resume: function () { if (ctx) ctx.resume(); } };
+  return {
+    start: startDrones, tick: tick, silence: silence, scream: scream, distantScream: distantScream,
+    whisper: whisper, sting: sting, bang: bang, knock: knock, scrape: scrape,
+    bump: bump, foot: foot, drag: drag, buzz: buzz, click: click,
+    setStatic: setStatic, stopStatic: stopStatic,
+    resume: function () { if (ctx) ctx.resume(); }
+  };
 }
 
 </script>
@@ -269,7 +379,7 @@ function AsylumAudio() {
   var SAVE_SET = "gg-asylum-settings";
   var SAVE_TIMED = "gg-asylum-best-timed";
   var SAVE_SURV = "gg-asylum-best-survival";
-  var VERSION = "1.10-test1";
+  var VERSION = "1.10-test2";
 
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   function lerp(a, b, t) { return a + (b - a) * t; }
@@ -400,29 +510,45 @@ function AsylumAudio() {
       stain(g, w, h, 8, "#2a0404");
     });
     var face = canvasTex(256, 256, function (g, w, h) {
-      g.fillStyle = "#c9c0b0"; g.fillRect(0, 0, w, h);
-      noiseFill(g, w, h, 16);
-      g.strokeStyle = "#2a1a16"; g.lineWidth = 2;
+      g.fillStyle = "#b7b0a0"; g.fillRect(0, 0, w, h);
+      g.fillStyle = "#9a9486";
+      g.beginPath(); g.ellipse(128, 150, 90, 110, 0, 0, 6.28); g.fill();
+      noiseFill(g, w, h, 20);
+      stain(g, w, h, 8, "#5a3030");
+      stain(g, w, h, 6, "#2a1810");
+      g.strokeStyle = "#1a0c0a"; g.lineWidth = 2;
       function stitch(x1, y1, x2, y2) {
         g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
-        var dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy);
-        for (var i = 0; i < len; i += 7) {
+        var dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1;
+        for (var i = 0; i < len; i += 6) {
           var t = i / len, px = x1 + dx * t, py = y1 + dy * t;
           g.beginPath();
-          g.moveTo(px - dy / len * 4, py + dx / len * 4);
-          g.lineTo(px + dy / len * 4, py - dx / len * 4);
+          g.moveTo(px - dy / len * 5, py + dx / len * 5);
+          g.lineTo(px + dy / len * 5, py - dx / len * 5);
           g.stroke();
         }
       }
-      stitch(80, 70, 180, 90);
-      stitch(70, 140, 190, 160);
-      stitch(120, 40, 130, 220);
-      g.fillStyle = "#0a0604";
-      g.beginPath(); g.ellipse(90, 110, 10, 16, -0.2, 0, 6.28); g.fill();
-      g.beginPath(); g.ellipse(160, 118, 14, 8, 0.4, 0, 6.28); g.fill();
-      g.fillStyle = "#4a1010";
-      g.beginPath(); g.ellipse(126, 190, 22, 8, 0.1, 0, 6.28); g.fill();
-      stain(g, w, h, 6, "#8a3030");
+      stitch(70, 55, 190, 80);
+      stitch(60, 130, 200, 155);
+      stitch(118, 20, 132, 230);
+      stitch(40, 180, 210, 200);
+      // sunken sockets
+      g.fillStyle = "#090604";
+      g.beginPath(); g.ellipse(88, 108, 16, 22, -0.25, 0, 6.28); g.fill();
+      g.beginPath(); g.ellipse(168, 118, 20, 12, 0.45, 0, 6.28); g.fill();
+      g.fillStyle = "rgba(80,10,8,0.85)";
+      g.beginPath(); g.ellipse(88, 112, 7, 6, 0, 0, 6.28); g.fill();
+      g.beginPath(); g.ellipse(170, 120, 6, 5, 0, 0, 6.28); g.fill();
+      // wet gleam
+      g.fillStyle = "rgba(200,160,140,0.45)";
+      g.beginPath(); g.ellipse(84, 102, 2.5, 3, 0, 0, 6.28); g.fill();
+      g.beginPath(); g.ellipse(174, 114, 2, 2.2, 0, 0, 6.28); g.fill();
+      // torn mouth
+      g.fillStyle = "#2a0606";
+      g.beginPath(); g.moveTo(96, 188); g.quadraticCurveTo(128, 220, 168, 184); g.quadraticCurveTo(130, 200, 96, 188); g.fill();
+      g.strokeStyle = "#4a1010"; g.lineWidth = 3;
+      g.beginPath(); g.moveTo(100, 186); g.quadraticCurveTo(128, 210, 164, 182); g.stroke();
+      stain(g, w, h, 5, "#6a1810");
     });
     face.wrapS = face.wrapT = THREE.ClampToEdgeWrapping;
     return { plaster: plaster, floor: floor, metal: metal, door: door, blood: blood, face: face };
@@ -528,14 +654,18 @@ function AsylumAudio() {
   function closestAABB(px, pz, b) {
     return { x: clamp(px, b.minx, b.maxx), z: clamp(pz, b.minz, b.maxz) };
   }
-  function pushCircleOut(px, pz, r, boxes, iters) {
+  function pushCircleOut(px, pz, r, boxes, iters, height, forPlayer) {
     var x = px, z = pz;
     iters = iters || 6;
+    height = height == null ? 1.7 : height;
     for (var n = 0; n < iters; n++) {
       var hit = false;
       for (var i = 0; i < boxes.length; i++) {
         var b = boxes[i];
         if (b.skip) continue;
+        if (b.playerOnly && !forPlayer) continue;
+        if (b.low && !forPlayer) continue;
+        if (b.low && forPlayer && height + 0.04 < (b.ymin || 1.18)) continue;
         var c = closestAABB(x, z, b);
         var ox = x - c.x, oz = z - c.z;
         var d2 = ox * ox + oz * oz;
@@ -618,7 +748,7 @@ function AsylumAudio() {
 
   function settingsHTML(s) {
     return '<div class="settings">'
-      + '<label>Mouse sensitivity <input id="set-sens" type="range" min="0.2" max="3" step="0.05" value="' + s.sens + '"></label>'
+      + '<label>Mouse sensitivity <span id="sens-val">' + Number(s.sens).toFixed(2) + '</span> <input id="set-sens" type="range" min="0.2" max="3" step="0.05" value="' + s.sens + '"></label>'
       + '<label>Invert look <input id="set-inv" type="checkbox"' + (s.invert ? " checked" : "") + "></label>"
       + '<label>Head bob <input id="set-bob" type="checkbox"' + (s.bob ? " checked" : "") + "></label>"
       + "</div>";
@@ -630,6 +760,8 @@ function AsylumAudio() {
     var bob = root.querySelector("#set-bob");
     function sync() {
       s.sens = +sens.value; s.invert = inv.checked; s.bob = bob.checked;
+      var lab = root.querySelector("#sens-val");
+      if (lab) lab.textContent = s.sens.toFixed(2);
       C.saveSettings(s);
       if (onChange) onChange();
     }
@@ -750,12 +882,18 @@ function AsylumAudio() {
     addBox(matM, -11, 0.5, 36, 2.4, 0.9, 0.9, group); // slab
     var sheet = addBox(new THREE.MeshStandardMaterial({ color: 0xb0a498, roughness: 1 }), -11, 1.05, 36, 1.8, 0.15, 0.7, group);
     // blood decals
-    [[0, 6, 1.2], [26, 18, 0], [-11, 34, Math.PI / 2], [2, 16, 0.4]].forEach(function (p) {
+    [[0, 6, 1.2], [26, 18, 0], [-11, 34, Math.PI / 2], [2, 16, 0.4], [-16, 17, 0.8]].forEach(function (p) {
       var dec = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.2), matBlood);
       dec.rotation.x = -Math.PI / 2; dec.rotation.z = p[2];
       dec.position.set(p[0], 0.02, p[1]);
       group.add(dec);
     });
+
+    // hanging duct across the west corridor — crouch to pass
+    addBox(matM, -16, 2.05, 17, 2.6, 0.85, 6.05, group);
+    addBox(matM, -16, 1.55, 14.6, 0.18, 0.2, 0.18, group);
+    addBox(matM, -16, 1.55, 19.4, 0.18, 0.2, 0.18, group);
+    walls.push({ minx: -17.25, maxx: -14.75, minz: 14.15, maxz: 19.85, low: true, playerOnly: true, ymin: 1.18 });
 
     var lights = [];
     function flickerLight(x, y, z, color, base) {
@@ -803,46 +941,52 @@ function AsylumAudio() {
   }
 
   /* ---------- puzzles from seed ---------- */
+  var VALVE_NAMES = ["West", "Main", "Bleed", "Return"];
   function makePuzzle(rng) {
-    var names = shuffle(rng, [
-      { n: "Mara Ellison", id: 17 },
-      { n: "Tomas Rieg", id: 22 },
-      { n: "June Calder", id: 30 },
-      { n: "Edwin Holst", id: 41 }
-    ]).slice(0, 3);
-    var victim = names[0];
-    var others = names.slice(1);
-    var freq = (80 + Math.floor(rng() * 200) / 10);
-    // 80.0 to 99.9
-    freq = Math.round((80 + rng() * 19.9) * 10) / 10;
-    var digits = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (_, i) { return i; });
-    digits = shuffle(rng, digits);
+    var pool = shuffle(rng, [
+      { n: "Mara Ellison", id: 17, ward: "east ward" },
+      { n: "Tomas Rieg", id: 22, ward: "east ward" },
+      { n: "June Calder", id: 30, ward: "west wing" },
+      { n: "Edwin Holst", id: 41, ward: "east ward" }
+    ]);
+    var victim = pool[0];
+    var cancelled = pool[1];
+    var stayed = pool[2];
+    var filesPeople = shuffle(rng, [victim, cancelled, stayed]);
+    var freq = Math.round((80 + rng() * 19.9) * 10) / 10;
+    var digits = shuffle(rng, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
     var code = "" + digits[0] + digits[1] + digits[2] + digits[3];
     var valves = shuffle(rng, [1, 2, 3, 4]);
     var fuseSlots = shuffle(rng, [0, 1, 2, 3, 4]).slice(0, 3).sort(function (a, b) { return a - b; });
-    var files = shuffle(rng, names);
     function fileText(p) {
       if (p.id === victim.id) {
-        return "Chart #" + p.id + " — " + p.n + "\nNight terrors. Assigned to the east ward. A later hand has added: taken down to the cold room on the 11th and not returned. Effects to follow the body.";
+        return "Chart #" + p.id + " — " + p.n + "\n" + p.ward + ". Night terrors. The 11th entry is a single line in another hand: body not on the ward at evening count. Effects boxed for the cold room, awaiting a chart number.";
       }
-      return "Chart #" + p.id + " — " + p.n + "\nRemains on the ward. A nurse has initialed the evening count. No transfer recorded.";
+      if (p.id === cancelled.id) {
+        return "Chart #" + p.id + " — " + p.n + "\n" + p.ward + ". A transfer to the cold room was written up, then struck through. Evening meds were given. Remains on the ward.";
+      }
+      return "Chart #" + p.id + " — " + p.n + "\n" + p.ward + ". Evening count initialed. No transfer recorded.";
     }
+    var census = "Night census, 11th.\nPresent: #" + stayed.id + " " + stayed.n + "; #" + cancelled.id + " " + cancelled.n + ".\nAbsent from the ward: #" + victim.id + " " + victim.n + ".\nA cancelled transfer for #" + cancelled.id + " is attached and should be ignored. Effects follow the body that actually left.";
     return {
       victim: victim,
-      others: others,
-      files: files.map(function (p) { return { title: "Patient file #" + p.id, body: fileText(p), id: p.id }; }),
+      cancelled: cancelled,
+      stayed: stayed,
+      files: filesPeople.map(function (p) { return { title: "Patient file #" + p.id, body: fileText(p), id: p.id }; }),
       freq: freq,
       code: code,
       valves: valves,
+      valveNames: VALVE_NAMES,
       fuseSlots: fuseSlots,
-      noteWard: "They took #" + victim.id + " below. I heard the trolley. He left the tag on the bed frame and they did not notice.",
+      noteWard: "I saw the trolley go below. The tag on the bed frame was #" + victim.id + ". They did not take it with them.",
       noteChapel: "The staff band is still on the annex radio. " + freq.toFixed(1) + " — I wrote it here so I would not have to remember a number in the dark.",
       noteRadioHint: "If the power is up, the annex set will talk. The plaster behind the pulpit has the band.",
-      noteValves: "To bleed the west riser without flooding the ward, open the wheels in this order: " + valves.join(", ") + ". Any other order dumps the line and the wheels seat again.",
+      noteCensus: census,
+      noteValves: "To bleed the west riser without flooding the ward, open the wheels in this order: " + valves.map(function (n) { return VALVE_NAMES[n - 1]; }).join(", then ") + ". Any other order dumps the line and the wheels seat again.",
       noteFuses: "Emergency routing — seats " + fuseSlots.map(function (i) { return String.fromCharCode(65 + i); }).join(", ") + " must be occupied. The rest stay empty or the south lock will not arm.",
       noteCodeWall: "The last of the office number is " + code[3] + ".",
       radioScript: "A dry voice, almost gone: the office number begins " + code[0] + " " + code[1] + ". The third is " + code[2] + ". That is all they would give us.",
-      lockboxHint: "Effects of the last transfer to the cold room. Use their chart number.",
+      lockboxHint: "Effects of the last body taken to the cold room. The combination is that patient's chart number. A cancelled transfer does not count.",
       scrawlChapel: ["STAFF BAND", freq.toFixed(1)],
       scrawlWard: ["#" + victim.id + " WENT BELOW"],
       scrawlHall: [code[3] + " AT THE END", "HE WALKS THE CEILING"]
@@ -850,40 +994,89 @@ function AsylumAudio() {
   }
 
   /* ---------- hunters ---------- */
-  function makeHunterMesh(tex) {
+  function makeHunterMesh(tex, variant) {
     var g = new THREE.Group();
-    var skin = new THREE.MeshStandardMaterial({ color: 0xc8c0b4, roughness: 0.86, metalness: 0.02 });
-    var dark = new THREE.MeshStandardMaterial({ color: 0x1a120e, roughness: 0.8 });
-    var faceMat = new THREE.MeshStandardMaterial({ map: tex.face, roughness: 0.8, metalness: 0.02 });
-    function part(mat, x, y, z, sx, sy, sz) {
-      var m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
-      m.position.set(x, y, z); g.add(m); return m;
+    function mat(color, extra) {
+      var o = { color: color, roughness: 0.9, metalness: 0.02, transparent: true, opacity: 1 };
+      if (extra) Object.assign(o, extra);
+      return new THREE.MeshStandardMaterial(o);
     }
-    var torso = part(skin, 0, 1.55, 0, 0.32, 1.55, 0.2);
-    var head = new THREE.Group(); head.position.set(0, 2.55, 0); g.add(head);
-    var skull = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.5, 0.28), faceMat);
-    skull.scale.set(1, 1.35, 0.85); head.add(skull);
-    part(skin, 0, 2.2, 0, 0.12, 0.35, 0.12);
-    var armL = new THREE.Group(); armL.position.set(-0.22, 2.1, 0); g.add(armL);
-    var armR = new THREE.Group(); armR.position.set(0.22, 2.1, 0); g.add(armR);
-    var aL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.5, 0.08), skin); aL.position.y = -0.7; armL.add(aL);
-    var aR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.5, 0.08), skin); aR.position.y = -0.7; armR.add(aR);
-    part(skin, -0.1, 0.55, 0, 0.1, 1.1, 0.1);
-    part(skin, 0.1, 0.55, 0, 0.1, 1.1, 0.1);
-    part(dark, 0, 1.5, 0.11, 0.2, 0.02, 0.02);
-    g.userData = { head: head, armL: armL, armR: armR, torso: torso };
-    g.scale.set(1, 1.15, 1);
+    var skin = mat(variant ? 0xb0a898 : 0xc6beb0);
+    var skin2 = mat(0x8a8074);
+    var dark = mat(0x1a120e);
+    var faceMat = new THREE.MeshStandardMaterial({ map: tex.face, roughness: 0.82, metalness: 0.02, transparent: true, opacity: 1 });
+    var eyeMat = new THREE.MeshStandardMaterial({ color: 0x140403, emissive: 0x6a0a0a, emissiveIntensity: variant ? 1.1 : 0.85, roughness: 0.35, transparent: true, opacity: 1 });
+    function box(parent, material, x, y, z, sx, sy, sz) {
+      var m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), material);
+      m.position.set(x, y, z);
+      parent.add(m);
+      return m;
+    }
+    var hips = new THREE.Group(); hips.position.set(0, 1.05, 0); g.add(hips);
+    var torso = new THREE.Group(); torso.position.set(0, 0.15, 0); torso.rotation.x = 0.18; hips.add(torso);
+    box(torso, skin, 0, 0.55, 0, 0.28, 1.15, 0.18);
+    box(torso, dark, 0, 0.5, 0.1, 0.16, 0.02, 0.02);
+    box(torso, dark, 0, 0.7, 0.1, 0.14, 0.02, 0.02);
+    var neck = box(torso, skin2, 0, 1.25, 0.02, 0.09, 0.42, 0.09);
+    var head = new THREE.Group(); head.position.set(0, 1.52, 0.04); torso.add(head);
+    var skull = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.52, 0.3), faceMat);
+    skull.scale.set(1, 1.4, 0.82); head.add(skull);
+    var jaw = new THREE.Group(); jaw.position.set(0, -0.2, 0.04); head.add(jaw);
+    box(jaw, skin2, 0, -0.06, 0.02, 0.2, 0.12, 0.16);
+    box(head, eyeMat, -0.07, 0.06, 0.14, 0.05, 0.07, 0.03);
+    box(head, eyeMat, 0.08, 0.04, 0.14, 0.06, 0.04, 0.03);
+    var armL = new THREE.Group(); armL.position.set(-0.2, 1.05, 0); torso.add(armL);
+    var armR = new THREE.Group(); armR.position.set(0.22, 1.12, 0); torso.add(armR);
+    var upperL = new THREE.Group(); armL.add(upperL);
+    var upperR = new THREE.Group(); armR.add(upperR);
+    box(upperL, skin, 0, -0.38, 0, 0.07, 0.78, 0.07);
+    box(upperR, skin, 0, -0.42, 0, 0.065, 0.86, 0.065);
+    var elL = new THREE.Group(); elL.position.set(0, -0.78, 0); upperL.add(elL);
+    var elR = new THREE.Group(); elR.position.set(0, -0.86, 0); upperR.add(elR);
+    box(elL, skin2, 0, -0.4, 0, 0.06, 0.8, 0.06);
+    box(elR, skin2, 0, -0.46, 0, 0.055, 0.92, 0.055);
+    box(elL, dark, -0.05, -0.84, 0.02, 0.03, 0.18, 0.03);
+    box(elL, dark, 0.04, -0.86, 0.02, 0.03, 0.2, 0.03);
+    box(elR, dark, -0.04, -0.96, 0.02, 0.03, 0.2, 0.03);
+    box(elR, dark, 0.05, -0.98, 0.03, 0.03, 0.22, 0.03);
+    var legL = new THREE.Group(); legL.position.set(-0.1, 0, 0); hips.add(legL);
+    var legR = new THREE.Group(); legR.position.set(0.1, 0, 0); hips.add(legR);
+    box(legL, skin, 0, -0.35, 0, 0.09, 0.7, 0.09);
+    box(legR, skin, 0, -0.35, 0, 0.09, 0.7, 0.09);
+    var knL = new THREE.Group(); knL.position.set(0, -0.7, 0); legL.add(knL);
+    var knR = new THREE.Group(); knR.position.set(0, -0.7, 0); legR.add(knR);
+    box(knL, skin2, 0, -0.35, 0, 0.08, 0.7, 0.08);
+    box(knR, skin2, 0, -0.35, 0, 0.08, 0.7, 0.08);
+    g.userData = { head: head, jaw: jaw, armL: armL, armR: armR, elL: elL, elR: elR, legL: legL, legR: legR, knL: knL, knR: knR, torso: torso, hips: hips, mats: [skin, skin2, dark, faceMat, eyeMat] };
+    g.scale.set(variant ? 0.95 : 1, variant ? 1.28 : 1.18, variant ? 0.95 : 1);
     return g;
   }
 
-  function Hunter(world, tex, x, z, audio) {
-    this.mesh = makeHunterMesh(tex);
+  function setHunterOpacity(mesh, op) {
+    var mats = mesh.userData.mats || [];
+    for (var i = 0; i < mats.length; i++) {
+      mats[i].opacity = op;
+      mats[i].transparent = op < 0.99;
+      mats[i].depthWrite = op > 0.85;
+    }
+    mesh.visible = op > 0.02;
+  }
+
+  function Hunter(world, tex, x, z, audio, variant) {
+    this.mesh = makeHunterMesh(tex, variant);
     this.x = x; this.z = z; this.y = 0;
     this.vx = 0; this.vz = 0; this.facing = 0;
     this.state = "patrol";
     this.target = { x: x, z: z };
     this.seen = 0; this.searchT = 0; this.stalkT = 2 + Math.random() * 8;
     this.ceiling = false; this.twitchT = 0; this.modeT = 0;
+    this.gait = Math.random() * 10;
+    this.opacity = 1;
+    this.pendingVanish = 0;
+    this.appearHold = 0;
+    this.justAppeared = false;
+    this.lungeT = 0;
+    this.footT = 0;
     this.mesh.position.set(x, 0, z);
     this.radius = 0.34;
     this.world = world; this.audio = audio;
@@ -892,10 +1085,8 @@ function AsylumAudio() {
   Hunter.prototype.setCeiling = function (on) {
     this.ceiling = on;
     if (on) {
-      this.mesh.rotation.x = Math.PI;
-      this.y = H - 0.05;
+      this.y = H - 0.08;
     } else {
-      this.mesh.rotation.x = 0;
       this.y = 0;
     }
   };
@@ -907,7 +1098,7 @@ function AsylumAudio() {
       var t = i / steps, x = this.x + dx * t, z = this.z + dz * t;
       for (var w = 0; w < walls.length; w++) {
         var b = walls[w];
-        if (b.skip) continue;
+        if (b.skip || b.low || b.playerOnly) continue;
         if (x >= b.minx && x <= b.maxx && z >= b.minz && z <= b.maxz) return false;
       }
     }
@@ -918,16 +1109,38 @@ function AsylumAudio() {
     var p = wp[Math.floor(Math.random() * wp.length)];
     this.target.x = p.x; this.target.z = p.z;
   };
-  Hunter.prototype.update = function (dt, player, walls, canSeeBoost) {
+  Hunter.prototype.update = function (dt, player, walls, hooks) {
+    this.justAppeared = false;
     var dxp = player.x - this.x, dzp = player.z - this.z;
     var dist = Math.hypot(dxp, dzp);
     var los = dist < 22 && this.los(player.x, player.z, walls);
-    var inFront = true;
     var ang = Math.atan2(dxp, dzp);
     var view = Math.abs(Math.atan2(Math.sin(ang - this.facing), Math.cos(ang - this.facing)));
-    inFront = view < 1.3 || dist < 2.5;
+    var inFront = view < 1.3 || dist < 2.5;
     var lit = player.flashlightOn && player.battery > 0 && dist < (player.flashDist || 12);
-    if (los && inFront && (dist < 10 || lit || canSeeBoost)) {
+    if (this.appearHold > 0) {
+      this.opacity = Math.min(1, this.opacity + dt * 6);
+      setHunterOpacity(this.mesh, this.opacity);
+      if (this.opacity >= 1) this.appearHold -= dt;
+      if (this.appearHold <= 0) this.pendingVanish = 0.55;
+    } else if (this.pendingVanish > 0) {
+      this.pendingVanish -= dt;
+      this.opacity = Math.max(0, this.opacity - dt * 2.6);
+      setHunterOpacity(this.mesh, this.opacity);
+      if (this.pendingVanish <= 0) {
+        var far = this.world.waypoints[Math.floor(Math.random() * this.world.waypoints.length)];
+        this.x = far.x; this.z = far.z;
+        this.state = "patrol";
+        this.pickPatrol();
+        this.setCeiling(false);
+        this.opacity = 1;
+        setHunterOpacity(this.mesh, 1);
+      }
+    } else if (this.opacity < 1) {
+      this.opacity = Math.min(1, this.opacity + dt * 3.5);
+      setHunterOpacity(this.mesh, this.opacity);
+    }
+    if (los && inFront && (dist < 10 || lit) && this.opacity > 0.5) {
       this.state = "chase";
       this.seen = 2.8;
       this.target.x = player.x; this.target.z = player.z;
@@ -943,47 +1156,84 @@ function AsylumAudio() {
       this.stalkT -= dt;
       var toT = Math.hypot(this.target.x - this.x, this.target.z - this.z);
       if (toT < 0.6) this.pickPatrol();
-      if (this.stalkT < 0 && dist > 6 && dist < 16) {
+      if (this.stalkT < 0 && dist > 6 && dist < 16 && this.pendingVanish <= 0) {
         this.stalkT = 8 + Math.random() * 14;
-        // appear at the edge of the flashlight, then often vanish
         var a = player.yaw + (Math.random() < 0.5 ? 0.55 : -0.55) + (Math.random() - 0.5) * 0.15;
         var d = 6 + Math.random() * 3;
         var nx = player.x + Math.sin(a) * d, nz = player.z - Math.cos(a) * d;
         var pos = C.pushCircleOut(nx, nz, this.radius, walls, 8);
         this.x = pos.x; this.z = pos.z;
-        if (Math.random() < 0.45 && H > 3) this.setCeiling(true);
-        if (Math.random() < 0.35 && this.audio) this.audio.whisper();
+        this.opacity = 0;
+        setHunterOpacity(this.mesh, 0);
+        if (Math.random() < 0.5 && H > 3) this.setCeiling(true);
+        this.justAppeared = true;
+        this.pendingVanish = 0;
+        this.appearHold = Math.random() < 0.7 ? (0.8 + Math.random() * 0.5) : 0;
+        if (hooks && hooks.onAppear) hooks.onAppear(this, dist);
       }
     }
-    var spd = this.state === "chase" ? 3.35 : this.state === "search" ? 2.2 : 1.35;
-    if (this.ceiling) spd *= 0.85;
-    // jerky: brief stalls
+    var spd = this.state === "chase" ? 3.45 : this.state === "search" ? 2.25 : 1.35;
+    if (this.ceiling) spd *= 0.9;
+    if (this.lungeT > 0) { this.lungeT -= dt; spd = 6.1; }
     this.modeT -= dt;
     if (this.modeT < 0) {
-      this.modeT = 0.15 + Math.random() * 0.8;
-      if (Math.random() < 0.18 && this.state !== "chase") spd = 0;
+      this.modeT = 0.12 + Math.random() * 0.7;
+      if (Math.random() < 0.2 && this.state !== "chase") spd = 0;
     }
     var tx = this.target.x - this.x, tz = this.target.z - this.z, td = Math.hypot(tx, tz) || 1;
     var wishX = (tx / td) * spd, wishZ = (tz / td) * spd;
-    this.vx = approach(this.vx, wishX, 10 * dt);
-    this.vz = approach(this.vz, wishZ, 10 * dt);
+    this.vx = approach(this.vx, wishX, (this.lungeT > 0 ? 28 : 11) * dt);
+    this.vz = approach(this.vz, wishZ, (this.lungeT > 0 ? 28 : 11) * dt);
     var nx = this.x + this.vx * dt, nz = this.z + this.vz * dt;
     var pos = C.pushCircleOut(nx, nz, this.radius, walls, 6);
     this.x = pos.x; this.z = pos.z;
     if (Math.abs(this.vx) + Math.abs(this.vz) > 0.05) this.facing = Math.atan2(this.vx, this.vz);
     this.mesh.position.set(this.x, this.y, this.z);
     this.mesh.rotation.y = this.facing;
-    if (this.ceiling) this.mesh.rotation.x = Math.PI;
+    this.mesh.rotation.x = this.ceiling ? Math.PI : 0;
     var ud = this.mesh.userData;
+    var moving = Math.hypot(this.vx, this.vz) > 0.2;
+    this.gait += dt * (moving ? (this.state === "chase" ? 7.5 : 4.6) : 0.6);
+    var limp = Math.sin(this.gait);
+    var limp2 = Math.sin(this.gait * 0.5);
+    if (this.ceiling) {
+      ud.armL.rotation.x = Math.sin(this.gait) * 1.1;
+      ud.armR.rotation.x = Math.sin(this.gait + Math.PI) * 1.1;
+      ud.elL.rotation.x = 0.4;
+      ud.elR.rotation.x = 0.4;
+      ud.legL.rotation.x = 0.5 + limp * 0.2;
+      ud.legR.rotation.x = 0.5 - limp * 0.2;
+    } else {
+      ud.legL.rotation.x = limp * 0.55;
+      ud.legR.rotation.x = -limp * 0.72;
+      ud.knL.rotation.x = Math.max(0, -limp) * 0.5;
+      ud.knR.rotation.x = Math.max(0, limp) * 0.45;
+      ud.armL.rotation.x = -limp * 0.85;
+      ud.armR.rotation.x = limp * 0.35 + limp2 * 0.15;
+      ud.elL.rotation.x = 0.25 + Math.max(0, limp) * 0.4;
+      ud.elR.rotation.x = 0.15 + Math.max(0, -limp) * 0.3;
+      ud.torso.rotation.z = limp * 0.05;
+    }
     this.twitchT -= dt;
     if (this.twitchT < 0) {
-      this.twitchT = 0.05 + Math.random() * 0.4;
-      ud.head.rotation.y = (Math.random() - 0.5) * 0.8;
-      ud.head.rotation.z = (Math.random() - 0.5) * 0.35;
-      ud.armL.rotation.z = 0.4 + Math.random() * 0.6;
-      ud.armR.rotation.z = -0.4 - Math.random() * 0.6;
-      if (Math.random() < 0.08) ud.head.rotation.x = (Math.random() < 0.5 ? -0.6 : 0.7);
-      else ud.head.rotation.x = 0;
+      this.twitchT = 0.04 + Math.random() * 0.38;
+      ud.head.rotation.y = (Math.random() - 0.5) * (this.state === "chase" ? 0.5 : 1.0);
+      ud.head.rotation.z = (Math.random() - 0.5) * 0.45;
+      ud.armL.rotation.z = 0.35 + Math.random() * 0.7;
+      ud.armR.rotation.z = -0.25 - Math.random() * 0.7;
+      if (Math.random() < 0.12) ud.head.rotation.x = (Math.random() < 0.5 ? -0.7 : 0.85);
+      else ud.head.rotation.x = this.ceiling ? 0 : 0.05;
+    }
+    if (los && dist < 10) {
+      var lookY = Math.atan2(dxp, dzp) - this.facing;
+      lookY = Math.atan2(Math.sin(lookY), Math.cos(lookY));
+      ud.head.rotation.y = approach(ud.head.rotation.y, clamp(lookY, -0.9, 0.9), 4 * dt);
+    }
+    var jawWant = (this.state === "chase" || this.lungeT > 0) ? 0.6 : 0.02;
+    ud.jaw.rotation.x = approach(ud.jaw.rotation.x, jawWant, 4 * dt);
+    if (moving && dist < 11 && this.audio && this.opacity > 0.4) {
+      this.footT += dt * (this.state === "chase" ? 2.4 : 1.3);
+      if (this.footT > 1) { this.footT -= 1; this.audio.drag(dist < 5 ? 0.22 : 0.1); }
     }
     return dist;
   };
@@ -1020,6 +1270,12 @@ function AsylumAudio() {
     this._initHunters();
     this.lookAt = new THREE.Raycaster();
     this._focus = null;
+    this.scareCd = 8;
+    this._shake = 0;
+    this._scares = 0;
+    this._blackout = 0;
+    this._yawStill = 0;
+    this._lastYaw = 0;
   }
 
   Game.prototype._initThree = function () {
@@ -1085,7 +1341,7 @@ function AsylumAudio() {
     ];
     for (var i = 0; i < n; i++) {
       var s = spots[i % spots.length];
-      var h = new Hunter(this.world, this.tex, s.x + (i * 0.4), s.z, this.audio);
+      var h = new Hunter(this.world, this.tex, s.x + (i * 0.4), s.z, this.audio, i % 2);
       this.scene.add(h.mesh);
       this.hunters.push(h);
     }
@@ -1161,6 +1417,12 @@ function AsylumAudio() {
       use: function () { self.addNote("Hall scratch", P.noteCodeWall); self.openText("Scratched into the plaster", P.noteCodeWall); } });
     act({ id: "note_fuses", type: "note", x: 21, y: 1.5, z: 8.5, verb: "Read", label: "a routing card in Records", mesh: itemMesh(21, 1.5, 8.5, 0.2, 0.01, 0.14, 0xbfc8b0),
       use: function () { self.addNote("Routing card", P.noteFuses); self.openText("Electrical routing card", P.noteFuses); } });
+    act({ id: "note_census", type: "note", x: 11.4, y: 1.05, z: 8.7, verb: "Read", label: "the night census", mesh: itemMesh(11.4, 1.05, 8.7, 0.28, 0.02, 0.2, 0xd8d0c0),
+      use: function () {
+        self.addNote("Night census", P.noteCensus); self.openText("Night census, 11th", P.noteCensus);
+        self.flags.files++;
+        if (!self.flags.box) self.advanceStoryObjective(true);
+      } });
 
     P.files.forEach(function (f, i) {
       act({ id: "file_" + i, type: "file", x: 10.2 + i * 0.35, y: 1.0, z: 9.1, verb: "Read", label: f.title, mesh: itemMesh(10.2 + i * 0.35, 1.0, 9.1, 0.22, 0.03, 0.3, 0x8a6a40),
@@ -1176,11 +1438,12 @@ function AsylumAudio() {
       use: function () { self.openLockbox(); } });
 
     act({ id: "door_morgue", type: "door", x: this.world.doors.d_hall_morgue.geom.x, y: 1.2, z: this.world.doors.d_hall_morgue.geom.z, verb: "Unlock", label: "the cold-room door",
-      use: function () {
-        if (self.flags.morgue) return;
+      use: function (a) {
+        if (self.flags.morgue) { a.taken = true; return; }
         if (!self.inv.morgueKey) { self.toast("The lock wants a key."); return; }
         self.unlockDoor("d_hall_morgue");
         self.flags.morgue = true;
+        a.taken = true;
         self.advanceStoryObjective(true);
         self.toast("The cold-room door gives way.");
       } });
@@ -1258,12 +1521,17 @@ function AsylumAudio() {
         b.onclick = (function (d) { return function () { if (code.length < 3) { code += d; draw(); } }; })(String(n));
         pad.appendChild(b);
       }
+      var clr = document.createElement("button"); clr.className = "btn"; clr.textContent = "Clear";
+      clr.onclick = function () { code = ""; draw(); };
+      pad.appendChild(clr);
       var ok = document.createElement("button"); ok.className = "btn"; ok.textContent = "Enter";
-      ok.style.gridColumn = "span 3";
+      ok.style.gridColumn = "span 2";
       ok.onclick = function () {
         if (code === String(self.puzzle.victim.id)) {
           self.flags.box = true;
           self.inv.morgueKey = true;
+          var boxAct = self.acts.filter(function (a) { return a.id === "lockbox"; })[0];
+          if (boxAct) boxAct.done = true;
           self.closePanel();
           self.toast("A cold iron key is in the tray.");
           self.addNote("Effects box", "Chart #" + self.puzzle.victim.id + " — a morgue key.");
@@ -1309,6 +1577,8 @@ function AsylumAudio() {
           self.flags.power = true;
           self.unlockDoor("d_office_exit");
           self.world.lights.forEach(function (L) { L.base *= 1.25; });
+          var fa = self.acts.filter(function (a) { return a.id === "fuses"; })[0];
+          if (fa) fa.done = true;
           self.closePanel();
           self.toast("The building takes a breath. Power holds.");
           self.advanceStoryObjective(true);
@@ -1323,21 +1593,22 @@ function AsylumAudio() {
       this.toast("The set is dead. It wants power.");
       return;
     }
-    this.openPanel("radio", "Staff radio", '<p class="fine">Turn the band until the static thins.</p><p class="code" id="freq">80.0</p><label class="settings"><input id="dial" type="range" min="800" max="1000" value="800"></label><button class="btn" data-close="1">Step back</button>', function (root) {
+    this.openPanel("radio", "Staff radio", '<p class="fine">Turn the band until the static thins and a voice can be heard.</p><p class="code" id="freq">80.0</p><label class="settings"><input id="dial" type="range" min="800" max="1000" value="800"></label><button class="btn" data-close="1">Step back</button>', function (root) {
       var dial = root.querySelector("#dial"), lab = root.querySelector("#freq");
       var announced = self.flags.radio;
       function show() {
-        var f = (dial.value / 10).toFixed(1);
-        lab.textContent = f;
-        if (Math.abs(+f - P.freq) <= 0.15) {
-          lab.textContent = P.freq.toFixed(1) + " — clear";
-          if (!announced) {
-            announced = true;
-            self.flags.radio = true;
-            self.addNote("Radio", P.radioScript);
-            self.openText("Through the static", P.radioScript);
-            self.advanceStoryObjective(true);
-          }
+        var f = dial.value / 10;
+        var dist = Math.abs(f - P.freq);
+        var tuned = dist <= 0.15;
+        lab.textContent = tuned ? P.freq.toFixed(1) + " — clear" : f.toFixed(1);
+        self.audio.setStatic(Math.min(1, dist / 4), tuned);
+        if (tuned && !announced) {
+          announced = true;
+          self.flags.radio = true;
+          self.addNote("Radio", P.radioScript);
+          self.audio.stopStatic();
+          self.openText("Through the static", P.radioScript);
+          self.advanceStoryObjective(true);
         }
       }
       dial.oninput = show; show();
@@ -1346,15 +1617,16 @@ function AsylumAudio() {
 
   Game.prototype.openValves = function () {
     var self = this, P = this.puzzle;
-    this.openPanel("valves", "Riser wheels", '<p class="fine">Four wheels, numbered. They must be opened in a recorded order. A mistake seats them all again.</p><div id="vrow" style="display:flex;gap:8px;margin:12px 0;flex-wrap:wrap"></div><button class="btn" data-close="1">Step back</button>', function (root) {
+    this.openPanel("valves", "Riser wheels", '<p class="fine">Four wheels, named. They must be opened in the order recorded in the cold-room log. A mistake seats them all again.</p><div id="vrow" style="display:flex;gap:8px;margin:12px 0;flex-wrap:wrap"></div><button class="btn" data-close="1">Step back</button>', function (root) {
       var row = root.querySelector("#vrow");
       var opened = [false, false, false, false];
+      var names = P.valveNames || VALVE_NAMES;
       function redraw() {
         row.innerHTML = "";
         for (var i = 1; i <= 4; i++) {
           var b = document.createElement("button");
           b.className = "btn";
-          b.textContent = "Wheel " + i + (opened[i - 1] ? " — open" : "");
+          b.textContent = names[i - 1] + (opened[i - 1] ? " — open" : "");
           b.disabled = opened[i - 1] || self.flags.valves;
           b.onclick = (function (n) { return function () {
             var expect = P.valves[self.valveStep];
@@ -1364,6 +1636,8 @@ function AsylumAudio() {
               if (self.valveStep >= 4) {
                 self.flags.valves = true;
                 self.unlockDoor("d_office_exit");
+                var va = self.acts.filter(function (a) { return a.id === "valves"; })[0];
+                if (va) va.done = true;
                 self.closePanel();
                 self.toast("The line holds. The south seal releases a bolt.");
                 self.advanceStoryObjective(true);
@@ -1399,12 +1673,17 @@ function AsylumAudio() {
         b.onclick = (function (d) { return function () { if (code.length < 4) { code += d; draw(); } }; })(String(n));
         pad.appendChild(b);
       }
-      var ok = document.createElement("button"); ok.className = "btn"; ok.textContent = "Enter"; ok.style.gridColumn = "span 3";
+      var clr = document.createElement("button"); clr.className = "btn"; clr.textContent = "Clear";
+      clr.onclick = function () { code = ""; draw(); };
+      pad.appendChild(clr);
+      var ok = document.createElement("button"); ok.className = "btn"; ok.textContent = "Enter"; ok.style.gridColumn = "span 2";
       ok.onclick = function () {
         if (code === self.puzzle.code) {
           self.flags.office = true;
           self.unlockDoor("d_foyer_office");
           if (self.flags.power && self.flags.valves) { self.unlockDoor("d_office_exit"); self.unlockDoor("d_exit"); }
+          var ka = self.acts.filter(function (a) { return a.id === "keypad"; })[0];
+          if (ka) ka.done = true;
           self.closePanel();
           self.toast("The office lock lets go.");
           self.advanceStoryObjective(true);
@@ -1438,6 +1717,7 @@ function AsylumAudio() {
     document.getElementById("modal").hidden = true;
     document.getElementById("modal").innerHTML = "";
     this._modal = false;
+    if (this.audio && this.audio.stopStatic) this.audio.stopStatic();
   };
 
   Game.prototype.toast = function (msg) {
@@ -1453,7 +1733,7 @@ function AsylumAudio() {
   };
 
   Game.prototype.nearestAct = function () {
-    var reach = 2.35;
+    var reach = 2.55;
     this.cam.updateMatrixWorld();
     this.lookAt.setFromCamera({ x: 0, y: 0 }, this.cam);
     var best = null, bestD = reach;
@@ -1461,13 +1741,13 @@ function AsylumAudio() {
     var dir = this.lookAt.ray.direction;
     for (var i = 0; i < this.acts.length; i++) {
       var a = this.acts[i];
-      if (a.taken) continue;
+      if (a.taken || a.done) continue;
       var dx = a.x - ox, dy = (a.y || 1) - oy, dz = a.z - oz;
       var dist = Math.hypot(dx, dy, dz);
       if (dist > reach) continue;
       var nd = Math.hypot(dx, dy, dz) || 1;
       var dot = (dx * dir.x + dy * dir.y + dz * dir.z) / nd;
-      if (dot < 0.62) continue; // roughly in view
+      if (dot < 0.5) continue; // roughly in view
       var score = dist * (1.4 - dot);
       if (score < bestD) { bestD = score; best = a; }
     }
@@ -1505,15 +1785,25 @@ function AsylumAudio() {
     var accel = wl > 0 ? 32 : 48; // snap decel: no ice
     p.vx = approach(p.vx, wishX, accel * dt);
     p.vz = approach(p.vz, wishZ, accel * dt);
+    var pHeight = lerp(1.72, 1.02, p.crouch);
     var nx = p.x + p.vx * dt, nz = p.z + p.vz * dt;
-    var pos = C.pushCircleOut(nx, nz, p.radius, this.world.walls, 8);
+    var pos = C.pushCircleOut(nx, nz, p.radius, this.world.walls, 8, pHeight, true);
     // if the push blocked almost all motion, don't accumulate "ice" against the wall
     p.vx = (pos.x - p.x) / Math.max(dt, 1e-6);
     p.vz = (pos.z - p.z) / Math.max(dt, 1e-6);
     // cap residual so corner correction doesn't fling
     var sp = Math.hypot(p.vx, p.vz);
     if (sp > speed + 0.1) { p.vx *= speed / sp; p.vz *= speed / sp; }
+    var blocked = wl > 0.2 && Math.hypot(pos.x - p.x, pos.z - p.z) < speed * dt * 0.08;
     p.x = pos.x; p.z = pos.z;
+    if (blocked) {
+      this._bumpT = (this._bumpT || 0) - dt;
+      if (this._bumpT <= 0) { this.audio.bump(); this._bumpT = 0.35; }
+      if (!this._ductHint && pHeight > 1.15 && p.x > -17.5 && p.x < -14.5 && p.z > 14 && p.z < 20) {
+        this._ductHint = true;
+        this.toast("The duct hangs too low. Crouch to pass.");
+      }
+    }
 
     var crouchT = this.wantCrouch ? 1 : 0;
     p.crouch = approach(p.crouch, crouchT, 6 * dt);
@@ -1539,11 +1829,16 @@ function AsylumAudio() {
     this.flash.distance = p.flashDist;
     this.flashFill.intensity = on ? 0.35 * flicker : 0;
 
+    var lean = strafe * 0.03 * (1 - p.crouch * 0.6);
     this.cam.position.set(p.x + bobX * cy, p.eye + bobY, p.z + bobX * sy);
     this.cam.rotation.order = "YXZ";
     this.cam.rotation.y = p.yaw;
     this.cam.rotation.x = p.pitch;
-    this.cam.rotation.z = 0;
+    this.cam.rotation.z = lean;
+    if (this._shake > 0) {
+      this.cam.rotation.z += Math.sin(this.t * 46) * this._shake * 0.1;
+      this.cam.rotation.x += Math.sin(this.t * 62) * this._shake * 0.05;
+    }
     var look = new THREE.Vector3(0, 0, -1).applyQuaternion(this.cam.quaternion);
     this.flash.position.copy(this.cam.position);
     this.flashTarget.position.copy(this.cam.position).add(look.multiplyScalar(8));
@@ -1560,7 +1855,7 @@ function AsylumAudio() {
     this.world.lights.forEach(function (L) {
       L.t += dt;
       var n = 0.85 + Math.sin(L.t * 7.3 + L.base) * 0.06 + Math.sin(L.t * 23) * 0.03;
-      if (Math.random() < dt * 0.08) L.mode = "blip";
+      if (Math.random() < dt * 0.14) L.mode = "blip";
       if (L.mode === "blip") {
         L.l.intensity = Math.random() < 0.5 ? 0 : L.base * 0.2;
         if (Math.random() < dt * 6) L.mode = "idle";
@@ -1569,21 +1864,58 @@ function AsylumAudio() {
   };
 
   Game.prototype.updateHunters = function (dt) {
-    var closest = 99, p = this.player;
+    var closest = 99, p = this.player, self = this;
+    var hooks = {
+      onAppear: function (h, d) { self.jumpscare("edge", h); }
+    };
     for (var i = 0; i < this.hunters.length; i++) {
-      var d = this.hunters[i].update(dt, p, this.world.walls, false);
+      var h = this.hunters[i];
+      var d = h.update(dt, p, this.world.walls, hooks);
       if (d < closest) closest = d;
-      if (d < 1.05 && !this.hunters[i].ceiling && this.hunters[i].los(p.x, p.z, this.world.walls)) {
+      if (h.state === "chase" && d < 3.2 && h.lungeT <= 0 && h.opacity > 0.7 && Math.random() < dt * 0.5) {
+        h.lungeT = 0.42;
+        if (this.scareCd <= 0) this.jumpscare("close", h);
+      }
+      if (d < 1.05 && !h.ceiling && h.opacity > 0.45 && h.los(p.x, p.z, this.world.walls)) {
         this.die();
         return closest;
       }
     }
     if (this.mode === "survival" && this.t > 45 + this.hunters.length * 40 && this.hunters.length < 6) {
-      var h = new Hunter(this.world, this.tex, ROOM.chapel.cx, ROOM.chapel.cz, this.audio);
-      this.scene.add(h.mesh); this.hunters.push(h);
+      var nh = new Hunter(this.world, this.tex, ROOM.chapel.cx, ROOM.chapel.cz, this.audio, this.hunters.length % 2);
+      this.scene.add(nh.mesh); this.hunters.push(nh);
       this.toast("Another one is in the building.");
     }
     return closest;
+  };
+
+  Game.prototype.jumpscare = function (kind, hunter) {
+    if (this.ended || this.scareCd > 0 && kind !== "close") return;
+    if (kind !== "close") this.scareCd = this.mode === "nightmare" ? 14 : 20 + Math.random() * 10;
+    else this.scareCd = Math.max(this.scareCd, 8);
+    this._scares++;
+    this._shake = kind === "close" ? 0.5 : kind === "bang" ? 0.22 : 0.32;
+    var el = document.getElementById("scare");
+    if (el) {
+      el.classList.add("on");
+      setTimeout(function () { el.classList.remove("on"); }, kind === "bang" ? 80 : 140);
+    }
+    if (kind === "bang") this.audio.bang();
+    else if (kind === "close") { this.audio.sting(); this.audio.scream(); }
+    else { this.audio.sting(); if (Math.random() < 0.4) this.audio.whisper(); }
+  };
+
+  Game.prototype.maybeFlashScare = function () {
+    if (this.ended || this.scareCd > 0) return;
+    var p = this.player;
+    for (var i = 0; i < this.hunters.length; i++) {
+      var h = this.hunters[i];
+      var d = Math.hypot(h.x - p.x, h.z - p.z);
+      if (d < 7 && d > 1.15 && h.opacity > 0.3 && h.los(p.x, p.z, this.world.walls)) {
+        this.jumpscare("edge", h);
+        return;
+      }
+    }
   };
 
   Game.prototype.die = function () {
@@ -1636,20 +1968,49 @@ function AsylumAudio() {
     if (this.ended) { this.renderer.render(this.scene, this.cam); return; }
     var prox = near < 14 ? clamp(1 - (near - 1.2) / 12, 0, 1) : 0;
     this.audio.tick(dt, prox, st.sprinting);
+    if (this._shake > 0) this._shake = Math.max(0, this._shake - dt * 1.8);
+    if (this.scareCd > 0) this.scareCd -= dt;
+    var hurt = document.getElementById("hurt");
+    if (hurt) hurt.classList.toggle("near", prox > 0.62 && !this.ended);
+    if (this._blackout > 0) {
+      this._blackout -= dt;
+      this.world.lights.forEach(function (L) { L.l.intensity = 0; });
+    }
+    var yawD = Math.abs(Math.atan2(Math.sin(this.player.yaw - this._lastYaw), Math.cos(this.player.yaw - this._lastYaw)));
+    if (yawD < 0.04) this._yawStill += dt; else this._yawStill = 0;
+    this._lastYaw = this.player.yaw;
+    if (this.scareCd <= 0 && this.t > 24 && this._scares < 6 && this._yawStill > 2.8 && near > 3) {
+      var behind = null;
+      for (var hi = 0; hi < this.hunters.length; hi++) {
+        var hh = this.hunters[hi];
+        if (hh.state === "chase" || hh.opacity < 0.4) continue;
+        var bx = this.player.x - Math.sin(this.player.yaw) * 2.4;
+        var bz = this.player.z + Math.cos(this.player.yaw) * 2.4;
+        var posb = C.pushCircleOut(bx, bz, hh.radius, this.world.walls, 8);
+        var dd = Math.hypot(posb.x - this.player.x, posb.z - this.player.z);
+        if (dd > 1.4 && dd < 3.2) { behind = hh; hh.x = posb.x; hh.z = posb.z; hh.opacity = 0; hh.appearHold = 0.9; hh.setCeiling(false); break; }
+      }
+      if (behind) { this.jumpscare("behind", behind); this._yawStill = 0; }
+    }
     // rare atmosphere
-    this._atm = (this._atm || 8) - dt;
+    this._atm = (this._atm || 7) - dt;
     if (this._atm < 0) {
-      this._atm = 12 + Math.random() * 22;
+      this._atm = 10 + Math.random() * 18;
       var r = Math.random();
-      if (r < 0.3) this.audio.silence(3 + Math.random() * 3);
-      else if (r < 0.55) this.audio.whisper();
-      else if (r < 0.75) this.audio.scream();
+      if (r < 0.22) { this.audio.silence(3 + Math.random() * 3); this._blackout = 0.55 + Math.random() * 0.5; }
+      else if (r < 0.4) this.audio.whisper();
+      else if (r < 0.55) this.audio.distantScream();
+      else if (r < 0.7) this.audio.bang();
+      else if (r < 0.85) this.audio.scrape();
+      else this.audio.knock();
     }
     var a = this.nearestAct();
     this._focus = a;
     var pr = document.getElementById("prompt");
     if (a) { pr.classList.add("on"); pr.innerHTML = this.promptOf(a); }
     else { pr.classList.remove("on"); pr.innerHTML = ""; }
+    var hint = document.getElementById("lock-hint");
+    if (hint) hint.classList.toggle("on", !this.ended && !document.pointerLockElement && !this._modal && !this._paused && !this._popupOpen);
     var timeEl = document.getElementById("hud-time");
     if (timeEl) timeEl.textContent = fmtTime(this.t);
     var bbar = document.getElementById("bar-batt");
@@ -1690,7 +2051,10 @@ function AsylumAudio() {
     this._kd = function (e) {
       self.keys[e.code] = true;
       if (e.code === "KeyC" || e.code === "ControlLeft" || e.code === "ControlRight") self.wantCrouch = true;
-      if (e.code === "KeyF") p.flashlightOn = !p.flashlightOn;
+      if (e.code === "KeyF") {
+        p.flashlightOn = !p.flashlightOn;
+        if (p.flashlightOn && p.battery > 0) self.maybeFlashScare();
+      }
       if (e.code === "KeyE") { e.preventDefault(); self.useFocus(); }
       if (e.code === "KeyJ") { e.preventDefault(); if (!self._modal) self.openJournal(); else if (self._modal) self.closePanel(); }
       if (e.code === "Escape") {
@@ -1771,9 +2135,9 @@ function AsylumAudio() {
     } catch (e) {}
     var s = C.loadSettings();
     ov.innerHTML = '<div class="panel">'
-      + '<div class="warn">Early test build · ' + C.VERSION + ' <span class="tag">TEST</span></div>'
+      + '<div class="warn">Test 2 · ' + C.VERSION + ' <span class="tag">TEST</span></div>'
       + "<h1>GROK ASYLUM</h1>"
-      + '<p class="lead">Ward 6 was closed in a hurry and never emptied. You can hear them when the lights fail. This is an early test — expect rough edges.</p>'
+      + '<p class="lead">Ward 6 was closed in a hurry and never emptied. You can hear them when the lights fail. This test tightens the hunters, the scares, and the puzzles — still incomplete, expect rough edges.</p>'
       + '<p class="fine">Fan-made, original work, not an official xAI or Grok product. Horror imagery and violence. Best with a mouse and keyboard.</p>'
       + '<div class="modes">'
       + '<button class="mode" data-mode="story"><b>Story</b><span>Find a way out of the asylum.</span></button>'
@@ -1833,7 +2197,8 @@ function AsylumAudio() {
       return {
         mode: game.mode, seed: game.seed, t: game.t, ended: game.ended, escaped: game.escaped,
         flags: Object.assign({}, game.flags), inv: Object.assign({}, game.inv),
-        objective: game.objective, x: game.player.x, z: game.player.z
+        objective: game.objective, x: game.player.x, z: game.player.z,
+        puzzle: { code: game.puzzle.code, valves: game.puzzle.valves.slice(), fuseSlots: game.puzzle.fuseSlots.slice(), victimId: game.puzzle.victim.id, freq: game.puzzle.freq }
       };
     },
     showTitle: showTitle
