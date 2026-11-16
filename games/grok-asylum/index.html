@@ -87,6 +87,8 @@ button.mode span{display:block;font-size:12px;color:#9a8e84;margin-top:3px}
 .lives .pips i{width:9px;height:9px;border:1px solid #6a2828;background:#1a0a0a;display:block;transform:rotate(45deg)}
 .lives .pips i.on{background:#a42820;border-color:#d8b4a8}
 
+.obj-arrow{position:absolute;top:58px;left:50%;width:0;height:0;margin-left:-13px;border-left:13px solid transparent;border-right:13px solid transparent;border-bottom:22px solid rgba(232,200,130,.92);transform-origin:50% 160%;pointer-events:none;filter:drop-shadow(0 2px 6px #000);opacity:0;z-index:6}
+
 </style>
 </head>
 <body>
@@ -109,6 +111,7 @@ button.mode span{display:block;font-size:12px;color:#9a8e84;margin-top:3px}
     </div>
   </div>
   <div class="time" id="hud-time"></div>
+  <div class="obj-arrow" id="obj-arrow"></div>
   <div class="cross"></div>
   <div class="prompt" id="prompt"></div>
   <div class="lock-hint" id="lock-hint">Click to look</div>
@@ -467,8 +470,18 @@ function AsylumAudio() {
   var SAVE_SET = "gg-asylum-settings";
   var SAVE_TIMED = "gg-asylum-best-timed";
   var SAVE_SURV = "gg-asylum-best-survival";
-  var VERSION = "1.10.2";
+  var VERSION = "1.10.3";
 
+
+  // Camera uses Euler YXZ; yaw 0 looks down -Z. Forward and right are recomputed from current yaw.
+  function viewBasis(yaw) {
+    var sy = Math.sin(yaw), cy = Math.cos(yaw);
+    return { fx: -sy, fz: -cy, rx: cy, rz: -sy };
+  }
+  function yawToward(fromX, fromZ, toX, toZ) {
+    var dx = toX - fromX, dz = toZ - fromZ;
+    return Math.atan2(-dx, -dz);
+  }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   function lerp(a, b, t) { return a + (b - a) * t; }
   function approach(cur, target, maxDelta) {
@@ -814,6 +827,7 @@ function AsylumAudio() {
     makeTextures: makeTextures, scrawlTex: scrawlTex,
     ROOMS: ROOMS, ROOM: ROOM, DOOR_DEFS: DOOR_DEFS, H: H, WALL_T: WALL_T, DOOR_W: DOOR_W, DOOR_H: DOOR_H,
     sharedDoor: sharedDoor, pushCircleOut: pushCircleOut, closestAABB: closestAABB,
+    viewBasis: viewBasis, yawToward: yawToward,
     SAVE_TIMED: SAVE_TIMED, SAVE_SURV: SAVE_SURV, VERSION: VERSION
   };
 })();
@@ -833,8 +847,8 @@ function AsylumAudio() {
   var MODE_INFO = {
     story: {
       title: "Story",
-      blurb: "Escape Harrowmead's Ward 6. You have a quiet window before they come, one at a time. If one reaches you, you can tear free a few times. Search, restore what still works, and leave by the south service door.",
-      objective: "Search the wards and the nurse's station for anything that explains who was taken below."
+      blurb: "Escape Harrowmead's Ward 6. Objectives are marked, key items glow, and H gives a direct hint. You have a quiet window before they come, one at a time. If one reaches you, you can tear free a few times.",
+      objective: "Follow the marker to Records. Read the night census, then open the effects box."
     },
     survival: {
       title: "Survival",
@@ -848,18 +862,20 @@ function AsylumAudio() {
     },
     timed: {
       title: "Timed",
-      blurb: "Escape as quickly as you can. They do not all come at once, and you can tear free twice if they reach you. Your best time is stored on this device.",
-      objective: "Search the wards and the nurse's station for anything that explains who was taken below."
+      blurb: "Escape as quickly as you can. Objectives are marked, clues sit next to their puzzles, and H gives a direct hint. They do not all come at once, and you can tear free twice if they reach you.",
+      objective: "Follow the marker to Records. Read the night census, then open the effects box."
     }
   };
 
   var CONTROLS_HTML = '<div class="ctrls">'
     + "<div><b>Mouse</b> Look (pointer lock)</div>"
-    + "<div><b>W A S D</b> Move</div>"
+    + "<div><b>W A S D or arrows</b> Move — W is always the way you are looking</div>"
+    + "<div><b>Q / E</b> Turn left or right</div>"
     + "<div><b>Shift</b> Sprint</div>"
     + "<div><b>C or Ctrl</b> Crouch</div>"
     + "<div><b>F</b> Flashlight on or off</div>"
     + "<div><b>E</b> Interact — open, use, pick up, read</div>"
+    + "<div><b>H</b> Hint — tells you exactly what to do next</div>"
     + "<div><b>J</b> Journal of collected notes</div>"
     + "<div><b>Esc</b> Pause and settings</div>"
     + "</div>";
@@ -1064,7 +1080,8 @@ function AsylumAudio() {
 
   /* ---------- puzzles from seed ---------- */
   var VALVE_NAMES = ["West", "Main", "Bleed", "Return"];
-  function makePuzzle(rng) {
+  function makePuzzle(rng, easy) {
+    easy = !!easy;
     var pool = shuffle(rng, [
       { n: "Mara Ellison", id: 17, ward: "east ward" },
       { n: "Tomas Rieg", id: 22, ward: "east ward" },
@@ -1079,7 +1096,8 @@ function AsylumAudio() {
     var digits = shuffle(rng, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
     var code = "" + digits[0] + digits[1] + digits[2] + digits[3];
     var valves = shuffle(rng, [1, 2, 3, 4]);
-    var fuseSlots = shuffle(rng, [0, 1, 2, 3, 4]).slice(0, 3).sort(function (a, b) { return a - b; });
+    var fuseCount = easy ? 2 : 3;
+    var fuseSlots = shuffle(rng, [0, 1, 2, 3, 4]).slice(0, fuseCount).sort(function (a, b) { return a - b; });
     function fileText(p) {
       if (p.id === victim.id) {
         return "Chart #" + p.id + " — " + p.n + "\n" + p.ward + ". Night terrors. The 11th entry is a single line in another hand: body not on the ward at evening count. Effects boxed for the cold room, awaiting a chart number.";
@@ -1106,9 +1124,15 @@ function AsylumAudio() {
       noteCensus: census,
       noteValves: "To bleed the west riser without flooding the ward, open the wheels in this order: " + valves.map(function (n) { return VALVE_NAMES[n - 1]; }).join(", then ") + ". Any other order dumps the line and the wheels seat again.",
       noteFuses: "Emergency routing — seats " + fuseSlots.map(function (i) { return String.fromCharCode(65 + i); }).join(", ") + " must be occupied. The rest stay empty or the south lock will not arm.",
-      noteCodeWall: "The last of the office number is " + code[3] + ".",
-      radioScript: "A dry voice, almost gone: the office number begins " + code[0] + " " + code[1] + ". The third is " + code[2] + ". That is all they would give us.",
-      lockboxHint: "Effects of the last body taken to the cold room. The combination is that patient's chart number. A cancelled transfer does not count.",
+      noteCodeWall: easy
+        ? ("The office door code is " + code + ".")
+        : ("The last of the office number is " + code[3] + "."),
+      radioScript: easy
+        ? ("A dry voice: the office door code is " + code[0] + " " + code[1] + " " + code[2] + " " + code[3] + ".")
+        : ("A dry voice, almost gone: the office number begins " + code[0] + " " + code[1] + ". The third is " + code[2] + ". That is all they would give us."),
+      lockboxHint: easy
+        ? ("The combination is chart #" + victim.id + " — " + victim.n + ", the patient missing from the night census.")
+        : "Effects of the last body taken to the cold room. The combination is that patient's chart number. A cancelled transfer does not count.",
       scrawlChapel: ["STAFF BAND", freq.toFixed(1)],
       scrawlWard: ["#" + victim.id + " WENT BELOW"],
       scrawlHall: [code[3] + " AT THE END", "HE WALKS THE CEILING"]
@@ -1123,64 +1147,123 @@ function AsylumAudio() {
       if (extra) Object.assign(o, extra);
       return new THREE.MeshStandardMaterial(o);
     }
-    var skin = mat(variant === 2 ? 0x6a5a4c : (variant ? 0x7a6e60 : 0x8a7c6e));
-    var skin2 = mat(0x4a4038);
-    var dark = mat(0x0c0a08);
-    var gown = mat(variant ? 0x161210 : 0x1a1410, { roughness: 0.96 });
+    var skin = mat(variant === 2 ? 0x5a4e42 : (variant ? 0x6e6256 : 0x7a6c5e));
+    var skin2 = mat(0x3a322c);
+    var dark = mat(0x0a0806);
+    var gown = mat(variant ? 0x12100e : 0x161410, { roughness: 0.96 });
     var faceMat = new THREE.MeshStandardMaterial({ map: tex.face, roughness: 0.88, metalness: 0.02, transparent: true, opacity: 1 });
-    var eyeMat = new THREE.MeshStandardMaterial({ color: 0x1a0202, emissive: 0x8a0a0a, emissiveIntensity: variant ? 1.7 : 1.35, roughness: 0.25, transparent: true, opacity: 1 });
-    var toothMat = mat(0xd0c4b4);
+    var socketMat = mat(0x050302, { roughness: 0.95, metalness: 0 });
+    var eyeMat = new THREE.MeshStandardMaterial({ color: 0x140202, emissive: 0x9a0c0c, emissiveIntensity: variant ? 1.85 : 1.5, roughness: 0.22, transparent: true, opacity: 1 });
+    var toothMat = new THREE.MeshStandardMaterial({
+      color: 0xf3ece0, roughness: 0.14, metalness: 0.58,
+      emissive: 0x3a3224, emissiveIntensity: 0.22, transparent: true, opacity: 1
+    });
+    var fangMat = new THREE.MeshStandardMaterial({
+      color: 0xfff8ee, roughness: 0.08, metalness: 0.7,
+      emissive: 0x4a4030, emissiveIntensity: 0.28, transparent: true, opacity: 1
+    });
     function box(parent, material, x, y, z, sx, sy, sz) {
       var m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), material);
       m.position.set(x, y, z);
       parent.add(m);
       return m;
     }
-    var hips = new THREE.Group(); hips.position.set(0, variant === 2 ? 0.72 : 1.02, 0); g.add(hips);
-    var torso = new THREE.Group(); torso.position.set(0, 0.12, 0); torso.rotation.x = variant === 2 ? 0.72 : 0.22; hips.add(torso);
-    box(torso, gown, 0, 0.58, 0, 0.26, 1.22, 0.16);
-    box(torso, dark, 0, 0.42, 0.09, 0.18, 0.02, 0.02);
-    box(torso, dark, 0, 0.68, 0.09, 0.15, 0.02, 0.02);
-    box(torso, dark, 0, 0.9, 0.09, 0.1, 0.02, 0.02);
-    box(torso, skin2, 0, 1.28, 0.02, 0.08, 0.58, 0.08);
-    var head = new THREE.Group(); head.position.set(0, 1.62, 0.06); torso.add(head);
-    var skull = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.58, 0.26), faceMat);
-    skull.scale.set(variant === 1 ? 0.92 : 1, 1.55, 0.78); head.add(skull);
-    var jaw = new THREE.Group(); jaw.position.set(0, -0.26, 0.05); head.add(jaw);
-    box(jaw, skin2, 0, -0.08, 0.03, 0.22, 0.14, 0.18);
-    box(jaw, toothMat, -0.06, -0.02, 0.1, 0.04, 0.08, 0.03);
-    box(jaw, toothMat, 0.02, -0.01, 0.11, 0.035, 0.1, 0.03);
-    box(jaw, toothMat, 0.09, -0.03, 0.1, 0.03, 0.07, 0.03);
-    box(head, eyeMat, -0.08, 0.08, 0.12, 0.045, 0.09, 0.03);
-    box(head, eyeMat, 0.09, 0.02, 0.13, variant ? 0.07 : 0.055, 0.035, 0.03);
-    var armL = new THREE.Group(); armL.position.set(-0.22, 1.08, 0); torso.add(armL);
-    var armR = new THREE.Group(); armR.position.set(0.24, 1.16, 0); torso.add(armR);
+    function fang(parent, material, x, y, z, len, girth, rotX, rotZ) {
+      var m = new THREE.Mesh(new THREE.ConeGeometry(girth, len, 5), material);
+      m.position.set(x, y, z);
+      m.rotation.x = rotX || 0;
+      m.rotation.z = rotZ || 0;
+      parent.add(m);
+      return m;
+    }
+    var hips = new THREE.Group(); hips.position.set(0, variant === 2 ? 0.7 : 1.02, 0); g.add(hips);
+    var torso = new THREE.Group(); torso.position.set(0, 0.12, 0); torso.rotation.x = variant === 2 ? 0.78 : 0.26; hips.add(torso);
+    box(torso, gown, 0.02, 0.58, 0, 0.24, 1.28, 0.15);
+    box(torso, dark, 0, 0.4, 0.08, 0.16, 0.02, 0.02);
+    box(torso, dark, 0.02, 0.7, 0.08, 0.14, 0.02, 0.02);
+    box(torso, dark, -0.01, 0.95, 0.08, 0.1, 0.02, 0.02);
+    // too-long, thin, slightly crooked neck
+    box(torso, skin2, 0.03, 1.38, 0.03, 0.07, 0.72, 0.07);
+    var head = new THREE.Group();
+    head.position.set(variant === 1 ? -0.05 : 0.04, 1.82, 0.08);
+    head.rotation.z = variant === 1 ? 0.18 : -0.12;
+    head.rotation.y = variant === 2 ? 0.15 : -0.08;
+    torso.add(head);
+    var skull = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.62, 0.28), faceMat);
+    // asymmetric, slightly crushed on one side
+    skull.scale.set(variant === 1 ? 0.82 : 1.08, 1.62, variant === 2 ? 0.7 : 0.78);
+    skull.position.set(variant ? 0.04 : -0.03, 0.02, 0);
+    head.add(skull);
+    // sunken sockets (recessed dark wells, uneven)
+    box(head, socketMat, -0.1, 0.1, 0.1, 0.1, 0.14, 0.08);
+    box(head, socketMat, 0.12, 0.02, 0.11, 0.12, 0.08, 0.09);
+    box(head, eyeMat, -0.1, 0.08, 0.13, 0.035, 0.07, 0.03);
+    box(head, eyeMat, 0.13, 0.0, 0.145, 0.06, 0.03, 0.03);
+    // wide dark maw cavity in the skull so the teeth read when the jaw drops
+    var maw = box(head, dark, 0.01, -0.22, 0.1, 0.3, 0.22, 0.2);
+    maw.scale.set(1.15, 1, 1);
+    var jaw = new THREE.Group(); jaw.position.set(0.01, -0.22, 0.06); head.add(jaw);
+    box(jaw, skin2, 0, -0.12, 0.04, 0.34, 0.12, 0.22);
+    // upper teeth (hanging from the skull): two rows of long needle fangs
+    var i, x, len, girth, lean;
+    for (i = 0; i < 9; i++) {
+      x = -0.15 + i * 0.038;
+      len = 0.11 + (i === 2 || i === 6 ? 0.1 : 0.04) + (i % 2) * 0.03;
+      girth = 0.011 + (i === 2 || i === 6 ? 0.008 : 0);
+      lean = (i - 4) * 0.08;
+      fang(head, fangMat, x, -0.14, 0.16, len, girth, Math.PI - 0.15, lean);
+    }
+    for (i = 0; i < 8; i++) {
+      x = -0.13 + i * 0.036;
+      fang(head, toothMat, x + 0.01, -0.16, 0.12, 0.07 + (i % 3) * 0.02, 0.008, Math.PI - 0.05, (i - 3.5) * 0.06);
+    }
+    // lower teeth (on the jaw): a long outer row and a shorter inner row, uneven needles
+    for (i = 0; i < 9; i++) {
+      x = -0.15 + i * 0.038;
+      len = 0.1 + (i === 1 || i === 7 ? 0.09 : 0.03) + (i % 2) * 0.025;
+      girth = 0.01 + (i === 1 || i === 7 ? 0.007 : 0);
+      fang(jaw, fangMat, x, -0.02, 0.14, len, girth, 0.12, (4 - i) * 0.07);
+    }
+    for (i = 0; i < 7; i++) {
+      x = -0.12 + i * 0.04;
+      fang(jaw, toothMat, x, -0.01, 0.1, 0.065 + (i % 2) * 0.02, 0.007, 0.08, (3 - i) * 0.05);
+    }
+    var armL = new THREE.Group(); armL.position.set(-0.24, 1.12, 0); torso.add(armL);
+    var armR = new THREE.Group(); armR.position.set(0.28, 1.22, 0.02); torso.add(armR);
     var upperL = new THREE.Group(); armL.add(upperL);
     var upperR = new THREE.Group(); armR.add(upperR);
-    box(upperL, skin, 0, -0.48, 0, 0.065, 0.98, 0.065);
-    box(upperR, skin, 0, -0.52, 0, 0.06, 1.06, 0.06);
-    var elL = new THREE.Group(); elL.position.set(0, -0.98, 0); upperL.add(elL);
-    var elR = new THREE.Group(); elR.position.set(0, -1.06, 0); upperR.add(elR);
-    box(elL, skin2, 0, -0.5, 0, 0.055, 1.02, 0.055);
-    box(elR, skin2, 0, -0.56, 0, 0.05, 1.14, 0.05);
-    box(elL, dark, -0.05, -1.04, 0.02, 0.025, 0.28, 0.025);
-    box(elL, dark, 0.04, -1.08, 0.03, 0.025, 0.32, 0.025);
-    box(elL, dark, 0, -1.1, 0.05, 0.02, 0.34, 0.02);
-    box(elR, dark, -0.04, -1.16, 0.02, 0.025, 0.3, 0.025);
-    box(elR, dark, 0.05, -1.2, 0.04, 0.025, 0.36, 0.025);
-    box(elR, dark, 0, -1.22, 0.06, 0.02, 0.38, 0.02);
+    box(upperL, skin, 0, -0.58, 0, 0.055, 1.18, 0.055);
+    box(upperR, skin, 0, -0.66, 0, 0.05, 1.34, 0.05);
+    var elL = new THREE.Group(); elL.position.set(0, -1.18, 0); upperL.add(elL);
+    var elR = new THREE.Group(); elR.position.set(0, -1.32, 0); upperR.add(elR);
+    box(elL, skin2, 0, -0.6, 0, 0.045, 1.22, 0.045);
+    box(elR, skin2, 0, -0.7, 0, 0.042, 1.42, 0.042);
+    // needle fingers: too long, uneven, slightly metal so a beam will glint
+    function fingers(parent, y, spread) {
+      var tips = [-0.05, -0.02, 0.015, 0.05, 0.075];
+      for (var f = 0; f < tips.length; f++) {
+        var fl = 0.32 + (f === 1 || f === 3 ? 0.16 : 0.06) + (f === 4 ? 0.1 : 0);
+        fang(parent, fangMat, tips[f] * spread, y, 0.04, fl, 0.009, 0.35 + f * 0.04, tips[f] * 1.8);
+      }
+    }
+    fingers(elL, -1.24, 1);
+    fingers(elR, -1.44, 1.15);
     var legL = new THREE.Group(); legL.position.set(-0.1, 0, 0); hips.add(legL);
-    var legR = new THREE.Group(); legR.position.set(0.1, 0, 0); hips.add(legR);
-    box(legL, gown, 0, -0.38, 0, 0.085, 0.76, 0.085);
-    box(legR, gown, 0, -0.38, 0, 0.085, 0.76, 0.085);
-    var knL = new THREE.Group(); knL.position.set(0, -0.76, 0); legL.add(knL);
-    var knR = new THREE.Group(); knR.position.set(0, -0.76, 0); legR.add(knR);
-    box(knL, skin2, 0, -0.4, 0, 0.075, 0.82, 0.075);
-    box(knR, skin2, 0, -0.4, 0, 0.075, 0.82, 0.075);
-    g.userData = { head: head, jaw: jaw, armL: armL, armR: armR, elL: elL, elR: elR, legL: legL, legR: legR, knL: knL, knR: knR, torso: torso, hips: hips, mats: [skin, skin2, dark, gown, faceMat, eyeMat, toothMat] };
-    if (variant === 1) g.scale.set(0.88, 1.42, 0.9);
-    else if (variant === 2) g.scale.set(1.08, 0.92, 1.15);
-    else g.scale.set(0.96, 1.24, 0.98);
+    var legR = new THREE.Group(); legR.position.set(0.12, 0, 0); hips.add(legR);
+    box(legL, gown, 0, -0.4, 0, 0.08, 0.8, 0.08);
+    box(legR, gown, 0, -0.42, 0, 0.075, 0.84, 0.075);
+    var knL = new THREE.Group(); knL.position.set(0, -0.8, 0); legL.add(knL);
+    var knR = new THREE.Group(); knR.position.set(0, -0.84, 0); legR.add(knR);
+    box(knL, skin2, 0, -0.44, 0, 0.07, 0.9, 0.07);
+    box(knR, skin2, 0, -0.48, 0, 0.065, 0.98, 0.065);
+    g.userData = {
+      head: head, jaw: jaw, armL: armL, armR: armR, elL: elL, elR: elR,
+      legL: legL, legR: legR, knL: knL, knR: knR, torso: torso, hips: hips,
+      mats: [skin, skin2, dark, gown, faceMat, eyeMat, socketMat, toothMat, fangMat]
+    };
+    if (variant === 1) g.scale.set(0.84, 1.48, 0.88);
+    else if (variant === 2) g.scale.set(1.12, 0.9, 1.2);
+    else g.scale.set(0.95, 1.3, 0.96);
     return g;
   }
 
@@ -1324,7 +1407,8 @@ function AsylumAudio() {
         this.stalkT = tune.appearCd + Math.random() * 8;
         var a = player.yaw + (Math.random() < 0.5 ? 0.7 : -0.7) + (Math.random() - 0.5) * 0.2;
         var d = tune.appearMin + Math.random() * (tune.appearMax - tune.appearMin);
-        var nx = player.x + Math.sin(a) * d, nz = player.z - Math.cos(a) * d;
+        var vb = C.viewBasis(a);
+        var nx = player.x + vb.fx * d, nz = player.z + vb.fz * d;
         var pos = C.pushCircleOut(nx, nz, this.radius, walls, 8);
         this.x = pos.x; this.z = pos.z;
         this.opacity = 0;
@@ -1424,7 +1508,7 @@ function AsylumAudio() {
       lookY = Math.atan2(Math.sin(lookY), Math.cos(lookY));
       ud.head.rotation.y = approach(ud.head.rotation.y, clamp(lookY, -0.9, 0.9), 4 * dt);
     }
-    var jawWant = (this.state === "chase" || this.lungeT > 0 || this.state === "catch") ? 0.75 : 0.02;
+    var jawWant = (this.state === "chase" || this.lungeT > 0 || this.state === "catch") ? 1.15 : 0.18;
     ud.jaw.rotation.x = approach(ud.jaw.rotation.x, jawWant, 4 * dt);
     if (moving && dist < 11 && this.audio && this.opacity > 0.4) {
       this.footT += dt * (this.crawling ? 4.2 : (this.state === "chase" ? 2.4 : 1.3));
@@ -1488,10 +1572,12 @@ function AsylumAudio() {
     this.harness = !!this.opts.harness;
     this.invulnerable = !!this.opts.invulnerable || this.harness;
     this.mode = mode;
+    this.easy = (mode === "story" || mode === "timed");
+    this.radioTol = this.easy ? 1.2 : 0.3;
     this.seed = seed || (Math.floor(Math.random() * 2147483646) + 1);
     this.rng = makeRng(this.seed);
     this.settings = C.loadSettings();
-    this.puzzle = makePuzzle(this.rng);
+    this.puzzle = makePuzzle(this.rng, this.easy);
     this.audio = this.harness ? harnessAudio() : new AsylumAudio();
     this.running = false;
     this.ended = false;
@@ -1512,6 +1598,7 @@ function AsylumAudio() {
     this.world = buildWorld(this.scene, this.tex, this.puzzle);
     this._initPlayer();
     this._initInteractives();
+    this._initObjectiveMarker();
     this._initHunters();
     this.lookAt = new THREE.Raycaster();
     this._focus = null;
@@ -1649,6 +1736,135 @@ function AsylumAudio() {
     pips.innerHTML = html;
   };
 
+
+  Game.prototype._initObjectiveMarker = function () {
+    var g = new THREE.Group();
+    var mat = new THREE.MeshBasicMaterial({ color: 0xffcc66, depthTest: true, transparent: true, opacity: 0.95 });
+    var shaft = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.5, 4), mat);
+    shaft.rotation.x = Math.PI; // point down
+    shaft.position.y = 0.35;
+    g.add(shaft);
+    var ring = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.03, 8, 16), mat);
+    ring.rotation.x = Math.PI / 2;
+    g.add(ring);
+    g.visible = false;
+    this.scene.add(g);
+    this._objMark = g;
+    this._objMarkMat = mat;
+  };
+
+  Game.prototype.nextObjectiveAct = function () {
+    if (this.mode === "survival") return null;
+    var f = this.flags;
+    var id = null;
+    if (!f.box) {
+      var census = this.acts.filter(function (a) { return a.id === "note_census"; })[0];
+      if (census && !census.done && !census.taken) {
+        // point at census first if the player hasn't opened the box yet and may need the number
+        if (!this._readCensus) return census;
+      }
+      id = "lockbox";
+    } else if (!f.morgue) id = "door_morgue";
+    else if (!f.power) {
+      var fuse = null;
+      for (var i = 0; i < this.acts.length; i++) {
+        var a = this.acts[i];
+        if (a.type === "item" && a.id.indexOf("fuse") === 0 && !a.taken) { fuse = a; break; }
+      }
+      if (fuse) return fuse;
+      id = "fuses";
+    } else if (!f.radio) id = "radio";
+    else if (!f.valves) id = "valves";
+    else if (!f.office) id = "keypad";
+    else id = "exit";
+    for (var j = 0; j < this.acts.length; j++) if (this.acts[j].id === id) return this.acts[j];
+    return null;
+  };
+
+  Game.prototype.hintText = function () {
+    if (this.mode === "survival") return "There is no exit. Keep moving, break their line of sight, and watch the battery. Press F to toggle the light.";
+    var f = this.flags, P = this.puzzle;
+    var seats = P.fuseSlots.map(function (i) { return String.fromCharCode(65 + i); }).join(" and ");
+    if (!f.box) {
+      return this.easy
+        ? ("Go to Records, through the east doorway from the foyer. Read the night census on the desk, then open the effects box with chart #" + P.victim.id + ".")
+        : "Go to Records (east of the foyer). Read the night census and the patient files, then open the effects box with the missing patient's chart number. Ignore a cancelled transfer.";
+    }
+    if (!f.morgue) return "You have the morgue key. Follow the main hall north and unlock the cold-room door.";
+    if (!f.power) {
+      var have = this.inv.fuses, need = P.fuseSlots.length;
+      if (have < need && this.fusePlaced.filter(Boolean).length < need) {
+        return this.easy
+          ? ("Pick up the glowing fuses (you have " + have + " of " + need + "). One is on the electrical-panel ledge, the other is on the records shelf. Then fill seats " + seats + " and press Engage.")
+          : ("Find " + need + " fuses (you have " + have + "). The routing card lists seats " + seats + ". Fit them at the electrical panel east of the north hall.");
+      }
+      return this.easy
+        ? ("Use the electrical panel east of the north hall. Fill seats " + seats + " and press Engage.")
+        : ("At the electrical panel, fill only seats " + seats + " and engage the breaker.");
+    }
+    if (!f.radio) {
+      return this.easy
+        ? ("Go west to the chapel annex radio and tune it to " + P.freq.toFixed(1) + ". The slip beside the set has the number. It will speak the office code.")
+        : "Restore the staff radio in the chapel annex (west). The frequency is written behind the pulpit. It will give most of the office code.";
+    }
+    if (!f.valves) {
+      var order = P.valves.map(function (n) { return VALVE_NAMES[n - 1]; }).join(", then ");
+      return this.easy
+        ? ("In the boiler room, open the wheels in this order: " + order + ". The tag on the pipe repeats it.")
+        : "In the boiler room, open the wheels in the order written in the cold-room log.";
+    }
+    if (!f.office) {
+      return this.easy
+        ? ("At the foyer keypad (south wall), enter " + P.code + ". The card beside the pad shows the same number, then go through to the service exit.")
+        : "Enter the office code on the foyer keypad, south wall. The radio and the scratched plaster together make the four digits.";
+    }
+    return "Open the service exit at the end of the south hall and leave.";
+  };
+
+  Game.prototype.showHint = function () {
+    if (this.ended) return;
+    var text = this.hintText();
+    this.toast(text);
+    if (!this.harness) this.showObjPopup("Hint", text);
+  };
+
+  Game.prototype.updateObjectiveGuide = function (dt) {
+    var act = this.nextObjectiveAct();
+    this._focusObj = act;
+    var mark = this._objMark;
+    var arrow = document.getElementById("obj-arrow");
+    for (var i = 0; i < this.acts.length; i++) {
+      var a = this.acts[i];
+      if (!a.mesh || !a.mesh.material) continue;
+      var mat = a.mesh.material;
+      var isNext = act && a === act;
+      var idle = this.easy && !a.taken && !a.done && a.mesh.visible !== false;
+      var target = isNext ? (0.85 + Math.sin(this.t * 5) * 0.45) : (idle ? 0.32 : 0.08);
+      if (typeof mat.emissiveIntensity === "number") mat.emissiveIntensity = approach(mat.emissiveIntensity, target, 3 * dt);
+    }
+    if (!mark) {
+      if (arrow) arrow.style.opacity = "0";
+      return;
+    }
+    if (!act || this.ended || this.mode === "survival") {
+      mark.visible = false;
+      if (arrow) arrow.style.opacity = "0";
+      return;
+    }
+    var p = this.player;
+    var dx = act.x - p.x, dz = act.z - p.z;
+    var dist = Math.hypot(dx, dz);
+    mark.visible = dist > 0.9;
+    mark.position.set(act.x, 2.15 + Math.sin(this.t * 3) * 0.12, act.z);
+    mark.rotation.y = this.t * 1.6;
+    if (arrow) {
+      var b = C.viewBasis(p.yaw);
+      var ang = Math.atan2(dx * b.rx + dz * b.rz, dx * b.fx + dz * b.fz);
+      arrow.style.opacity = dist < 1.3 ? "0.15" : "0.95";
+      arrow.style.transform = "rotate(" + (ang * 180 / Math.PI) + "deg)";
+    }
+  };
+
   Game.prototype.addNote = function (title, body) {
     for (var i = 0; i < this.journal.length; i++) if (this.journal[i].title === title) return;
     this.journal.push({ title: title, body: body });
@@ -1680,13 +1896,35 @@ function AsylumAudio() {
     if (this.mode === "survival") return;
     var f = this.flags;
     var next, title = "Next";
-    if (!f.box) { next = "Figure out which patient was moved to the cold room, then open their effects box in Records. The chart number is the combination."; title = "The records box"; }
-    else if (!f.morgue) { next = "Use the morgue key and go into the cold room at the north end of the main hall."; title = "The cold room"; }
-    else if (!f.power) { next = "Find three fuses and restore power at the electrical panel, east of the north hall. A routing note shows which seats must be filled."; title = "Power"; }
-    else if (!f.radio) { next = "With the power up, tune the radio in the chapel annex (west) to the staff frequency written behind the pulpit."; title = "The staff band"; }
-    else if (!f.valves) { next = "In the boiler room, open the wheels in the order recorded in the cold-room log."; title = "The riser"; }
-    else if (!f.office) { next = "Enter the office code on the keypad in the foyer, south wall, then go through to the service exit."; title = "The south door"; }
-    else { next = "Leave through the service exit at the end of the south hall."; title = "Get out"; }
+    var seats = this.puzzle.fuseSlots.map(function (i) { return String.fromCharCode(65 + i); }).join(" and ");
+    var nF = this.puzzle.fuseSlots.length;
+    if (!f.box) {
+      next = this.easy
+        ? ("Go to Records, east of the foyer. Read the night census, then open the effects box with chart #" + this.puzzle.victim.id + ".")
+        : "Figure out which patient was moved to the cold room, then open their effects box in Records. The chart number is the combination.";
+      title = "The records box";
+    } else if (!f.morgue) { next = "Use the morgue key on the cold-room door at the north end of the main hall."; title = "The cold room"; }
+    else if (!f.power) {
+      next = this.easy
+        ? ("Pick up " + nF + " glowing fuses, then at the electrical panel fill seats " + seats + " and press Engage.")
+        : ("Find " + nF + " fuses and restore power at the electrical panel, east of the north hall. A routing note shows which seats must be filled.");
+      title = "Power";
+    } else if (!f.radio) {
+      next = this.easy
+        ? ("Tune the chapel annex radio (west) to " + this.puzzle.freq.toFixed(1) + ". The frequency is on the slip beside the set.")
+        : "With the power up, tune the radio in the chapel annex (west) to the staff frequency written behind the pulpit.";
+      title = "The staff band";
+    } else if (!f.valves) {
+      next = this.easy
+        ? ("In the boiler room, open the wheels in this order: " + this.puzzle.valves.map(function (n) { return VALVE_NAMES[n - 1]; }).join(", then ") + ".")
+        : "In the boiler room, open the wheels in the order recorded in the cold-room log.";
+      title = "The riser";
+    } else if (!f.office) {
+      next = this.easy
+        ? ("Enter " + this.puzzle.code + " on the keypad in the foyer, south wall. The number is on the card beside the pad.")
+        : "Enter the office code on the keypad in the foyer, south wall, then go through to the service exit.";
+      title = "The south door";
+    } else { next = "Leave through the service exit at the end of the south hall."; title = "Get out"; }
     this.setObjective(next, justDone ? { title: title } : null);
   };
 
@@ -1704,25 +1942,33 @@ function AsylumAudio() {
     this.acts = [];
     function act(o) { self.acts.push(o); return o; }
     function itemMesh(x, y, z, sx, sy, sz, color) {
-      var m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), new THREE.MeshStandardMaterial({ color: color || 0xc4a36a, roughness: 0.6, metalness: 0.2, emissive: 0x221800, emissiveIntensity: 0.2 }));
+      var m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), new THREE.MeshStandardMaterial({ color: color || 0xc4a36a, roughness: 0.55, metalness: 0.22, emissive: color || 0xc4a36a, emissiveIntensity: self.easy ? 0.35 : 0.18 }));
       m.position.set(x, y, z); self.scene.add(m); return m;
     }
 
     // Notes
     act({ id: "note_ward", type: "note", x: 26.2, y: 1.05, z: 16.4, verb: "Read", label: "a torn page on the bed", mesh: itemMesh(26.2, 1.05, 16.4, 0.25, 0.02, 0.18, 0xcfc4b0),
       use: function () { self.addNote("Torn page, east ward", P.noteWard); self.openText("A torn page", P.noteWard); } });
-    act({ id: "note_chapel", type: "note", x: -27, y: 1.0, z: 27.4, verb: "Read", label: "a maintenance slip", mesh: itemMesh(-27, 1.0, 27.4, 0.22, 0.01, 0.16, 0xd0c6b6),
-      use: function () { self.addNote("Chapel slip", P.noteChapel); self.openText("A slip under the pulpit", P.noteChapel); } });
+    var chapelNote = this.easy ? { x: -28.4, z: 14.35 } : { x: -27, z: 27.4 };
+    act({ id: "note_chapel", type: "note", x: chapelNote.x, y: 1.0, z: chapelNote.z, verb: "Read", label: "a maintenance slip", mesh: itemMesh(chapelNote.x, 1.0, chapelNote.z, 0.22, 0.01, 0.16, 0xd0c6b6),
+      use: function () { self.addNote("Chapel slip", P.noteChapel); self.openText(self.easy ? "A slip beside the radio" : "A slip under the pulpit", P.noteChapel); } });
     act({ id: "note_radiohint", type: "note", x: -20, y: 1.2, z: 17, verb: "Read", label: "a note on the west wall rail", mesh: itemMesh(-20, 1.2, 17, 0.2, 0.02, 0.14, 0xcfc4b0),
       use: function () { self.addNote("West corridor note", P.noteRadioHint); self.openText("A penciled note", P.noteRadioHint); } });
-    act({ id: "note_code", type: "note", x: 1.2, y: 1.5, z: 27.6, verb: "Read", label: "scratches on the north wall",
-      use: function () { self.addNote("Hall scratch", P.noteCodeWall); self.openText("Scratched into the plaster", P.noteCodeWall); } });
-    act({ id: "note_fuses", type: "note", x: 21, y: 1.5, z: 8.5, verb: "Read", label: "a routing card in Records", mesh: itemMesh(21, 1.5, 8.5, 0.2, 0.01, 0.14, 0xbfc8b0),
+    var kg = this.world.doors.d_foyer_office.geom;
+    var codePos = this.easy
+      ? { x: kg.x + 0.7, z: kg.z + 0.95, label: "a card beside the keypad", title: "A staff card" }
+      : { x: 1.2, z: 27.6, label: "scratches on the north wall", title: "Scratched into the plaster" };
+    act({ id: "note_code", type: "note", x: codePos.x, y: 1.5, z: codePos.z, verb: "Read", label: codePos.label, mesh: itemMesh(codePos.x, 1.5, codePos.z, 0.2, 0.02, 0.14, 0xe8d080),
+      use: function () { self.addNote(self.easy ? "Office code card" : "Hall scratch", P.noteCodeWall); self.openText(codePos.title, P.noteCodeWall); } });
+    var fuseNote = this.easy ? { x: 11.0, z: 34.7 } : { x: 21, z: 8.5 };
+    act({ id: "note_fuses", type: "note", x: fuseNote.x, y: 1.5, z: fuseNote.z, verb: "Read", label: this.easy ? "a routing card on the panel" : "a routing card in Records", mesh: itemMesh(fuseNote.x, 1.5, fuseNote.z, 0.2, 0.01, 0.14, 0xbfc8b0),
       use: function () { self.addNote("Routing card", P.noteFuses); self.openText("Electrical routing card", P.noteFuses); } });
-    act({ id: "note_census", type: "note", x: 11.4, y: 1.05, z: 8.7, verb: "Read", label: "the night census", mesh: itemMesh(11.4, 1.05, 8.7, 0.28, 0.02, 0.2, 0xd8d0c0),
+    var censusPos = this.easy ? { x: 20.4, z: 9.0 } : { x: 11.4, z: 8.7 };
+    act({ id: "note_census", type: "note", x: censusPos.x, y: 1.05, z: censusPos.z, verb: "Read", label: "the night census", mesh: itemMesh(censusPos.x, 1.05, censusPos.z, 0.28, 0.02, 0.2, 0xd8d0c0),
       use: function () {
         self.addNote("Night census", P.noteCensus); self.openText("Night census, 11th", P.noteCensus);
         self.flags.files++;
+        self._readCensus = true;
         if (!self.flags.box) self.advanceStoryObjective(true);
       } });
 
@@ -1750,8 +1996,10 @@ function AsylumAudio() {
         self.toast("The cold-room door gives way.");
       } });
 
-    act({ id: "note_valves", type: "note", x: -11.6, y: 1.15, z: 36.4, verb: "Read", label: "a log on the slab", mesh: itemMesh(-11.6, 1.15, 36.4, 0.24, 0.02, 0.18, 0xc5c0b0),
-      use: function () { self.addNote("Cold-room log", P.noteValves); self.openText("A damp log book", P.noteValves); } });
+    var valveNote = this.easy ? { x: 0.85, z: 35.15, label: "a tag on the pipe", title: "A tag on the riser", journal: "Riser tag" }
+      : { x: -11.6, z: 36.4, label: "a log on the slab", title: "A damp log book", journal: "Cold-room log" };
+    act({ id: "note_valves", type: "note", x: valveNote.x, y: 1.15, z: valveNote.z, verb: "Read", label: valveNote.label, mesh: itemMesh(valveNote.x, 1.15, valveNote.z, 0.24, 0.02, 0.18, 0xc5c0b0),
+      use: function () { self.addNote(valveNote.journal, P.noteValves); self.openText(valveNote.title, P.noteValves); } });
 
     function fuseAt(id, x, z, label) {
       act({ id: id, type: "item", x: x, y: 0.9, z: z, verb: "Pick up", label: label, mesh: itemMesh(x, 0.9, z, 0.12, 0.08, 0.28, 0xb08a30),
@@ -1759,13 +2007,18 @@ function AsylumAudio() {
           if (a.taken) return;
           a.taken = true; if (a.mesh) a.mesh.visible = false;
           self.inv.fuses++;
-          self.toast("Fuse taken (" + self.inv.fuses + " / 3).");
+          self.toast("Fuse taken (" + self.inv.fuses + " / " + P.fuseSlots.length + ").");
           self.audio.click();
         } });
     }
-    fuseAt("fuse1", 32, 17, "a fuse under the bed");
-    fuseAt("fuse2", 23.5, 8, "a fuse on the records shelf");
-    fuseAt("fuse3", -10.2, 35.2, "a fuse on the slab edge");
+    if (this.easy) {
+      fuseAt("fuse1", 11.6, 34.4, "a fuse on the panel ledge");
+      fuseAt("fuse2", 20.8, 8.6, "a fuse on the records shelf");
+    } else {
+      fuseAt("fuse1", 32, 17, "a fuse under the bed");
+      fuseAt("fuse2", 23.5, 8, "a fuse on the records shelf");
+      fuseAt("fuse3", -10.2, 35.2, "a fuse on the slab edge");
+    }
 
     act({ id: "fuses", type: "panel", x: 11, y: 1.4, z: 35.55, verb: "Use", label: "the electrical panel",
       use: function () { self.openFuses(); } });
@@ -1773,7 +2026,7 @@ function AsylumAudio() {
       use: function () { self.openRadio(); } });
     act({ id: "valves", type: "valves", x: 0, y: 1.2, z: 35.2, verb: "Use", label: "the boiler wheels",
       use: function () { self.openValves(); } });
-    act({ id: "keypad", type: "keypad", x: this.world.doors.d_foyer_office.geom.x, y: 1.3, z: this.world.doors.d_foyer_office.geom.z, verb: "Use", label: "the office keypad",
+    act({ id: "keypad", type: "keypad", x: this.world.doors.d_foyer_office.geom.x, y: 1.3, z: this.world.doors.d_foyer_office.geom.z + 0.9, verb: "Use", label: "the office keypad",
       use: function () { self.openKeypad(); } });
     act({ id: "exit", type: "exit", x: ROOM.exit.cx, y: 1.3, z: ROOM.exit.cz, verb: "Open", label: "the service exit",
       use: function () { self.tryExit(); } });
@@ -1828,11 +2081,12 @@ function AsylumAudio() {
 
   Game.prototype.completeFuses = function () {
     if (this.flags.power) return true;
-    if (this.inv.fuses < 3 && this.fusePlaced.filter(Boolean).length < 3) return false;
+    var need = this.puzzle.fuseSlots.length;
+    if (this.inv.fuses < need && this.fusePlaced.filter(Boolean).length < need) return false;
     var P = this.puzzle, ok = true;
     // auto-seat the correct routing if the player (or solver) has the fuses
     if (!this.fusePlaced.some(Boolean)) {
-      if (this.inv.fuses < 3) return false;
+      if (this.inv.fuses < need) return false;
       this.inv.fuses = 0;
       for (var i = 0; i < 5; i++) this.fusePlaced[i] = P.fuseSlots.indexOf(i) >= 0;
     }
@@ -1854,7 +2108,7 @@ function AsylumAudio() {
   Game.prototype.completeRadio = function (freq) {
     if (this.flags.radio) return true;
     if (!this.flags.power && this.mode !== "survival") return false;
-    if (Math.abs((freq == null ? this.puzzle.freq : freq) - this.puzzle.freq) > 0.15) return false;
+    if (Math.abs((freq == null ? this.puzzle.freq : freq) - this.puzzle.freq) > this.radioTol) return false;
     this.flags.radio = true;
     this.addNote("Radio", this.puzzle.radioScript);
     this.toast("The staff band comes through.");
@@ -1926,7 +2180,8 @@ function AsylumAudio() {
 
   Game.prototype.openFuses = function () {
     var self = this, P = this.puzzle;
-    this.openPanel("fuses", "Electrical panel", '<p class="fine">Three seats must be filled, the others left empty. You have fuses in hand: <span id="fuse-count"></span>.</p><div class="valves" id="fuse-row" style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"></div><button class="btn" id="fuse-try">Engage</button> <button class="btn" data-close="1">Step back</button>', function (root) {
+    var seatHint = this.easy ? (" A tag on the door reads: fill " + this.puzzle.fuseSlots.map(function (i) { return String.fromCharCode(65 + i); }).join(" and ") + ".") : "";
+    this.openPanel("fuses", "Electrical panel", '<p class="fine">' + this.puzzle.fuseSlots.length + " seats must be filled, the others left empty." + seatHint + ' You have fuses in hand: <span id="fuse-count"></span>.</p><div class="valves" id="fuse-row" style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"></div><button class="btn" id="fuse-try">Engage</button> <button class="btn" data-close="1">Step back</button>', function (root) {
       root.querySelector("#fuse-count").textContent = self.inv.fuses;
       var row = root.querySelector("#fuse-row");
       P.fuseSlots; // used in try
@@ -1968,15 +2223,16 @@ function AsylumAudio() {
       this.toast("The set is dead. It wants power.");
       return;
     }
-    this.openPanel("radio", "Staff radio", '<p class="fine">Turn the band until the static thins and a voice can be heard.</p><p class="code" id="freq">80.0</p><label class="settings"><input id="dial" type="range" min="800" max="1000" value="800"></label><button class="btn" data-close="1">Step back</button>', function (root) {
+    var radioHint = this.easy ? " A slip beside the set is marked " + this.puzzle.freq.toFixed(1) + "." : "";
+    this.openPanel("radio", "Staff radio", '<p class="fine">Turn the band until the static thins and a voice can be heard.' + radioHint + '</p><p class="code" id="freq">80.0</p><label class="settings"><input id="dial" type="range" min="800" max="1000" value="800"></label><button class="btn" data-close="1">Step back</button>', function (root) {
       var dial = root.querySelector("#dial"), lab = root.querySelector("#freq");
       var announced = self.flags.radio;
       function show() {
         var f = dial.value / 10;
         var dist = Math.abs(f - P.freq);
-        var tuned = dist <= 0.15;
-        lab.textContent = tuned ? P.freq.toFixed(1) + " — clear" : f.toFixed(1);
-        self.audio.setStatic(Math.min(1, dist / 4), tuned);
+        var tuned = dist <= self.radioTol;
+        lab.textContent = tuned ? P.freq.toFixed(1) + " — clear" : (self.easy && dist <= self.radioTol * 2 ? f.toFixed(1) + " — close" : f.toFixed(1));
+        self.audio.setStatic(Math.min(1, dist / (self.easy ? 6 : 4)), tuned);
         if (tuned && !announced) {
           announced = true;
           self.audio.stopStatic();
@@ -1990,7 +2246,8 @@ function AsylumAudio() {
 
   Game.prototype.openValves = function () {
     var self = this, P = this.puzzle;
-    this.openPanel("valves", "Riser wheels", '<p class="fine">Four wheels, named. They must be opened in the order recorded in the cold-room log. A mistake seats them all again.</p><div id="vrow" style="display:flex;gap:8px;margin:12px 0;flex-wrap:wrap"></div><button class="btn" data-close="1">Step back</button>', function (root) {
+    var valveHint = this.easy ? (" A tag on the pipe reads: " + this.puzzle.valves.map(function (n) { return VALVE_NAMES[n - 1]; }).join(", then ") + ".") : " They must be opened in the order recorded in the cold-room log.";
+    this.openPanel("valves", "Riser wheels", '<p class="fine">Four wheels, named.' + valveHint + ' A mistake seats them all again.</p><div id="vrow" style="display:flex;gap:8px;margin:12px 0;flex-wrap:wrap"></div><button class="btn" data-close="1">Step back</button>', function (root) {
       var row = root.querySelector("#vrow");
       var opened = [false, false, false, false];
       var names = P.valveNames || VALVE_NAMES;
@@ -2030,7 +2287,8 @@ function AsylumAudio() {
   Game.prototype.openKeypad = function () {
     var self = this;
     if (self.flags.office) { this.toast("The office door is already open."); return; }
-    this.openPanel("keypad", "Office keypad", '<div class="code" id="kc"></div><div class="pad" id="kp"></div><button class="btn" data-close="1">Step back</button>', function (root) {
+    var padHint = this.easy ? '<p class="fine">A faded card taped beside the pad reads ' + this.puzzle.code + ".</p>" : "";
+    this.openPanel("keypad", "Office keypad", padHint + '<div class="code" id="kc"></div><div class="pad" id="kp"></div><button class="btn" data-close="1">Step back</button>', function (root) {
       var code = "", shown = root.querySelector("#kc");
       function draw() { shown.textContent = code || "————"; }
       draw();
@@ -2134,16 +2392,20 @@ function AsylumAudio() {
     else p.stamina = Math.min(1, p.stamina + dt * 0.18);
     if (p.tired > 0) p.tired -= dt;
     var speed = this.wantCrouch ? 1.45 : (wantSprint ? 5.15 : 3.15);
+    // keyboard turn uses the same yaw the mouse writes, so W stays camera-relative
+    if (k.KeyQ) p.yaw += 2.3 * dt;
+    if (k.KeyE) p.yaw -= 2.3 * dt;
     var fwd = 0, strafe = 0;
     if (k.KeyW || k.ArrowUp) fwd += 1;
     if (k.KeyS || k.ArrowDown) fwd -= 1;
     if (k.KeyD || k.ArrowRight) strafe += 1;
     if (k.KeyA || k.ArrowLeft) strafe -= 1;
     var wishX = 0, wishZ = 0;
-    var sy = Math.sin(p.yaw), cy = Math.cos(p.yaw);
-    // yaw 0 looks toward -Z (into the hall from the foyer)
-    wishX += (sy * fwd + cy * strafe);
-    wishZ += (-cy * fwd + sy * strafe);
+    var basis = C.viewBasis(p.yaw);
+    // W = camera look (yaw), S back, A/D strafe — recomputed from current yaw every frame
+    wishX += basis.fx * fwd + basis.rx * strafe;
+    wishZ += basis.fz * fwd + basis.rz * strafe;
+    var sy = -basis.fx, cy = -basis.fz; // kept for bob, matches camera right/forward frame
     var wl = Math.hypot(wishX, wishZ);
     if (wl > 1e-6) { wishX = wishX / wl * speed; wishZ = wishZ / wl * speed; }
     var accel = wl > 0 ? 32 : 48; // snap decel: no ice
@@ -2198,7 +2460,7 @@ function AsylumAudio() {
     this.flash.target.updateMatrixWorld();
 
     var lean = strafe * 0.03 * (1 - p.crouch * 0.6);
-    this.cam.position.set(p.x + bobX * cy, p.eye + bobY, p.z + bobX * sy);
+    this.cam.position.set(p.x + bobX * basis.rx, p.eye + bobY, p.z + bobX * basis.rz);
     this.cam.rotation.order = "YXZ";
     this.cam.rotation.y = p.yaw;
     this.cam.rotation.x = p.pitch;
@@ -2256,6 +2518,11 @@ function AsylumAudio() {
         this.die(h);
         return closest;
       }
+      if (d < 0.55) {
+        var px = p.x - h.x, pz = p.z - h.z, pd = Math.hypot(px, pz) || 1;
+        var pushed = C.pushCircleOut(h.x - (px / pd) * 0.8, h.z - (pz / pd) * 0.8, h.radius, this.world.walls, 6);
+        h.x = pushed.x; h.z = pushed.z;
+      }
     }
     return closest;
   };
@@ -2281,8 +2548,9 @@ function AsylumAudio() {
     if (!c) return false;
     c.t += dt;
     var h = c.hunter, p = this.player;
-    var fx = p.x + Math.sin(p.yaw) * 0.72;
-    var fz = p.z - Math.cos(p.yaw) * 0.72;
+    var vb = C.viewBasis(p.yaw);
+    var fx = p.x + vb.fx * 0.72;
+    var fz = p.z + vb.fz * 0.72;
     h.x += (fx - h.x) * Math.min(1, 8 * dt);
     h.z += (fz - h.z) * Math.min(1, 8 * dt);
     h.facing = Math.atan2(p.x - h.x, p.z - h.z);
@@ -2292,7 +2560,7 @@ function AsylumAudio() {
     if (ud) {
       ud.armL.rotation.x = -1.7; ud.armR.rotation.x = -1.85;
       ud.elL.rotation.x = 0.2; ud.elR.rotation.x = 0.25;
-      ud.jaw.rotation.x = 0.95;
+      ud.jaw.rotation.x = 1.2;
       ud.head.rotation.y = (c.t % 0.22 < 0.1) ? Math.PI : 0;
       ud.head.rotation.x = Math.sin(c.t * 18) * 0.2;
     }
@@ -2464,8 +2732,9 @@ function AsylumAudio() {
       for (var hi = 0; hi < this.hunters.length; hi++) {
         var hh = this.hunters[hi];
         if (hh.state === "chase" || hh.opacity < 0.4) continue;
-        var bx = this.player.x - Math.sin(this.player.yaw) * 3.8;
-        var bz = this.player.z + Math.cos(this.player.yaw) * 3.8;
+        var vb = C.viewBasis(this.player.yaw);
+        var bx = this.player.x - vb.fx * 3.8;
+        var bz = this.player.z - vb.fz * 3.8;
         var posb = C.pushCircleOut(bx, bz, hh.radius, this.world.walls, 8);
         var dd = Math.hypot(posb.x - this.player.x, posb.z - this.player.z);
         if (dd > 1.4 && dd < 3.2) { behind = hh; hh.x = posb.x; hh.z = posb.z; hh.opacity = 0; hh.appearHold = 0.9; hh.setCeiling(false); break; }
@@ -2484,6 +2753,7 @@ function AsylumAudio() {
       else if (r < 0.85) this.audio.scrape();
       else this.audio.knock();
     }
+    this.updateObjectiveGuide(dt);
     var a = this.nearestAct();
     this._focus = a;
     var pr = document.getElementById("prompt");
@@ -2545,6 +2815,7 @@ function AsylumAudio() {
         if (p.flashlightOn && p.battery > 0) self.maybeFlashScare();
       }
       if (e.code === "KeyE") { e.preventDefault(); self.useFocus(); }
+      if (e.code === "KeyH") { e.preventDefault(); self.showHint(); }
       if (e.code === "KeyJ") { e.preventDefault(); if (!self._modal) self.openJournal(); else if (self._modal) self.closePanel(); }
       if (e.code === "Escape") {
         if (self._popupOpen) { self.hideObjPopup(); e.preventDefault(); return; }
