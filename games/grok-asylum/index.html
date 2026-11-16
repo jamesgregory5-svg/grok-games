@@ -75,6 +75,18 @@ button.mode span{display:block;font-size:12px;color:#9a8e84;margin-top:3px}
 .lock-hint.on{opacity:1}
 .settings #sens-val{min-width:2.4em;text-align:right;color:#c9bdb0;font-variant-numeric:tabular-nums}
 
+.vignette.threat{background:radial-gradient(ellipse at center,transparent 28%,rgba(50,0,0,.38) 68%,rgba(0,0,0,.78) 100%)}
+.hurt.near{opacity:.5;animation:hurtPulse .62s ease-in-out infinite alternate}
+@keyframes hurtPulse{from{opacity:.22}to{opacity:.64}}
+.distort{position:absolute;inset:0;pointer-events:none;opacity:0;z-index:6;mix-blend-mode:screen;background:radial-gradient(circle at 42% 46%,rgba(140,0,0,.4),transparent 58%),repeating-linear-gradient(0deg,rgba(0,0,0,.2) 0 1px,transparent 1px 3px);transition:opacity .18s}
+.catchfx{position:absolute;inset:0;z-index:7;pointer-events:none;opacity:0;background:radial-gradient(circle at 50% 36%,rgba(255,210,190,.2),rgba(90,0,0,.82) 52%,#000 100%);transition:opacity .12s}
+.catchfx.on{opacity:1;animation:catchFlash .16s steps(2) 5}
+@keyframes catchFlash{50%{filter:invert(.18) contrast(1.45) brightness(1.25)}}
+.lives{margin-top:2px;font-family:"Segoe UI",system-ui,sans-serif;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lives .pips{display:flex;gap:5px;margin-top:3px}
+.lives .pips i{width:9px;height:9px;border:1px solid #6a2828;background:#1a0a0a;display:block;transform:rotate(45deg)}
+.lives .pips i.on{background:#a42820;border-color:#d8b4a8}
+
 </style>
 </head>
 <body>
@@ -90,6 +102,10 @@ button.mode span{display:block;font-size:12px;color:#9a8e84;margin-top:3px}
       <div class="track"><i id="bar-batt"></i></div>
       <div class="row"><span>Stamina</span></div>
       <div class="track"><i id="bar-stam"></i></div>
+      <div class="lives" id="lives" hidden>
+        <div class="row"><span>Escapes</span></div>
+        <div class="pips" id="lives-pips"></div>
+      </div>
     </div>
   </div>
   <div class="time" id="hud-time"></div>
@@ -97,10 +113,12 @@ button.mode span{display:block;font-size:12px;color:#9a8e84;margin-top:3px}
   <div class="prompt" id="prompt"></div>
   <div class="lock-hint" id="lock-hint">Click to look</div>
   <div class="obj" id="obj-line"></div>
-  <div class="vignette"></div>
+  <div class="vignette" id="vignette"></div>
   <div class="grain"></div>
+  <div class="distort" id="distort"></div>
   <div class="hurt" id="hurt"></div>
   <div class="scare" id="scare"></div>
+  <div class="catchfx" id="catchfx"></div>
 </div>
 <div class="popup" id="obj-pop" hidden>
   <h3>Objective</h3>
@@ -123,7 +141,7 @@ const t="160",e={LEFT:0,MIDDLE:1,RIGHT:2,ROTATE:0,DOLLY:1,PAN:2},n={ROTATE:0,PAN
 function AsylumAudio() {
   var ctx = null, master, droneGain, tenseGain, heartGain, muteDrone = 1, heartT = 0;
   var started = false;
-  var staticGain = null, staticFilter = null, breathGain = null;
+  var staticGain = null, staticFilter = null, breathGain = null, whisperGain = null, whisperFilter = null, whisperT = 0;
   function ac() {
     if (!ctx) {
       var AC = window.AudioContext || window.webkitAudioContext;
@@ -133,6 +151,7 @@ function AsylumAudio() {
       tenseGain = ctx.createGain(); tenseGain.gain.value = 0; tenseGain.connect(master);
       heartGain = ctx.createGain(); heartGain.gain.value = 0; heartGain.connect(master);
       breathGain = ctx.createGain(); breathGain.gain.value = 0; breathGain.connect(master);
+      whisperGain = ctx.createGain(); whisperGain.gain.value = 0; whisperGain.connect(master);
     }
     return ctx;
   }
@@ -194,6 +213,10 @@ function AsylumAudio() {
     var br = noiseSrc("lowpass", 420, 0.8);
     var brg = ac().createGain(); brg.gain.value = 0.8;
     br.out.connect(brg); brg.connect(breathGain); br.src.start(t);
+    var wh = noiseSrc("bandpass", 1400, 3.2);
+    whisperFilter = wh.filter;
+    var whp = ac().createBiquadFilter(); whp.type = "highpass"; whp.frequency.value = 700;
+    wh.out.connect(whp); whp.connect(whisperGain); wh.src.start(t);
   }
   function thump(t, vol) {
     var o = ac().createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(78, t); o.frequency.exponentialRampToValueAtTime(26, t + 0.2);
@@ -206,12 +229,18 @@ function AsylumAudio() {
     var target = hunterProx > 0 ? 0.38 + hunterProx * 0.75 : 0.12;
     droneGain.gain.setTargetAtTime(target * muteDrone, t, 0.25);
     tenseGain.gain.setTargetAtTime(hunterProx * 0.28, t, 0.28);
-    var hWant = hunterProx > 0.16 ? Math.min(1, (hunterProx - 0.12) * 1.7) : (sprinting ? 0.08 : 0);
-    heartGain.gain.setTargetAtTime(hWant, t, 0.15);
-    breathGain.gain.setTargetAtTime(hunterProx > 0.45 ? (hunterProx - 0.4) * 0.35 : 0, t, 0.2);
+    var hWant = hunterProx > 0.12 ? Math.min(1, (hunterProx - 0.08) * 1.85) : (sprinting ? 0.08 : 0);
+    heartGain.gain.setTargetAtTime(hWant, t, 0.12);
+    breathGain.gain.setTargetAtTime(hunterProx > 0.4 ? (hunterProx - 0.35) * 0.42 : 0, t, 0.2);
+    if (whisperGain) whisperGain.gain.setTargetAtTime(hunterProx > 0.08 ? Math.min(0.55, hunterProx * 0.62) : 0, t, 0.22);
     if (hWant > 0.05) {
-      heartT += dt * (1.15 + hunterProx * 2.4);
-      if (heartT >= 1) { heartT -= 1; thump(t, 0.75 + hunterProx * 0.4); setTimeout(function () { if (started) thump(now(), 0.48); }, 88); }
+      heartT += dt * (1.2 + hunterProx * 2.8);
+      if (heartT >= 1) { heartT -= 1; thump(t, 0.8 + hunterProx * 0.5); setTimeout(function () { if (started) thump(now(), 0.52); }, 82); }
+    }
+    // occasional close whisper syllable
+    if (hunterProx > 0.35) {
+      whisperT += dt;
+      if (whisperT > 1.6 - hunterProx * 0.7) { whisperT = 0; if (Math.random() < 0.7) whisperNear(hunterProx); }
     }
   }
   function silence(sec) {
@@ -360,12 +389,71 @@ function AsylumAudio() {
     if (!started || !staticGain) return;
     staticGain.gain.setTargetAtTime(0.0001, now(), 0.08);
   }
+
+  function whisperNear(level) {
+    if (!started) return;
+    var t = now();
+    var n = noiseSrc("bandpass", 1200 + Math.random() * 900, 4);
+    var g = ac().createGain();
+    var peak = 0.08 + (level || 0.4) * 0.22;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(peak, t + 0.08);
+    g.gain.linearRampToValueAtTime(peak * 0.4, t + 0.22);
+    g.gain.linearRampToValueAtTime(peak * 0.9, t + 0.34);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+    n.filter.frequency.setValueAtTime(900, t);
+    n.filter.frequency.linearRampToValueAtTime(2200, t + 0.2);
+    n.filter.frequency.linearRampToValueAtTime(700, t + 0.6);
+    n.out.connect(g); g.connect(master); n.src.start(t); n.src.stop(t + 0.75);
+  }
+  function setWhisper(level) {
+    if (!started || !whisperGain) return;
+    var t = now();
+    var v = Math.max(0, Math.min(1, level || 0));
+    whisperGain.gain.setTargetAtTime(v * 0.5, t, 0.2);
+    if (whisperFilter) whisperFilter.frequency.setTargetAtTime(900 + v * 1400, t, 0.18);
+  }
+  function arrive() {
+    if (!started) return;
+    var t = now();
+    var o = ac().createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(48, t); o.frequency.exponentialRampToValueAtTime(18, t + 1.4);
+    var g = ac().createGain(); envGain(g, t, 0.08, 0.2, 1.4, 0.7);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + 1.8);
+    var n = noiseSrc("bandpass", 600, 2.2);
+    var ng = ac().createGain(); envGain(ng, t, 0.15, 0.4, 1.8, 0.28);
+    n.filter.frequency.setValueAtTime(280, t);
+    n.filter.frequency.linearRampToValueAtTime(1600, t + 0.7);
+    n.filter.frequency.linearRampToValueAtTime(200, t + 2.1);
+    n.out.connect(ng); ng.connect(master); n.src.start(t); n.src.stop(t + 2.4);
+    var o2 = ac().createOscillator(); o2.type = "sawtooth"; o2.frequency.setValueAtTime(90, t + 0.2); o2.frequency.exponentialRampToValueAtTime(32, t + 1.6);
+    var g2 = ac().createGain(); envGain(g2, t + 0.2, 0.1, 0.3, 1.2, 0.22);
+    o2.connect(g2); g2.connect(master); o2.start(t + 0.2); o2.stop(t + 1.9);
+    setTimeout(function () { if (started) { distantScream(); whisper(); } }, 180);
+  }
+  function grab() {
+    if (!started) return;
+    var t = now();
+    var o = ac().createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(22, t + 0.7);
+    var g = ac().createGain(); envGain(g, t, 0.003, 0.04, 0.8, 1.0);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + 1.0);
+    var n = noiseSrc("lowpass", 900, 0.7);
+    var ng = ac().createGain(); envGain(ng, t, 0.002, 0.06, 0.55, 0.85);
+    n.out.connect(ng); ng.connect(master); n.src.start(t); n.src.stop(t + 0.7);
+    var n2 = noiseSrc("bandpass", 1800, 2);
+    var ng2 = ac().createGain(); envGain(ng2, t + 0.05, 0.01, 0.08, 0.5, 0.4);
+    n2.out.connect(ng2); ng2.connect(master); n2.src.start(t); n2.src.stop(t + 0.7);
+    var o2 = ac().createOscillator(); o2.type = "sawtooth"; o2.frequency.setValueAtTime(320, t); o2.frequency.exponentialRampToValueAtTime(40, t + 0.85);
+    var g2 = ac().createGain(); envGain(g2, t, 0.01, 0.08, 0.7, 0.28);
+    o2.connect(g2); g2.connect(master); o2.start(t); o2.stop(t + 1.0);
+    scream();
+  }
   function click() { bump(); }
   return {
     start: startDrones, tick: tick, silence: silence, scream: scream, distantScream: distantScream,
     whisper: whisper, sting: sting, bang: bang, knock: knock, scrape: scrape,
     bump: bump, foot: foot, drag: drag, buzz: buzz, click: click,
-    setStatic: setStatic, stopStatic: stopStatic,
+    setStatic: setStatic, stopStatic: stopStatic, setWhisper: setWhisper,
+    arrive: arrive, grab: grab,
     resume: function () { if (ctx) ctx.resume(); }
   };
 }
@@ -379,7 +467,7 @@ function AsylumAudio() {
   var SAVE_SET = "gg-asylum-settings";
   var SAVE_TIMED = "gg-asylum-best-timed";
   var SAVE_SURV = "gg-asylum-best-survival";
-  var VERSION = "1.10.1";
+  var VERSION = "1.10.2";
 
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   function lerp(a, b, t) { return a + (b - a) * t; }
@@ -530,12 +618,13 @@ function AsylumAudio() {
       stain(g, w, h, 8, "#2a0404");
     });
     var face = canvasTex(256, 256, function (g, w, h) {
-      g.fillStyle = "#b7b0a0"; g.fillRect(0, 0, w, h);
-      g.fillStyle = "#9a9486";
-      g.beginPath(); g.ellipse(128, 150, 90, 110, 0, 0, 6.28); g.fill();
-      noiseFill(g, w, h, 20);
-      stain(g, w, h, 8, "#5a3030");
-      stain(g, w, h, 6, "#2a1810");
+      g.fillStyle = "#6a6458"; g.fillRect(0, 0, w, h);
+      g.fillStyle = "#8a7d6c";
+      g.beginPath(); g.ellipse(128, 148, 92, 118, 0, 0, 6.28); g.fill();
+      noiseFill(g, w, h, 28);
+      stain(g, w, h, 12, "#3a1010");
+      stain(g, w, h, 8, "#1a0c08");
+      stain(g, w, h, 6, "#2a2a18");
       g.strokeStyle = "#1a0c0a"; g.lineWidth = 2;
       function stitch(x1, y1, x2, y2) {
         g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
@@ -553,22 +642,29 @@ function AsylumAudio() {
       stitch(118, 20, 132, 230);
       stitch(40, 180, 210, 200);
       // sunken sockets
-      g.fillStyle = "#090604";
-      g.beginPath(); g.ellipse(88, 108, 16, 22, -0.25, 0, 6.28); g.fill();
-      g.beginPath(); g.ellipse(168, 118, 20, 12, 0.45, 0, 6.28); g.fill();
-      g.fillStyle = "rgba(80,10,8,0.85)";
-      g.beginPath(); g.ellipse(88, 112, 7, 6, 0, 0, 6.28); g.fill();
-      g.beginPath(); g.ellipse(170, 120, 6, 5, 0, 0, 6.28); g.fill();
+      g.fillStyle = "#040201";
+      g.beginPath(); g.ellipse(82, 104, 22, 28, -0.35, 0, 6.28); g.fill();
+      g.beginPath(); g.ellipse(176, 122, 26, 14, 0.55, 0, 6.28); g.fill();
+      g.fillStyle = "rgba(90,0,0,0.95)";
+      g.beginPath(); g.ellipse(82, 110, 8, 7, 0, 0, 6.28); g.fill();
+      g.beginPath(); g.ellipse(180, 124, 5, 9, 0.4, 0, 6.28); g.fill();
       // wet gleam
       g.fillStyle = "rgba(200,160,140,0.45)";
       g.beginPath(); g.ellipse(84, 102, 2.5, 3, 0, 0, 6.28); g.fill();
       g.beginPath(); g.ellipse(174, 114, 2, 2.2, 0, 0, 6.28); g.fill();
-      // torn mouth
-      g.fillStyle = "#2a0606";
-      g.beginPath(); g.moveTo(96, 188); g.quadraticCurveTo(128, 220, 168, 184); g.quadraticCurveTo(130, 200, 96, 188); g.fill();
-      g.strokeStyle = "#4a1010"; g.lineWidth = 3;
-      g.beginPath(); g.moveTo(100, 186); g.quadraticCurveTo(128, 210, 164, 182); g.stroke();
-      stain(g, w, h, 5, "#6a1810");
+      // torn, too-wide mouth
+      g.fillStyle = "#140202";
+      g.beginPath(); g.moveTo(70, 186); g.quadraticCurveTo(128, 248, 196, 178); g.quadraticCurveTo(128, 210, 70, 186); g.fill();
+      g.strokeStyle = "#4a0808"; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(78, 188); g.quadraticCurveTo(128, 236, 188, 180); g.stroke();
+      g.fillStyle = "#d8c8b8";
+      for (var tx = 88; tx <= 170; tx += 11) {
+        g.beginPath(); g.moveTo(tx, 198); g.lineTo(tx + 3, 214); g.lineTo(tx + 6, 198); g.fill();
+      }
+      // a second, wrong mouth higher on the cheek
+      g.fillStyle = "#1a0404";
+      g.beginPath(); g.ellipse(200, 160, 18, 5, 0.35, 0, 6.28); g.fill();
+      stain(g, w, h, 6, "#6a1810");
     });
     face.wrapS = face.wrapT = THREE.ClampToEdgeWrapping;
     makeTextures._live = { plaster: plaster, floor: floor, metal: metal, door: door, blood: blood, face: face };
@@ -737,22 +833,22 @@ function AsylumAudio() {
   var MODE_INFO = {
     story: {
       title: "Story",
-      blurb: "Escape Harrowmead's Ward 6. Search, deduce, and restore what still works, then leave by the south service door.",
+      blurb: "Escape Harrowmead's Ward 6. You have a quiet window before they come, one at a time. If one reaches you, you can tear free a few times. Search, restore what still works, and leave by the south service door.",
       objective: "Search the wards and the nurse's station for anything that explains who was taken below."
     },
     survival: {
       title: "Survival",
-      blurb: "There is no exit. Last as long as you can. Your score is the time you stay on your feet. They will keep coming.",
+      blurb: "There is no exit. Last as long as you can. Your score is the time you stay on your feet. They arrive later, then keep coming. You can tear free once.",
       objective: "Stay alive. Break their line of sight if they see you. Watch the battery."
     },
     nightmare: {
       title: "Nightmare",
-      blurb: "One life. Less light, a shorter battery, and more of them walking the halls. If they take you, the run is over.",
+      blurb: "One life. They come sooner, and they will not let go. Less light, a shorter battery, and more of them in the halls. If they take you, the run is over.",
       objective: "Search the wards and the nurse's station. Do not waste the battery. Escape is the only finish."
     },
     timed: {
       title: "Timed",
-      blurb: "Escape as quickly as you can. Your best time is stored on this device. Every wrong door costs you.",
+      blurb: "Escape as quickly as you can. They do not all come at once, and you can tear free twice if they reach you. Your best time is stored on this device.",
       objective: "Search the wards and the nurse's station for anything that explains who was taken below."
     }
   };
@@ -1023,58 +1119,68 @@ function AsylumAudio() {
   function makeHunterMesh(tex, variant) {
     var g = new THREE.Group();
     function mat(color, extra) {
-      var o = { color: color, roughness: 0.9, metalness: 0.02, transparent: true, opacity: 1 };
+      var o = { color: color, roughness: 0.92, metalness: 0.04, transparent: true, opacity: 1 };
       if (extra) Object.assign(o, extra);
       return new THREE.MeshStandardMaterial(o);
     }
-    var skin = mat(variant ? 0xb0a898 : 0xc6beb0);
-    var skin2 = mat(0x8a8074);
-    var dark = mat(0x1a120e);
-    var faceMat = new THREE.MeshStandardMaterial({ map: tex.face, roughness: 0.82, metalness: 0.02, transparent: true, opacity: 1 });
-    var eyeMat = new THREE.MeshStandardMaterial({ color: 0x140403, emissive: 0x6a0a0a, emissiveIntensity: variant ? 1.1 : 0.85, roughness: 0.35, transparent: true, opacity: 1 });
+    var skin = mat(variant === 2 ? 0x6a5a4c : (variant ? 0x7a6e60 : 0x8a7c6e));
+    var skin2 = mat(0x4a4038);
+    var dark = mat(0x0c0a08);
+    var gown = mat(variant ? 0x161210 : 0x1a1410, { roughness: 0.96 });
+    var faceMat = new THREE.MeshStandardMaterial({ map: tex.face, roughness: 0.88, metalness: 0.02, transparent: true, opacity: 1 });
+    var eyeMat = new THREE.MeshStandardMaterial({ color: 0x1a0202, emissive: 0x8a0a0a, emissiveIntensity: variant ? 1.7 : 1.35, roughness: 0.25, transparent: true, opacity: 1 });
+    var toothMat = mat(0xd0c4b4);
     function box(parent, material, x, y, z, sx, sy, sz) {
       var m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), material);
       m.position.set(x, y, z);
       parent.add(m);
       return m;
     }
-    var hips = new THREE.Group(); hips.position.set(0, 1.05, 0); g.add(hips);
-    var torso = new THREE.Group(); torso.position.set(0, 0.15, 0); torso.rotation.x = 0.18; hips.add(torso);
-    box(torso, skin, 0, 0.55, 0, 0.28, 1.15, 0.18);
-    box(torso, dark, 0, 0.5, 0.1, 0.16, 0.02, 0.02);
-    box(torso, dark, 0, 0.7, 0.1, 0.14, 0.02, 0.02);
-    var neck = box(torso, skin2, 0, 1.25, 0.02, 0.09, 0.42, 0.09);
-    var head = new THREE.Group(); head.position.set(0, 1.52, 0.04); torso.add(head);
-    var skull = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.52, 0.3), faceMat);
-    skull.scale.set(1, 1.4, 0.82); head.add(skull);
-    var jaw = new THREE.Group(); jaw.position.set(0, -0.2, 0.04); head.add(jaw);
-    box(jaw, skin2, 0, -0.06, 0.02, 0.2, 0.12, 0.16);
-    box(head, eyeMat, -0.07, 0.06, 0.14, 0.05, 0.07, 0.03);
-    box(head, eyeMat, 0.08, 0.04, 0.14, 0.06, 0.04, 0.03);
-    var armL = new THREE.Group(); armL.position.set(-0.2, 1.05, 0); torso.add(armL);
-    var armR = new THREE.Group(); armR.position.set(0.22, 1.12, 0); torso.add(armR);
+    var hips = new THREE.Group(); hips.position.set(0, variant === 2 ? 0.72 : 1.02, 0); g.add(hips);
+    var torso = new THREE.Group(); torso.position.set(0, 0.12, 0); torso.rotation.x = variant === 2 ? 0.72 : 0.22; hips.add(torso);
+    box(torso, gown, 0, 0.58, 0, 0.26, 1.22, 0.16);
+    box(torso, dark, 0, 0.42, 0.09, 0.18, 0.02, 0.02);
+    box(torso, dark, 0, 0.68, 0.09, 0.15, 0.02, 0.02);
+    box(torso, dark, 0, 0.9, 0.09, 0.1, 0.02, 0.02);
+    box(torso, skin2, 0, 1.28, 0.02, 0.08, 0.58, 0.08);
+    var head = new THREE.Group(); head.position.set(0, 1.62, 0.06); torso.add(head);
+    var skull = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.58, 0.26), faceMat);
+    skull.scale.set(variant === 1 ? 0.92 : 1, 1.55, 0.78); head.add(skull);
+    var jaw = new THREE.Group(); jaw.position.set(0, -0.26, 0.05); head.add(jaw);
+    box(jaw, skin2, 0, -0.08, 0.03, 0.22, 0.14, 0.18);
+    box(jaw, toothMat, -0.06, -0.02, 0.1, 0.04, 0.08, 0.03);
+    box(jaw, toothMat, 0.02, -0.01, 0.11, 0.035, 0.1, 0.03);
+    box(jaw, toothMat, 0.09, -0.03, 0.1, 0.03, 0.07, 0.03);
+    box(head, eyeMat, -0.08, 0.08, 0.12, 0.045, 0.09, 0.03);
+    box(head, eyeMat, 0.09, 0.02, 0.13, variant ? 0.07 : 0.055, 0.035, 0.03);
+    var armL = new THREE.Group(); armL.position.set(-0.22, 1.08, 0); torso.add(armL);
+    var armR = new THREE.Group(); armR.position.set(0.24, 1.16, 0); torso.add(armR);
     var upperL = new THREE.Group(); armL.add(upperL);
     var upperR = new THREE.Group(); armR.add(upperR);
-    box(upperL, skin, 0, -0.38, 0, 0.07, 0.78, 0.07);
-    box(upperR, skin, 0, -0.42, 0, 0.065, 0.86, 0.065);
-    var elL = new THREE.Group(); elL.position.set(0, -0.78, 0); upperL.add(elL);
-    var elR = new THREE.Group(); elR.position.set(0, -0.86, 0); upperR.add(elR);
-    box(elL, skin2, 0, -0.4, 0, 0.06, 0.8, 0.06);
-    box(elR, skin2, 0, -0.46, 0, 0.055, 0.92, 0.055);
-    box(elL, dark, -0.05, -0.84, 0.02, 0.03, 0.18, 0.03);
-    box(elL, dark, 0.04, -0.86, 0.02, 0.03, 0.2, 0.03);
-    box(elR, dark, -0.04, -0.96, 0.02, 0.03, 0.2, 0.03);
-    box(elR, dark, 0.05, -0.98, 0.03, 0.03, 0.22, 0.03);
+    box(upperL, skin, 0, -0.48, 0, 0.065, 0.98, 0.065);
+    box(upperR, skin, 0, -0.52, 0, 0.06, 1.06, 0.06);
+    var elL = new THREE.Group(); elL.position.set(0, -0.98, 0); upperL.add(elL);
+    var elR = new THREE.Group(); elR.position.set(0, -1.06, 0); upperR.add(elR);
+    box(elL, skin2, 0, -0.5, 0, 0.055, 1.02, 0.055);
+    box(elR, skin2, 0, -0.56, 0, 0.05, 1.14, 0.05);
+    box(elL, dark, -0.05, -1.04, 0.02, 0.025, 0.28, 0.025);
+    box(elL, dark, 0.04, -1.08, 0.03, 0.025, 0.32, 0.025);
+    box(elL, dark, 0, -1.1, 0.05, 0.02, 0.34, 0.02);
+    box(elR, dark, -0.04, -1.16, 0.02, 0.025, 0.3, 0.025);
+    box(elR, dark, 0.05, -1.2, 0.04, 0.025, 0.36, 0.025);
+    box(elR, dark, 0, -1.22, 0.06, 0.02, 0.38, 0.02);
     var legL = new THREE.Group(); legL.position.set(-0.1, 0, 0); hips.add(legL);
     var legR = new THREE.Group(); legR.position.set(0.1, 0, 0); hips.add(legR);
-    box(legL, skin, 0, -0.35, 0, 0.09, 0.7, 0.09);
-    box(legR, skin, 0, -0.35, 0, 0.09, 0.7, 0.09);
-    var knL = new THREE.Group(); knL.position.set(0, -0.7, 0); legL.add(knL);
-    var knR = new THREE.Group(); knR.position.set(0, -0.7, 0); legR.add(knR);
-    box(knL, skin2, 0, -0.35, 0, 0.08, 0.7, 0.08);
-    box(knR, skin2, 0, -0.35, 0, 0.08, 0.7, 0.08);
-    g.userData = { head: head, jaw: jaw, armL: armL, armR: armR, elL: elL, elR: elR, legL: legL, legR: legR, knL: knL, knR: knR, torso: torso, hips: hips, mats: [skin, skin2, dark, faceMat, eyeMat] };
-    g.scale.set(variant ? 0.95 : 1, variant ? 1.28 : 1.18, variant ? 0.95 : 1);
+    box(legL, gown, 0, -0.38, 0, 0.085, 0.76, 0.085);
+    box(legR, gown, 0, -0.38, 0, 0.085, 0.76, 0.085);
+    var knL = new THREE.Group(); knL.position.set(0, -0.76, 0); legL.add(knL);
+    var knR = new THREE.Group(); knR.position.set(0, -0.76, 0); legR.add(knR);
+    box(knL, skin2, 0, -0.4, 0, 0.075, 0.82, 0.075);
+    box(knR, skin2, 0, -0.4, 0, 0.075, 0.82, 0.075);
+    g.userData = { head: head, jaw: jaw, armL: armL, armR: armR, elL: elL, elR: elR, legL: legL, legR: legR, knL: knL, knR: knR, torso: torso, hips: hips, mats: [skin, skin2, dark, gown, faceMat, eyeMat, toothMat] };
+    if (variant === 1) g.scale.set(0.88, 1.42, 0.9);
+    else if (variant === 2) g.scale.set(1.08, 0.92, 1.15);
+    else g.scale.set(0.96, 1.24, 0.98);
     return g;
   }
 
@@ -1088,13 +1194,14 @@ function AsylumAudio() {
     mesh.visible = op > 0.02;
   }
 
-  function Hunter(world, tex, x, z, audio, variant) {
+  function Hunter(world, tex, x, z, audio, variant, tune) {
     this.mesh = makeHunterMesh(tex, variant);
     this.x = x; this.z = z; this.y = 0;
     this.vx = 0; this.vz = 0; this.facing = 0;
     this.state = "patrol";
     this.target = { x: x, z: z };
-    this.seen = 0; this.searchT = 0; this.stalkT = 2 + Math.random() * 8;
+    this.lastSeen = { x: x, z: z };
+    this.seen = 0; this.searchT = 0; this.stalkT = 4 + Math.random() * 10;
     this.ceiling = false; this.twitchT = 0; this.modeT = 0;
     this.gait = Math.random() * 10;
     this.opacity = 1;
@@ -1103,6 +1210,16 @@ function AsylumAudio() {
     this.justAppeared = false;
     this.lungeT = 0;
     this.footT = 0;
+    this.hesitateT = 0;
+    this.freezeT = 0;
+    this.headSnapT = 0;
+    this.crawlT = 0;
+    this.crawling = false;
+    this.staggerT = 0;
+    this._loseLive = 0;
+    this.activeT = 0;
+    this.variant = variant || 0;
+    this.tune = tune || defaultHunterTune("story");
     this.mesh.position.set(x, 0, z);
     this.radius = 0.34;
     this.world = world; this.audio = audio;
@@ -1112,6 +1229,7 @@ function AsylumAudio() {
     this.ceiling = on;
     if (on) {
       this.y = H - 0.08;
+      this.crawling = false;
     } else {
       this.y = 0;
     }
@@ -1137,13 +1255,17 @@ function AsylumAudio() {
   };
   Hunter.prototype.update = function (dt, player, walls, hooks) {
     this.justAppeared = false;
+    this.activeT += dt;
+    var tune = this.tune;
     var dxp = player.x - this.x, dzp = player.z - this.z;
     var dist = Math.hypot(dxp, dzp);
     var los = dist < 22 && this.los(player.x, player.z, walls);
     var ang = Math.atan2(dxp, dzp);
     var view = Math.abs(Math.atan2(Math.sin(ang - this.facing), Math.cos(ang - this.facing)));
-    var inFront = view < 1.3 || dist < 2.5;
-    var lit = player.flashlightOn && player.battery > 0 && dist < (player.flashDist || 12);
+    var inFront = view < 1.15 || dist < 1.55;
+    var lit = player.flashlightOn && player.battery > 0;
+    var crouch = (player.crouch || 0) > 0.45;
+    var range = (lit ? tune.detectLit : tune.detectDark) * (crouch ? tune.crouchMul : 1);
     if (this.appearHold > 0) {
       this.opacity = Math.min(1, this.opacity + dt * 6);
       setHunterOpacity(this.mesh, this.opacity);
@@ -1166,63 +1288,101 @@ function AsylumAudio() {
       this.opacity = Math.min(1, this.opacity + dt * 3.5);
       setHunterOpacity(this.mesh, this.opacity);
     }
-    if (los && inFront && (dist < 10 || lit) && this.opacity > 0.5) {
+    if (this.staggerT > 0) {
+      this.staggerT -= dt;
+      if (this.staggerT <= 0) { this.state = "search"; this.searchT = tune.searchT; }
+    } else if (this.state !== "catch" && los && inFront && dist < Math.max(range, 1.35) && this.opacity > 0.5) {
+      if (this.state !== "chase") {
+        this.hesitateT = tune.hesitate * (0.85 + Math.random() * 0.3);
+        if (this.audio && hooks && hooks.onSpot) hooks.onSpot(this, dist);
+      }
       this.state = "chase";
-      this.seen = 2.8;
+      this.lastSeen.x = player.x; this.lastSeen.z = player.z;
       this.target.x = player.x; this.target.z = player.z;
+      this._loseLive = tune.loseSight;
       if (this.ceiling) this.setCeiling(false);
     } else if (this.state === "chase") {
-      this.seen -= dt;
-      if (this.seen <= 0) { this.state = "search"; this.searchT = 5; }
-      else { this.target.x = player.x; this.target.z = player.z; }
+      if (tune.loseSight > 0 && this._loseLive > 0) {
+        this._loseLive -= dt;
+        this.target.x = player.x; this.target.z = player.z;
+        this.lastSeen.x = player.x; this.lastSeen.z = player.z;
+      } else {
+        this.target.x = this.lastSeen.x; this.target.z = this.lastSeen.z;
+        var toLast = Math.hypot(this.lastSeen.x - this.x, this.lastSeen.z - this.z);
+        if (toLast < 0.85) { this.state = "search"; this.searchT = tune.searchT; }
+      }
     } else if (this.state === "search") {
       this.searchT -= dt;
       if (this.searchT <= 0) { this.state = "patrol"; this.pickPatrol(); }
-    } else {
+    } else if (this.state === "catch") {
+      // posed by the catch sequence
+    } else if (this.state !== "stagger") {
       this.stalkT -= dt;
       var toT = Math.hypot(this.target.x - this.x, this.target.z - this.z);
       if (toT < 0.6) this.pickPatrol();
-      if (this.stalkT < 0 && dist > 6 && dist < 16 && this.pendingVanish <= 0) {
-        this.stalkT = 8 + Math.random() * 14;
-        var a = player.yaw + (Math.random() < 0.5 ? 0.55 : -0.55) + (Math.random() - 0.5) * 0.15;
-        var d = 6 + Math.random() * 3;
+      if (this.activeT > 14 && this.stalkT < 0 && dist > tune.appearMin && dist < 18 && this.pendingVanish <= 0) {
+        this.stalkT = tune.appearCd + Math.random() * 8;
+        var a = player.yaw + (Math.random() < 0.5 ? 0.7 : -0.7) + (Math.random() - 0.5) * 0.2;
+        var d = tune.appearMin + Math.random() * (tune.appearMax - tune.appearMin);
         var nx = player.x + Math.sin(a) * d, nz = player.z - Math.cos(a) * d;
         var pos = C.pushCircleOut(nx, nz, this.radius, walls, 8);
         this.x = pos.x; this.z = pos.z;
         this.opacity = 0;
         setHunterOpacity(this.mesh, 0);
-        if (Math.random() < 0.5 && H > 3) this.setCeiling(true);
+        if (Math.random() < 0.45 && H > 3) this.setCeiling(true);
         this.justAppeared = true;
         this.pendingVanish = 0;
         this.appearHold = Math.random() < 0.7 ? (0.8 + Math.random() * 0.5) : 0;
         if (hooks && hooks.onAppear) hooks.onAppear(this, dist);
       }
     }
-    var spd = this.state === "chase" ? 3.45 : this.state === "search" ? 2.25 : 1.35;
+    var spd = this.state === "chase" ? tune.chaseSpd : this.state === "search" ? tune.searchSpd : this.state === "stagger" ? 0.55 : tune.patrolSpd;
     if (this.ceiling) spd *= 0.9;
-    if (this.lungeT > 0) { this.lungeT -= dt; spd = 6.1; }
+    if (this.crawling) spd = Math.min(spd + 0.25, tune.chaseSpd * 0.96);
+    if (this.lungeT > 0) { this.lungeT -= dt; spd = tune.lungeSpd; }
+    if (this.hesitateT > 0) { this.hesitateT -= dt; spd = 0.15; }
+    if (this.freezeT > 0) { this.freezeT -= dt; spd = 0; }
+    if (this.staggerT > 0) spd = 0.4;
+    if (this.state === "catch") spd = 0;
     this.modeT -= dt;
     if (this.modeT < 0) {
-      this.modeT = 0.12 + Math.random() * 0.7;
-      if (Math.random() < 0.2 && this.state !== "chase") spd = 0;
+      this.modeT = 0.25 + Math.random() * 1.1;
+      if (this.state !== "chase" && this.state !== "catch" && Math.random() < 0.28) this.freezeT = 0.45 + Math.random() * 0.9;
+      else if (this.state === "chase" && Math.random() < 0.08) this.freezeT = 0.12 + Math.random() * 0.16;
+      if (this.state === "chase" && !this.ceiling && Math.random() < tune.crawlChance) this.crawlT = 1.6 + Math.random() * 1.8;
     }
+    if (this.crawlT > 0) { this.crawlT -= dt; this.crawling = true; }
+    else this.crawling = false;
     var tx = this.target.x - this.x, tz = this.target.z - this.z, td = Math.hypot(tx, tz) || 1;
     var wishX = (tx / td) * spd, wishZ = (tz / td) * spd;
-    this.vx = approach(this.vx, wishX, (this.lungeT > 0 ? 28 : 11) * dt);
-    this.vz = approach(this.vz, wishZ, (this.lungeT > 0 ? 28 : 11) * dt);
-    var nx = this.x + this.vx * dt, nz = this.z + this.vz * dt;
-    var pos = C.pushCircleOut(nx, nz, this.radius, walls, 6);
-    this.x = pos.x; this.z = pos.z;
-    if (Math.abs(this.vx) + Math.abs(this.vz) > 0.05) this.facing = Math.atan2(this.vx, this.vz);
+    this.vx = approach(this.vx, wishX, (this.lungeT > 0 ? 22 : 10) * dt);
+    this.vz = approach(this.vz, wishZ, (this.lungeT > 0 ? 22 : 10) * dt);
+    if (this.state !== "catch") {
+      var nx2 = this.x + this.vx * dt, nz2 = this.z + this.vz * dt;
+      var pos2 = C.pushCircleOut(nx2, nz2, this.radius, walls, 6);
+      this.x = pos2.x; this.z = pos2.z;
+      if (Math.abs(this.vx) + Math.abs(this.vz) > 0.05) this.facing = Math.atan2(this.vx, this.vz);
+    }
     this.mesh.position.set(this.x, this.y, this.z);
     this.mesh.rotation.y = this.facing;
     this.mesh.rotation.x = this.ceiling ? Math.PI : 0;
     var ud = this.mesh.userData;
-    var moving = Math.hypot(this.vx, this.vz) > 0.2;
-    this.gait += dt * (moving ? (this.state === "chase" ? 7.5 : 4.6) : 0.6);
+    var moving = Math.hypot(this.vx, this.vz) > 0.2 && this.freezeT <= 0;
+    var gaitSpd = this.crawling ? 13.5 : (this.state === "chase" ? 7.8 : 4.6);
+    this.gait += dt * (moving ? gaitSpd : 0.5);
     var limp = Math.sin(this.gait);
     var limp2 = Math.sin(this.gait * 0.5);
-    if (this.ceiling) {
+    if (this.crawling && !this.ceiling) {
+      ud.hips.position.y = approach(ud.hips.position.y, 0.42, 6 * dt);
+      ud.torso.rotation.x = approach(ud.torso.rotation.x, 1.05, 5 * dt);
+      ud.armL.rotation.x = Math.sin(this.gait * 1.6) * 1.4;
+      ud.armR.rotation.x = Math.sin(this.gait * 1.6 + Math.PI) * 1.4;
+      ud.elL.rotation.x = 0.2;
+      ud.elR.rotation.x = 0.2;
+      ud.legL.rotation.x = 0.8 + limp * 0.25;
+      ud.legR.rotation.x = 0.8 - limp * 0.25;
+    } else if (this.ceiling) {
+      ud.hips.position.y = 1.02;
       ud.armL.rotation.x = Math.sin(this.gait) * 1.1;
       ud.armR.rotation.x = Math.sin(this.gait + Math.PI) * 1.1;
       ud.elL.rotation.x = 0.4;
@@ -1230,6 +1390,8 @@ function AsylumAudio() {
       ud.legL.rotation.x = 0.5 + limp * 0.2;
       ud.legR.rotation.x = 0.5 - limp * 0.2;
     } else {
+      ud.hips.position.y = approach(ud.hips.position.y, this.variant === 2 ? 0.72 : 1.02, 5 * dt);
+      ud.torso.rotation.x = approach(ud.torso.rotation.x, this.variant === 2 ? 0.72 : 0.22, 4 * dt);
       ud.legL.rotation.x = limp * 0.55;
       ud.legR.rotation.x = -limp * 0.72;
       ud.knL.rotation.x = Math.max(0, -limp) * 0.5;
@@ -1242,24 +1404,31 @@ function AsylumAudio() {
     }
     this.twitchT -= dt;
     if (this.twitchT < 0) {
-      this.twitchT = 0.04 + Math.random() * 0.38;
-      ud.head.rotation.y = (Math.random() - 0.5) * (this.state === "chase" ? 0.5 : 1.0);
-      ud.head.rotation.z = (Math.random() - 0.5) * 0.45;
+      this.twitchT = 0.05 + Math.random() * 0.42;
+      if (Math.random() < 0.14) {
+        this.headSnapT = 0.55 + Math.random() * 0.4;
+        ud.head.rotation.y = Math.PI * (Math.random() < 0.5 ? 1 : -1);
+        ud.head.rotation.x = (Math.random() - 0.5) * 0.5;
+      } else {
+        ud.head.rotation.y = (Math.random() - 0.5) * (this.state === "chase" ? 0.5 : 1.1);
+        ud.head.rotation.z = (Math.random() - 0.5) * 0.5;
+        if (Math.random() < 0.14) ud.head.rotation.x = (Math.random() < 0.5 ? -0.8 : 0.95);
+        else ud.head.rotation.x = this.ceiling ? 0 : 0.05;
+      }
       ud.armL.rotation.z = 0.35 + Math.random() * 0.7;
       ud.armR.rotation.z = -0.25 - Math.random() * 0.7;
-      if (Math.random() < 0.12) ud.head.rotation.x = (Math.random() < 0.5 ? -0.7 : 0.85);
-      else ud.head.rotation.x = this.ceiling ? 0 : 0.05;
     }
-    if (los && dist < 10) {
+    if (this.headSnapT > 0) this.headSnapT -= dt;
+    else if (los && dist < 10) {
       var lookY = Math.atan2(dxp, dzp) - this.facing;
       lookY = Math.atan2(Math.sin(lookY), Math.cos(lookY));
       ud.head.rotation.y = approach(ud.head.rotation.y, clamp(lookY, -0.9, 0.9), 4 * dt);
     }
-    var jawWant = (this.state === "chase" || this.lungeT > 0) ? 0.6 : 0.02;
+    var jawWant = (this.state === "chase" || this.lungeT > 0 || this.state === "catch") ? 0.75 : 0.02;
     ud.jaw.rotation.x = approach(ud.jaw.rotation.x, jawWant, 4 * dt);
     if (moving && dist < 11 && this.audio && this.opacity > 0.4) {
-      this.footT += dt * (this.state === "chase" ? 2.4 : 1.3);
-      if (this.footT > 1) { this.footT -= 1; this.audio.drag(dist < 5 ? 0.22 : 0.1); }
+      this.footT += dt * (this.crawling ? 4.2 : (this.state === "chase" ? 2.4 : 1.3));
+      if (this.footT > 1) { this.footT -= 1; this.audio.drag(dist < 5 ? (this.crawling ? 0.3 : 0.22) : 0.1); }
     }
     return dist;
   };
@@ -1272,7 +1441,45 @@ function AsylumAudio() {
     return {
       start: n, tick: n, silence: n, scream: n, distantScream: n, whisper: n, sting: n,
       bang: n, knock: n, scrape: n, bump: n, foot: n, drag: n, buzz: n, click: n,
-      setStatic: n, stopStatic: n, resume: n
+      setStatic: n, stopStatic: n, setWhisper: n, arrive: n, grab: n, resume: n
+    };
+  }
+
+
+  function defaultHunterTune(mode) {
+    if (mode === "nightmare") {
+      return {
+        grace: 28, arriveGap: 22, hunterCount: 4, maxHunters: 4,
+        chaseSpd: 4.85, searchSpd: 2.55, patrolSpd: 1.45, lungeSpd: 5.55,
+        detectLit: 11, detectDark: 7.2, crouchMul: 0.7,
+        hesitate: 0.22, loseSight: 1.4, searchT: 6, escapes: 0,
+        appearMin: 7.5, appearMax: 11, appearCd: 16, crawlChance: 0.35, lungeChance: 0.85
+      };
+    }
+    if (mode === "survival") {
+      return {
+        grace: 50, arriveGap: 40, hunterCount: 1, maxHunters: 6,
+        chaseSpd: 4.6, searchSpd: 2.3, patrolSpd: 1.25, lungeSpd: 5.05,
+        detectLit: 9, detectDark: 5.4, crouchMul: 0.6,
+        hesitate: 0.4, loseSight: 0.5, searchT: 7, escapes: 1,
+        appearMin: 8.5, appearMax: 12, appearCd: 20, crawlChance: 0.22, lungeChance: 0.45
+      };
+    }
+    if (mode === "timed") {
+      return {
+        grace: 70, arriveGap: 55, hunterCount: 2, maxHunters: 2,
+        chaseSpd: 4.5, searchSpd: 2.2, patrolSpd: 1.2, lungeSpd: 4.9,
+        detectLit: 8.5, detectDark: 4.8, crouchMul: 0.55,
+        hesitate: 0.55, loseSight: 0, searchT: 8, escapes: 2,
+        appearMin: 9, appearMax: 13, appearCd: 22, crawlChance: 0.18, lungeChance: 0.28
+      };
+    }
+    return {
+      grace: 75, arriveGap: 60, hunterCount: 2, maxHunters: 2,
+      chaseSpd: 4.55, searchSpd: 2.2, patrolSpd: 1.2, lungeSpd: 4.9,
+      detectLit: 8.5, detectDark: 4.8, crouchMul: 0.55,
+      hesitate: 0.65, loseSight: 0, searchT: 8, escapes: 3,
+      appearMin: 9, appearMax: 13, appearCd: 22, crawlChance: 0.18, lungeChance: 0.25
     };
   }
 
@@ -1314,6 +1521,9 @@ function AsylumAudio() {
     this._blackout = 0;
     this._yawStill = 0;
     this._lastYaw = 0;
+    this.iFrames = 0;
+    this._catch = null;
+    this._threat = 0;
   }
 
   Game.prototype._initThree = function () {
@@ -1386,8 +1596,20 @@ function AsylumAudio() {
   };
 
   Game.prototype._initHunters = function () {
-    var n = this.mode === "nightmare" ? 4 : this.mode === "survival" ? 2 : 2;
+    this.tune = defaultHunterTune(this.mode);
     this.hunters = [];
+    this.escapesLeft = this.tune.escapes;
+    this.escapesMax = this.tune.escapes;
+    this.hunterSchedule = [];
+    this._nextSpot = 0;
+    this._arrived = 0;
+    var n = this.tune.hunterCount;
+    for (var i = 0; i < n; i++) {
+      this.hunterSchedule.push({ t: this.tune.grace + i * this.tune.arriveGap, variant: i % 3 });
+    }
+  };
+
+  Game.prototype._spawnHunter = function (variant, announce) {
     var spots = [
       { x: ROOM.chapel.cx, z: ROOM.chapel.cz },
       { x: ROOM.east_ward.cx, z: ROOM.east_ward.cz },
@@ -1395,12 +1617,36 @@ function AsylumAudio() {
       { x: ROOM.boiler.cx, z: ROOM.boiler.cz },
       { x: ROOM.records.cx, z: ROOM.records.cz }
     ];
-    for (var i = 0; i < n; i++) {
-      var s = spots[i % spots.length];
-      var h = new Hunter(this.world, this.tex, s.x + (i * 0.4), s.z, this.audio, i % 2);
-      this.scene.add(h.mesh);
-      this.hunters.push(h);
+    var p = this.player;
+    var best = spots[this._nextSpot % spots.length], bestD = -1;
+    for (var i = 0; i < spots.length; i++) {
+      var s = spots[(this._nextSpot + i) % spots.length];
+      var d = Math.hypot(s.x - p.x, s.z - p.z);
+      if (d > 8 && d > bestD) { bestD = d; best = s; }
     }
+    this._nextSpot++;
+    var h = new Hunter(this.world, this.tex, best.x, best.z, this.audio, variant == null ? (this.hunters.length % 3) : variant, this.tune);
+    this.scene.add(h.mesh);
+    this.hunters.push(h);
+    this._arrived++;
+    if (announce && !this.harness) {
+      this.audio.arrive();
+      this._shake = Math.max(this._shake, 0.38);
+      if (this._arrived === 1) this.toast("You are no longer alone.");
+      else this.toast("Another one is in the building.");
+    }
+    return h;
+  };
+
+  Game.prototype.updateLivesHud = function () {
+    var box = document.getElementById("lives");
+    var pips = document.getElementById("lives-pips");
+    if (!box || !pips) return;
+    if (!this.escapesMax) { box.hidden = true; pips.innerHTML = ""; return; }
+    box.hidden = false;
+    var html = "";
+    for (var i = 0; i < this.escapesMax; i++) html += i < this.escapesLeft ? '<i class="on"></i>' : "<i></i>";
+    pips.innerHTML = html;
   };
 
   Game.prototype.addNote = function (title, body) {
@@ -1985,28 +2231,100 @@ function AsylumAudio() {
 
   Game.prototype.updateHunters = function (dt) {
     var closest = 99, p = this.player, self = this;
+    while (this.hunterSchedule.length && this.t >= this.hunterSchedule[0].t) {
+      var ev = this.hunterSchedule.shift();
+      this._spawnHunter(ev.variant, true);
+    }
+    if (this.mode === "survival" && this.hunters.length < this.tune.maxHunters) {
+      var nextT = this.tune.grace + this.hunters.length * this.tune.arriveGap;
+      if (this.t >= nextT) this._spawnHunter(this.hunters.length % 3, true);
+    }
     var hooks = {
-      onAppear: function (h, d) { self.jumpscare("edge", h); }
+      onAppear: function (h, d) { self.jumpscare("edge", h); },
+      onSpot: function (h, d) { if (d < 8 && self.scareCd <= 0) { self.audio.whisper(); self._shake = Math.max(self._shake, 0.18); } }
     };
     for (var i = 0; i < this.hunters.length; i++) {
       var h = this.hunters[i];
+      if (this._catch && this._catch.hunter === h) continue;
       var d = h.update(dt, p, this.world.walls, hooks);
       if (d < closest) closest = d;
-      if (h.state === "chase" && d < 3.2 && h.lungeT <= 0 && h.opacity > 0.7 && Math.random() < dt * 0.5) {
-        h.lungeT = 0.42;
+      if (h.state === "chase" && h.hesitateT <= 0 && d < 3.2 && h.lungeT <= 0 && h.opacity > 0.7 && Math.random() < dt * this.tune.lungeChance) {
+        h.lungeT = this.mode === "nightmare" ? 0.4 : 0.28;
         if (this.scareCd <= 0) this.jumpscare("close", h);
       }
-      if (d < 1.05 && !h.ceiling && h.opacity > 0.45 && h.los(p.x, p.z, this.world.walls)) {
-        this.die();
+      if (this.iFrames <= 0 && !this._catch && d < 1.08 && !h.ceiling && h.opacity > 0.45 && h.los(p.x, p.z, this.world.walls)) {
+        this.die(h);
         return closest;
       }
     }
-    if (this.mode === "survival" && this.t > 45 + this.hunters.length * 40 && this.hunters.length < 6) {
-      var nh = new Hunter(this.world, this.tex, ROOM.chapel.cx, ROOM.chapel.cz, this.audio, this.hunters.length % 2);
-      this.scene.add(nh.mesh); this.hunters.push(nh);
-      this.toast("Another one is in the building.");
-    }
     return closest;
+  };
+
+  Game.prototype.startCatch = function (hunter, kind) {
+    if (this._catch) return;
+    this._catch = { hunter: hunter, kind: kind, t: 0, dur: this.harness ? 0.08 : 2.15 };
+    hunter.state = "catch";
+    hunter.lungeT = 0;
+    hunter.hesitateT = 0;
+    hunter.freezeT = 0;
+    this._shake = 0.85;
+    this.audio.grab();
+    this.audio.sting();
+    var fx = document.getElementById("catchfx");
+    if (fx) fx.classList.add("on");
+    var hurt = document.getElementById("hurt");
+    if (hurt) hurt.classList.add("on");
+  };
+
+  Game.prototype.updateCatch = function (dt) {
+    var c = this._catch;
+    if (!c) return false;
+    c.t += dt;
+    var h = c.hunter, p = this.player;
+    var fx = p.x + Math.sin(p.yaw) * 0.72;
+    var fz = p.z - Math.cos(p.yaw) * 0.72;
+    h.x += (fx - h.x) * Math.min(1, 8 * dt);
+    h.z += (fz - h.z) * Math.min(1, 8 * dt);
+    h.facing = Math.atan2(p.x - h.x, p.z - h.z);
+    h.mesh.position.set(h.x, 0, h.z);
+    h.mesh.rotation.y = h.facing;
+    var ud = h.mesh.userData;
+    if (ud) {
+      ud.armL.rotation.x = -1.7; ud.armR.rotation.x = -1.85;
+      ud.elL.rotation.x = 0.2; ud.elR.rotation.x = 0.25;
+      ud.jaw.rotation.x = 0.95;
+      ud.head.rotation.y = (c.t % 0.22 < 0.1) ? Math.PI : 0;
+      ud.head.rotation.x = Math.sin(c.t * 18) * 0.2;
+    }
+    if (this.cam) {
+      this.cam.rotation.z += Math.sin(this.t * 90) * 0.14;
+      this.cam.rotation.x += Math.sin(this.t * 70) * 0.06;
+    }
+    if (c.t >= c.dur) {
+      this._catch = null;
+      var elx = document.getElementById("catchfx");
+      if (elx) elx.classList.remove("on");
+      var hurt = document.getElementById("hurt");
+      if (hurt) hurt.classList.remove("on");
+      if (c.kind === "death") this.finishDie();
+      else this.knockdownEscape(h);
+    }
+    return true;
+  };
+
+  Game.prototype.knockdownEscape = function (h) {
+    this.iFrames = this.mode === "nightmare" ? 1.6 : 2.8;
+    var dx = this.player.x - h.x, dz = this.player.z - h.z, d = Math.hypot(dx, dz) || 1;
+    var nx = this.player.x + (dx / d) * 3.3, nz = this.player.z + (dz / d) * 3.3;
+    var pos = C.pushCircleOut(nx, nz, this.player.radius, this.world.walls, 10, 1.72, true);
+    this.player.x = pos.x; this.player.z = pos.z;
+    this.player.vx = (dx / d) * 6; this.player.vz = (dz / d) * 6;
+    h.state = "stagger";
+    h.staggerT = 2.2;
+    h.vx = -(dx / d) * 2.5; h.vz = -(dz / d) * 2.5;
+    var left = this.escapesLeft;
+    this.toast(left <= 0 ? "You tear free. It will not miss again." : (left === 1 ? "You tear free. One more chance." : "You tear free. " + left + " chances left."));
+    this.updateLivesHud();
   };
 
   Game.prototype.jumpscare = function (kind, hunter) {
@@ -2039,12 +2357,29 @@ function AsylumAudio() {
     }
   };
 
-  Game.prototype.die = function () {
+  Game.prototype.die = function (hunter) {
     if (this.invulnerable) return;
+    if (this.ended || this._catch) return;
+    if (this.iFrames > 0) return;
+    if (this.escapesLeft > 0 && hunter) {
+      this.escapesLeft -= 1;
+      this.updateLivesHud();
+      this.startCatch(hunter, "knockdown");
+      return;
+    }
+    if (hunter && !this.harness) {
+      this.startCatch(hunter, "death");
+      return;
+    }
+    this.finishDie();
+  };
+
+  Game.prototype.finishDie = function () {
     if (this.ended) return;
     this.ended = true; this.running = false;
     this.audio.sting();
-    document.getElementById("hurt").classList.add("on");
+    var hurt = document.getElementById("hurt");
+    if (hurt) hurt.classList.add("on");
     if (document.pointerLockElement) document.exitPointerLock();
     var msg = this.mode === "survival"
       ? ("You lasted " + fmtTime(this.t) + "." + (this.t > this.best ? " A new best." : (this.best ? " Best " + fmtTime(this.best) + "." : "")))
@@ -2086,6 +2421,11 @@ function AsylumAudio() {
     }
     dt = clamp(dt, 0, 0.05);
     this.t += dt;
+    if (this.iFrames > 0) this.iFrames = Math.max(0, this.iFrames - dt);
+    if (this.updateCatch(dt)) {
+      this.renderer.render(this.scene, this.cam);
+      return;
+    }
     if (!this.harness) {
       var nowF = performance.now();
       if (this._lastFrame) {
@@ -2101,11 +2441,17 @@ function AsylumAudio() {
     var near = this.updateHunters(dt);
     if (this.ended) { this.renderer.render(this.scene, this.cam); return; }
     var prox = near < 14 ? clamp(1 - (near - 1.2) / 12, 0, 1) : 0;
+    this._threat = prox;
     this.audio.tick(dt, prox, st.sprinting);
+    if (this.audio.setWhisper) this.audio.setWhisper(prox);
     if (this._shake > 0) this._shake = Math.max(0, this._shake - dt * 1.8);
     if (this.scareCd > 0) this.scareCd -= dt;
     var hurt = document.getElementById("hurt");
-    if (hurt) hurt.classList.toggle("near", prox > 0.62 && !this.ended);
+    if (hurt) hurt.classList.toggle("near", prox > 0.5 && !this.ended);
+    var vig = document.getElementById("vignette");
+    if (vig) vig.classList.toggle("threat", prox > 0.38 && !this.ended);
+    var distEl = document.getElementById("distort");
+    if (distEl) distEl.style.opacity = (!this.ended && prox > 0.12) ? String(Math.min(0.9, prox * 0.95)) : "0";
     if (this._blackout > 0) {
       this._blackout -= dt;
       this.world.lights.forEach(function (L) { L.l.intensity = 0; });
@@ -2113,13 +2459,13 @@ function AsylumAudio() {
     var yawD = Math.abs(Math.atan2(Math.sin(this.player.yaw - this._lastYaw), Math.cos(this.player.yaw - this._lastYaw)));
     if (yawD < 0.04) this._yawStill += dt; else this._yawStill = 0;
     this._lastYaw = this.player.yaw;
-    if (this.scareCd <= 0 && this.t > 24 && this._scares < 6 && this._yawStill > 2.8 && near > 3) {
+    if (this.scareCd <= 0 && this.t > this.tune.grace + 22 && this._scares < 6 && this._yawStill > 3.2 && near > 4) {
       var behind = null;
       for (var hi = 0; hi < this.hunters.length; hi++) {
         var hh = this.hunters[hi];
         if (hh.state === "chase" || hh.opacity < 0.4) continue;
-        var bx = this.player.x - Math.sin(this.player.yaw) * 2.4;
-        var bz = this.player.z + Math.cos(this.player.yaw) * 2.4;
+        var bx = this.player.x - Math.sin(this.player.yaw) * 3.8;
+        var bz = this.player.z + Math.cos(this.player.yaw) * 3.8;
         var posb = C.pushCircleOut(bx, bz, hh.radius, this.world.walls, 8);
         var dd = Math.hypot(posb.x - this.player.x, posb.z - this.player.z);
         if (dd > 1.4 && dd < 3.2) { behind = hh; hh.x = posb.x; hh.z = posb.z; hh.opacity = 0; hh.appearHold = 0.9; hh.setCeiling(false); break; }
@@ -2324,6 +2670,7 @@ function AsylumAudio() {
     var ol = el("obj-line"); if (ol) ol.innerHTML = "<b>Current objective</b>" + game.objective;
     var ht = el("hud-time"); if (ht) ht.textContent = "0:00.0";
     var sl = el("seed-line"); if (sl) sl.textContent = "Seed " + game.seed;
+    game.updateLivesHud();
     if (!game.harness) game.bind();
     game.beginPlay();
     window.__ASYLUM__.game = game;
@@ -2347,7 +2694,10 @@ function AsylumAudio() {
         flags: Object.assign({}, game.flags), inv: Object.assign({}, game.inv),
         objective: game.objective, x: game.player.x, z: game.player.z,
         puzzle: { code: game.puzzle.code, valves: game.puzzle.valves.slice(), fuseSlots: game.puzzle.fuseSlots.slice(), victimId: game.puzzle.victim.id, freq: game.puzzle.freq },
-        hunters: game.hunters.length
+        hunters: game.hunters.length,
+        grace: game.tune.grace, arriveGap: game.tune.arriveGap,
+        escapesLeft: game.escapesLeft, escapesMax: game.escapesMax,
+        nextHunter: game.hunterSchedule.length ? game.hunterSchedule[0].t : null
       };
     },
     getPerf: function () { return game && game.frameStats ? game.frameStats : null; },
