@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="../../auth.js"></script>
+<script>GrokAuth.requireSession();</script>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Grok Blast — Grok Games</title>
+<meta name="description" content="Grok Blast is a play-for-fun grid puzzle. Drag gem pieces, clear rows and columns, and chain combos."/>
+<style>
+:root {
+  --ink: #17141f;
+  --muted: #5c5668;
+  --page: #f6f3ff;
+  --line: #e6e0f2;
+  --board: #1b1630;
+  --slot: #2a2444;
+  --empty: #2f2950;
+  --gs: 44px;
+  --ruby: #ff4d6d;
+  --amber: #ff9f1c;
+  --emerald: #2ec4b6;
+  --sapphire: #4ea8de;
+  --amethyst: #9b5de5;
+  --topaz: #ffd23f;
+  --rose: #f72585;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; background: var(--page); color: var(--ink); }
+body {
+  font-family: "Segoe UI", "Inter Tight", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; }
+a.back {
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #d7d0e6;
+}
+a.back:hover { border-bottom-color: #17141f; }
+.wrap { max-width: 720px; margin: 0 auto; padding: 16px 16px 20px; }
+.title-wrap { text-align: center; padding-top: 36px; }
+h1, .title {
+  margin: 12px 0 0;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  font-size: 36px;
+  line-height: 1;
+}
+.lead { max-width: 440px; margin: 14px auto 0; color: #3b3648; line-height: 1.45; }
+.best, .score-line { margin: 16px 0; font-size: 18px; }
+.how {
+  text-align: left;
+  max-width: 420px;
+  margin: 22px auto 0;
+  padding: 0;
+  color: #3b3648;
+  line-height: 1.45;
+  font-size: 14px;
+}
+.how li { margin: 0 0 8px 18px; }
+.fine { font-size: 12px; color: var(--muted); margin-top: 18px; }
+.btn {
+  appearance: none;
+  border: 1px solid #17141f;
+  background: #fff;
+  color: #17141f;
+  padding: 10px 22px;
+  border-radius: 999px;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  font-weight: 650;
+}
+.btn.primary { background: #17141f; color: #fff; }
+.btn:hover { transform: translateY(-1px); }
+
+.play-wrap { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
+.top {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 16px;
+  padding: 2px 0 10px;
+}
+.top .title { font-size: 18px; margin: 0; }
+.scores { margin-left: auto; display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; }
+.scores strong { font-size: 16px; }
+.combo-pill { opacity: 0.35; }
+.combo-pill.on { opacity: 1; color: #7c3aed; font-weight: 700; }
+
+.stage { position: relative; flex: 1; display: flex; align-items: center; justify-content: center; }
+.board {
+  width: min(92vw, calc(100dvh - 220px), 520px);
+  aspect-ratio: 1;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  gap: 3px;
+  padding: 10px;
+  background:
+    radial-gradient(120% 80% at 50% 0%, #352a5c 0%, var(--board) 55%);
+  border-radius: 18px;
+  box-shadow: 0 16px 40px rgba(40, 20, 80, .18), inset 0 0 0 2px #3a3160;
+  touch-action: none;
+  user-select: none;
+}
+.cell {
+  background: var(--empty);
+  border-radius: 7px;
+  position: relative;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.25);
+}
+.cell.filled { background: transparent; box-shadow: none; }
+.cell.ghost { outline: none; }
+.cell.ghost .gem, .cell.ghost:empty, .cell.ghost {
+  box-shadow: 0 0 0 2px rgba(255,255,255,.35) inset;
+}
+.cell.ghost::after {
+  content: "";
+  position: absolute; inset: 2px;
+  border-radius: 6px;
+  background: rgba(255,255,255,.18);
+}
+.cell.ghost-bad::after {
+  content: "";
+  position: absolute; inset: 2px;
+  border-radius: 6px;
+  background: rgba(255, 70, 90, .28);
+}
+.cell.preclear { animation: pulse 0.5s ease-in-out infinite; }
+.cell.burst .gem { animation: burst .28s ease-in forwards; }
+
+.gem {
+  display: block; width: 100%; height: 100%;
+  border-radius: 7px;
+  position: relative;
+  box-shadow: 0 2px 4px rgba(0,0,0,.25), inset 0 -6px 8px rgba(0,0,0,.18);
+}
+.gem::before {
+  content: "";
+  position: absolute; top: 12%; left: 14%; width: 42%; height: 28%;
+  background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.12));
+  border-radius: 99px;
+  transform: rotate(-18deg);
+  pointer-events: none;
+}
+.gem.ruby { background: radial-gradient(circle at 35% 25%, #ff8ea3, var(--ruby) 55%, #c01745); }
+.gem.amber { background: radial-gradient(circle at 35% 25%, #ffd19a, var(--amber) 55%, #c45a00); }
+.gem.emerald { background: radial-gradient(circle at 35% 25%, #9cf3ea, var(--emerald) 55%, #0e8f86); }
+.gem.sapphire { background: radial-gradient(circle at 35% 25%, #b9e4ff, var(--sapphire) 55%, #1d6ca8); }
+.gem.amethyst { background: radial-gradient(circle at 35% 25%, #d7b6ff, var(--amethyst) 55%, #6a2aad); }
+.gem.topaz { background: radial-gradient(circle at 35% 25%, #fff3b0, var(--topaz) 55%, #d4a017); }
+.gem.rose { background: radial-gradient(circle at 35% 25%, #ff9ec8, var(--rose) 55%, #b0105c); }
+
+@keyframes burst {
+  0% { transform: scale(1); opacity: 1; filter: brightness(1.4); }
+  70% { transform: scale(1.18); opacity: 1; filter: brightness(1.8); }
+  100% { transform: scale(0.2); opacity: 0; }
+}
+@keyframes pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.35); }
+}
+@keyframes popin {
+  from { transform: translate(-50%, -40%) scale(.8); opacity: 0; }
+  to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+.toast {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  font-size: 28px;
+  text-shadow: 0 4px 16px rgba(0,0,0,.45);
+  pointer-events: none;
+  animation: popin .18s ease-out;
+  z-index: 3;
+}
+.overlay {
+  position: absolute; inset: 0;
+  background: rgba(16, 10, 30, .45);
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 18px;
+  z-index: 4;
+}
+.panel {
+  background: #fff;
+  color: var(--ink);
+  padding: 22px 28px 24px;
+  border-radius: 16px;
+  text-align: center;
+  min-width: 240px;
+  box-shadow: 0 16px 40px rgba(0,0,0,.2);
+}
+.panel h2 { margin: 0; letter-spacing: 0.06em; }
+
+.tray {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+  touch-action: none;
+  user-select: none;
+}
+.slot {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  min-height: 96px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: grab;
+  padding: 8px;
+}
+.slot.used { cursor: default; opacity: 0.45; }
+.slot.lifting { opacity: 0.25; }
+.slot.nofit { opacity: 0.55; }
+.piece {
+  display: grid;
+  grid-template-columns: repeat(var(--pw), 1fr);
+  grid-template-rows: repeat(var(--ph), 1fr);
+  gap: 3px;
+  width: calc(var(--pw) * 22px);
+  height: calc(var(--ph) * 22px);
+  max-width: 100%;
+  pointer-events: auto;
+}
+.piece.compact { width: min(100%, calc(var(--pw) * 22px)); height: auto; aspect-ratio: var(--pw) / var(--ph); }
+.piece .gap { visibility: hidden; }
+.piece .gem { pointer-events: auto; }
+
+.floater {
+  position: fixed; left: 0; top: 0;
+  z-index: 20;
+  pointer-events: none;
+  filter: drop-shadow(0 10px 16px rgba(0,0,0,.28));
+}
+.floater .piece {
+  --gsz: var(--gs, 44px);
+  width: calc(var(--pw) * var(--gsz));
+  height: calc(var(--ph) * var(--gsz));
+  gap: 4px;
+}
+
+@media (max-height: 740px) {
+  h1 { font-size: 28px; }
+  .board { width: min(92vw, calc(100dvh - 190px), 480px); padding: 7px; gap: 2px; }
+  .slot { min-height: 78px; }
+  .title-wrap { padding-top: 16px; }
+}
+@media (max-height: 600px) {
+  .board { width: min(70vw, calc(100dvh - 150px)); }
+  .fine { display: none; }
+  .slot { min-height: 64px; padding: 4px; }
+  .top { padding-bottom: 4px; }
+  .tray { margin-top: 8px; }
+}
+@media (max-width: 640px) {
+  .wrap { padding: 10px 12px 16px; }
+  .top .title { font-size: 15px; letter-spacing: 0.12em; }
+  .scores { font-size: 12px; gap: 8px; }
+  .toast { font-size: 22px; }
+}
+
+</style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+const N = 8;
+
+function cells(ascii) {
+  const rows = ascii.trim().split('\n').map((r) => r.trimEnd());
+  const out = [];
+  rows.forEach((row, r) => {
+    [...row].forEach((ch, c) => { if (ch === '#') out.push([r, c]); });
+  });
+  const mr = Math.min(...out.map((p) => p[0]));
+  const mc = Math.min(...out.map((p) => p[1]));
+  return out.map(([r, c]) => [r - mr, c - mc]);
+}
+
+const SHAPES = [
+  { id: 'dot', cells: cells('#') },
+  { id: 'i2h', cells: cells('##') },
+  { id: 'i2v', cells: cells('#\n#') },
+  { id: 'i3h', cells: cells('###') },
+  { id: 'i3v', cells: cells('#\n#\n#') },
+  { id: 'i4h', cells: cells('####') },
+  { id: 'i4v', cells: cells('#\n#\n#\n#') },
+  { id: 'i5h', cells: cells('#####') },
+  { id: 'i5v', cells: cells('#\n#\n#\n#\n#') },
+  { id: 'o2', cells: cells('##\n##') },
+  { id: 'r23', cells: cells('###\n###') },
+  { id: 'r32', cells: cells('##\n##\n##') },
+  { id: 'o3', cells: cells('###\n###\n###') },
+  // tromino L (4 orients)
+  { id: 'l3a', cells: cells('#\n##') },
+  { id: 'l3b', cells: cells('##\n#') },
+  { id: 'l3c', cells: cells('##\n #') },
+  { id: 'l3d', cells: cells(' #\n##') },
+  // tetromino L / J
+  { id: 'l4a', cells: cells('#\n#\n##') },
+  { id: 'l4b', cells: cells('###\n#') },
+  { id: 'l4c', cells: cells('##\n #\n #') },
+  { id: 'l4d', cells: cells('  #\n###') },
+  { id: 'j4a', cells: cells(' #\n #\n##') },
+  { id: 'j4b', cells: cells('#\n###') },
+  { id: 'j4c', cells: cells('##\n#\n#') },
+  { id: 'j4d', cells: cells('###\n  #') },
+  // T
+  { id: 't4a', cells: cells('###\n #') },
+  { id: 't4b', cells: cells(' #\n##\n #') },
+  { id: 't4c', cells: cells(' #\n###') },
+  { id: 't4d', cells: cells('#\n##\n#') },
+  // S / Z
+  { id: 's4a', cells: cells(' ##\n##') },
+  { id: 's4b', cells: cells('#\n##\n #') },
+  { id: 'z4a', cells: cells('##\n ##') },
+  { id: 'z4b', cells: cells(' #\n##\n#') },
+  // plus and corners / bigger L / U
+  { id: 'plus', cells: cells(' #\n###\n #') },
+  { id: 'u', cells: cells('# #\n###') },
+  { id: 'u2', cells: cells('###\n# #') },
+  { id: 'u3', cells: cells('##\n#\n##') },
+  { id: 'u4', cells: cells('##\n #\n##') },
+  { id: 'l5a', cells: cells('#\n#\n#\n##') },
+  { id: 'l5b', cells: cells('####\n#') },
+  { id: 'l5c', cells: cells('##\n #\n #\n #') },
+  { id: 'l5d', cells: cells('   #\n####') },
+  { id: 't5a', cells: cells('###\n #\n #') },
+  { id: 't5b', cells: cells('  #\n###\n  #') },
+  { id: 't5c', cells: cells(' #\n #\n###') },
+  { id: 't5d', cells: cells('#\n###\n#') },
+  { id: 'p5a', cells: cells('##\n##\n#') },
+  { id: 'p5b', cells: cells('###\n##') },
+  { id: 'hook', cells: cells('##\n#\n##') },
+  { id: 'zig', cells: cells('#\n##\n ##') },
+  { id: 'zag', cells: cells(' #\n##\n#') },
+].map((s) => {
+  const h = Math.max(...s.cells.map((p) => p[0])) + 1;
+  const w = Math.max(...s.cells.map((p) => p[1])) + 1;
+  return { ...s, h, w, n: s.cells.length };
+});
+
+function emptyGrid() {
+  return Array.from({ length: N }, () => Array(N).fill(0));
+}
+
+function canPlace(grid, cells, r, c) {
+  for (const [dr, dc] of cells) {
+    const rr = r + dr, cc = c + dc;
+    if (rr < 0 || rr >= N || cc < 0 || cc >= N) return false;
+    if (grid[rr][cc]) return false;
+  }
+  return true;
+}
+
+function canPlaceAnywhere(grid, cells) {
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      if (canPlace(grid, cells, r, c)) return true;
+    }
+  }
+  return false;
+}
+
+function place(grid, cells, r, c, color) {
+  const next = grid.map((row) => row.slice());
+  for (const [dr, dc] of cells) next[r + dr][c + dc] = color;
+  return next;
+}
+
+function findClears(grid) {
+  const rows = [];
+  const cols = [];
+  for (let r = 0; r < N; r++) if (grid[r].every((v) => v)) rows.push(r);
+  for (let c = 0; c < N; c++) {
+    let full = true;
+    for (let r = 0; r < N; r++) if (!grid[r][c]) { full = false; break; }
+    if (full) cols.push(c);
+  }
+  return { rows, cols, lines: rows.length + cols.length };
+}
+
+function applyClears(grid, clears) {
+  const next = grid.map((row) => row.slice());
+  for (const r of clears.rows) for (let c = 0; c < N; c++) next[r][c] = 0;
+  for (const c of clears.cols) for (let r = 0; r < N; r++) next[r][c] = 0;
+  return next;
+}
+
+// combo is consecutive clearing placements (0 when last place did not clear)
+function scorePlacement(cellCount, lines, comboBefore) {
+  const placePts = cellCount * 10;
+  if (lines <= 0) return { placePts, clearPts: 0, bonus: 0, combo: 0, total: placePts };
+  const combo = comboBefore + 1;
+  const clearPts = 100 * lines * combo;
+  const bonus = lines >= 2 ? 40 * lines * (lines - 1) * combo : 0;
+  return { placePts, clearPts, bonus, combo, total: placePts + clearPts + bonus };
+}
+
+function anyTrayFits(grid, tray) {
+  return tray.some((p) => p && canPlaceAnywhere(grid, p.cells));
+}
+
+function selfTest() {
+  const fails = [];
+  const eq = (name, got, exp) => {
+    const g = JSON.stringify(got), e = JSON.stringify(exp);
+    if (g !== e) fails.push(name + ': got ' + g + ' expected ' + e);
+  };
+  const ok = (name, cond) => { if (!cond) fails.push(name); };
+
+  ok('shape count', SHAPES.length >= 40);
+  ok('all shapes nonempty', SHAPES.every((s) => s.n >= 1 && s.n <= 9));
+  ok('normalized', SHAPES.every((s) => s.cells.some((p) => p[0] === 0) && s.cells.some((p) => p[1] === 0)));
+  const ids = new Set(SHAPES.map((s) => s.id));
+  ok('unique ids', ids.size === SHAPES.length);
+
+  let g = emptyGrid();
+  const i8 = SHAPES.find((s) => s.id === 'i5h') || SHAPES.find((s) => s.id === 'i4h');
+  ok('i-piece exists', !!i8);
+  ok('cannot place 5-bar at col 4', !canPlace(g, SHAPES.find((s) => s.id === 'i5h').cells, 0, 4));
+  ok('can place 5-bar at col 0', canPlace(g, SHAPES.find((s) => s.id === 'i5h').cells, 0, 0));
+  ok('3x3 cannot near edge', !canPlace(g, SHAPES.find((s) => s.id === 'o3').cells, 6, 6));
+
+  // fill row 0 except last cell, place a dot, row clears
+  g = emptyGrid();
+  for (let c = 0; c < 7; c++) g[0][c] = 1;
+  g = place(g, [[0, 0]], 0, 7, 2);
+  let cl = findClears(g);
+  eq('one row', { rows: cl.rows, cols: cl.cols, lines: cl.lines }, { rows: [0], cols: [], lines: 1 });
+  g = applyClears(g, cl);
+  ok('row emptied', g[0].every((v) => v === 0));
+
+  // column clear
+  g = emptyGrid();
+  for (let r = 0; r < 7; r++) g[r][3] = 1;
+  g = place(g, [[0, 0]], 7, 3, 2);
+  cl = findClears(g);
+  eq('one col', { rows: cl.rows, cols: cl.cols, lines: cl.lines }, { rows: [], cols: [3], lines: 1 });
+
+  // simultaneous row + col
+  g = emptyGrid();
+  for (let c = 0; c < 8; c++) if (c !== 0) g[2][c] = 1;
+  for (let r = 0; r < 8; r++) if (r !== 2) g[r][0] = 1;
+  g = place(g, [[0, 0]], 2, 0, 3);
+  cl = findClears(g);
+  eq('row and col', { rows: cl.rows, cols: cl.cols, lines: cl.lines }, { rows: [2], cols: [0], lines: 2 });
+  g = applyClears(g, cl);
+  ok('cross cleared', g[2].every((v) => v === 0) && g.every((row) => row[0] === 0));
+  ok('other cells stay', g[0][1] === 0 && g[3][3] === 0);
+
+  // intersection counted once in grid after clear; two lines
+  const s1 = scorePlacement(1, 1, 0);
+  eq('first clear combo 1', [s1.combo, s1.clearPts, s1.bonus], [1, 100, 0]);
+  const s2 = scorePlacement(4, 2, 1);
+  eq('second clear combo 2 + multiline', [s2.combo, s2.clearPts, s2.bonus], [2, 400, 160]);
+  const s3 = scorePlacement(3, 0, 2);
+  eq('miss resets combo', [s3.combo, s3.total], [0, 30]);
+
+  // tray game-over: 3x3 on a nearly full board
+  g = emptyGrid();
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) g[r][c] = 1;
+  g[0][0] = 0; g[0][1] = 0; // only 2 holes
+  const tray = [{ cells: SHAPES.find((s) => s.id === 'o3').cells }, { cells: SHAPES.find((s) => s.id === 'i5h').cells }, { cells: SHAPES.find((s) => s.id === 'plus').cells }];
+  ok('no tray piece fits', !anyTrayFits(g, tray));
+  const tray2 = [{ cells: SHAPES.find((s) => s.id === 'dot').cells }, null, null];
+  ok('dot fits two holes', anyTrayFits(g, tray2));
+
+  // no rotation: i2h is not placeable as vertical via the same shape
+  g = emptyGrid();
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) g[r][c] = 1;
+  g[0][0] = 0; g[1][0] = 0;
+  ok('horizontal bar cannot go in vertical hole', !canPlaceAnywhere(g, SHAPES.find((s) => s.id === 'i2h').cells));
+  ok('vertical bar can', canPlaceAnywhere(g, SHAPES.find((s) => s.id === 'i2v').cells));
+
+  return { ok: fails.length === 0, fails, nShapes: SHAPES.length };
+}
+
+(function () {
+  const STORAGE_KEY = "gg-grok-blast-best";
+  const COLORS = ["ruby", "amber", "emerald", "sapphire", "amethyst", "topaz", "rose"];
+  const BURST_WORD = ["Nice", "Burst", "Radiant", "Prism", "Nova", "Aurora", "Starburst", "Constellation"];
+
+  function loadBest() {
+    try {
+      const n = parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10);
+      return Number.isFinite(n) && n > 0 ? n : 0;
+    } catch (e) { return 0; }
+  }
+  function saveBest(n) {
+    const b = Math.max(loadBest(), n | 0);
+    try { localStorage.setItem(STORAGE_KEY, String(b)); } catch (e) {}
+    return b;
+  }
+  function randU32() {
+    const a = new Uint32Array(1);
+    crypto.getRandomValues(a);
+    return a[0];
+  }
+  function randInt(n) {
+    if (n <= 1) return 0;
+    const max = 0x100000000;
+    const limit = max - (max % n);
+    let x;
+    do { x = randU32(); } while (x >= limit);
+    return x % n;
+  }
+  function pickWeighted() {
+    const weights = SHAPES.map((s) => {
+      if (s.n === 1) return 3;
+      if (s.n <= 3) return 5;
+      if (s.n === 4) return 4;
+      if (s.id === "o3" || s.id === "i5h" || s.id === "i5v") return 1.2;
+      return 2.2;
+    });
+    let sum = 0;
+    for (const w of weights) sum += w;
+    let t = (randU32() / 0x100000000) * sum;
+    for (let i = 0; i < SHAPES.length; i++) {
+      t -= weights[i];
+      if (t <= 0) return SHAPES[i];
+    }
+    return SHAPES[SHAPES.length - 1];
+  }
+
+  let audioCtx = null;
+  function ctx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+  function tone({ freq, dur, type, gain, slide, delay }) {
+    try {
+      const c = ctx();
+      const t0 = c.currentTime + (delay || 0);
+      const o = c.createOscillator();
+      const g = c.createGain();
+      const f = c.createBiquadFilter();
+      o.type = type || "triangle";
+      o.frequency.setValueAtTime(freq, t0);
+      if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, slide), t0 + dur);
+      f.type = "lowpass";
+      f.frequency.value = 2400;
+      g.gain.setValueAtTime(gain == null ? 0.045 : gain, t0);
+      g.gain.exponentialRampToValueAtTime(0.0008, t0 + dur);
+      o.connect(f); f.connect(g); g.connect(c.destination);
+      o.start(t0); o.stop(t0 + dur + 0.02);
+    } catch (e) {}
+  }
+  const sfx = {
+    pick() { tone({ freq: 520, dur: 0.06, type: "sine", gain: 0.03 }); },
+    drop() { tone({ freq: 240, dur: 0.1, type: "triangle", gain: 0.05, slide: 160 }); },
+    deny() { tone({ freq: 140, dur: 0.12, type: "square", gain: 0.025, slide: 90 }); },
+    clear(lines, combo) {
+      const base = 420 + Math.min(5, lines) * 70;
+      for (let i = 0; i < Math.min(5, lines); i++) {
+        tone({ freq: base + i * 90, dur: 0.16, type: "sine", gain: 0.04, delay: i * 0.04, slide: base + i * 90 + 80 });
+      }
+      if (combo >= 2) tone({ freq: 880, dur: 0.22, type: "triangle", gain: 0.035, delay: 0.08, slide: 1200 });
+    },
+    over() { tone({ freq: 300, dur: 0.28, type: "sine", gain: 0.04, slide: 90 }); tone({ freq: 180, dur: 0.35, type: "triangle", gain: 0.03, delay: 0.12, slide: 70 }); },
+    tray() { tone({ freq: 640, dur: 0.07, type: "sine", gain: 0.025 }); tone({ freq: 820, dur: 0.07, type: "sine", gain: 0.02, delay: 0.05 }); }
+  };
+
+  const el = (id) => document.getElementById(id);
+
+  let screen = "title";
+  let grid = emptyGrid();
+  let tray = [null, null, null];
+  let score = 0;
+  let best = loadBest();
+  let combo = 0;
+  let over = false;
+  let clearing = false;
+  let lastClear = null;
+  let toast = "";
+  let drag = null;
+  let ghost = null;
+  let fly = null;
+
+  function newPiece() {
+    const sh = pickWeighted();
+    return {
+      id: sh.id + "-" + randInt(1e9),
+      shapeId: sh.id,
+      cells: sh.cells,
+      h: sh.h,
+      w: sh.w,
+      n: sh.n,
+      color: COLORS[randInt(COLORS.length)]
+    };
+  }
+  function dealTray() {
+    tray = [newPiece(), newPiece(), newPiece()];
+  }
+
+  function resetGame() {
+    grid = emptyGrid();
+    score = 0;
+    combo = 0;
+    over = false;
+    clearing = false;
+    lastClear = null;
+    toast = "";
+    drag = null;
+    ghost = null;
+    dealTray();
+    if (!anyTrayFits(grid, tray)) dealTray();
+    screen = "play";
+    render();
+    sfx.tray();
+  }
+
+  function finishIfStuck() {
+    if (clearing || over) return;
+    const remaining = tray.filter(Boolean);
+    if (remaining.length === 0) {
+      dealTray();
+      sfx.tray();
+    }
+    if (!anyTrayFits(grid, tray)) {
+      over = true;
+      best = saveBest(score);
+      sfx.over();
+    }
+  }
+
+  async function commitPlace(index, r, c) {
+    const p = tray[index];
+    if (!p || clearing || over) return false;
+    if (!canPlace(grid, p.cells, r, c)) return false;
+    grid = place(grid, p.cells, r, c, p.color);
+    tray[index] = null;
+    const cl = findClears(grid);
+    const sc = scorePlacement(p.n, cl.lines, combo);
+    combo = sc.combo;
+    score += sc.total;
+    best = saveBest(score);
+    sfx.drop();
+    if (cl.lines > 0) {
+      lastClear = cl;
+      toast = (cl.lines >= 2 ? (BURST_WORD[Math.min(BURST_WORD.length - 1, cl.lines)] + "  ") : "") + (combo >= 2 ? "Combo ×" + combo : (cl.lines === 1 ? "Clear" : cl.lines + " lines"));
+      sfx.clear(cl.lines, combo);
+      clearing = true;
+      render();
+      await new Promise((res) => setTimeout(res, 280));
+      grid = applyClears(grid, cl);
+      clearing = false;
+      lastClear = null;
+    } else {
+      toast = "";
+    }
+    finishIfStuck();
+    render();
+    return true;
+  }
+
+  function cellFromPoint(x, y) {
+    const board = el("board");
+    if (!board) return null;
+    const rect = board.getBoundingClientRect();
+    if (rect.width <= 0) return null;
+    const size = rect.width / N;
+    const c = Math.floor((x - rect.left) / size);
+    const r = Math.floor((y - rect.top) / size);
+    return { r, c, size, rect };
+  }
+
+  function updateGhost(x, y) {
+    if (!drag) { ghost = null; return; }
+    const hit = cellFromPoint(x, y);
+    if (!hit) { ghost = null; paintGhost(); return; }
+    const r = hit.r - drag.gr;
+    const c = hit.c - drag.gc;
+    const ok = canPlace(grid, drag.piece.cells, r, c);
+    ghost = { r, c, ok, cells: drag.piece.cells, color: drag.piece.color };
+    if (ok) {
+      const preview = place(grid, drag.piece.cells, r, c, 1);
+      ghost.clears = findClears(preview);
+    } else ghost.clears = { rows: [], cols: [], lines: 0 };
+    paintGhost();
+  }
+
+  function paintGhost() {
+    const board = el("board");
+    if (!board) return;
+    board.querySelectorAll(".cell").forEach((n) => {
+      n.classList.remove("ghost", "ghost-bad", "preclear");
+    });
+    if (!ghost) return;
+    for (const [dr, dc] of ghost.cells) {
+      const rr = ghost.r + dr, cc = ghost.c + dc;
+      if (rr < 0 || rr >= N || cc < 0 || cc >= N) continue;
+      const n = board.querySelector('[data-r="' + rr + '"][data-c="' + cc + '"]');
+      if (!n) continue;
+      n.classList.add(ghost.ok ? "ghost" : "ghost-bad");
+      if (ghost.ok) n.dataset.ghost = ghost.color;
+    }
+    if (ghost.ok && ghost.clears) {
+      for (const r of ghost.clears.rows) {
+        for (let c = 0; c < N; c++) {
+          const n = board.querySelector('[data-r="' + r + '"][data-c="' + c + '"]');
+          if (n) n.classList.add("preclear");
+        }
+      }
+      for (const c of ghost.clears.cols) {
+        for (let r = 0; r < N; r++) {
+          const n = board.querySelector('[data-r="' + r + '"][data-c="' + c + '"]');
+          if (n) n.classList.add("preclear");
+        }
+      }
+    }
+  }
+
+  function pieceHTML(p, compact) {
+    if (!p) return '<div class="piece empty-slot"></div>';
+    const cells = [];
+    for (let r = 0; r < p.h; r++) {
+      for (let c = 0; c < p.w; c++) {
+        const on = p.cells.some(([rr, cc]) => rr === r && cc === c);
+        cells.push('<i class="' + (on ? "gem " + p.color : "gap") + '"></i>');
+      }
+    }
+    return '<div class="piece' + (compact ? " compact" : "") + '" style="--pw:' + p.w + ';--ph:' + p.h + '">' + cells.join("") + "</div>";
+  }
+
+  function renderTitle() {
+    best = loadBest();
+    el("app").innerHTML = `
+      <div class="wrap title-wrap">
+        <a class="back" href="../../index.html">Back to Grok Games</a>
+        <h1>GROK BLAST</h1>
+        <p class="lead">Drop bright gems. Clear every full row and column. Chain blasts for bigger combos.</p>
+        <p class="best">Best <strong>${best.toLocaleString("en-US")}</strong></p>
+        <button class="btn primary" id="play">Play</button>
+        <ul class="how">
+          <li>Drag three pieces onto the 8×8 grid. They do not rotate.</li>
+          <li>Clear full rows and columns at the same time.</li>
+          <li>Clear on a streak to build a combo. Game over when nothing fits.</li>
+        </ul>
+        <p class="fine">Fan-made game. Not an official xAI or Grok product.</p>
+      </div>`;
+    el("play").onclick = () => { try { ctx(); } catch (e) {} resetGame(); };
+  }
+
+  function renderPlay() {
+    const cells = [];
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const v = grid[r][c];
+        const dying = lastClear && (lastClear.rows.indexOf(r) >= 0 || lastClear.cols.indexOf(c) >= 0) && v;
+        cells.push('<div class="cell' + (v ? " filled" : "") + (dying ? " burst" : "") + '" data-r="' + r + '" data-c="' + c + '"' + (v ? ' data-color="' + v + '"' : "") + ">" + (v ? '<i class="gem ' + v + '"></i>' : "") + "</div>");
+      }
+    }
+    const trayHtml = tray.map((p, i) => {
+      const dead = over || (p && !canPlaceAnywhere(grid, p.cells) && tray.filter(Boolean).every((q) => !canPlaceAnywhere(grid, q.cells)));
+      const noFit = p && !canPlaceAnywhere(grid, p.cells);
+      return '<div class="slot' + (p ? "" : " used") + (noFit ? " nofit" : "") + (drag && drag.index === i ? " lifting" : "") + '" data-slot="' + i + '">' + (drag && drag.index === i ? "" : pieceHTML(p, true)) + "</div>";
+    }).join("");
+
+    el("app").innerHTML = `
+      <div class="wrap play-wrap">
+        <header class="top">
+          <a class="back" href="../../index.html">Back to Grok Games</a>
+          <div class="title">GROK BLAST</div>
+          <div class="scores">
+            <span>Score <strong id="score">${score.toLocaleString("en-US")}</strong></span>
+            <span>Best <strong>${best.toLocaleString("en-US")}</strong></span>
+            <span class="combo-pill${combo >= 2 ? " on" : ""}">Combo ×${Math.max(1, combo)}</span>
+          </div>
+        </header>
+        <div class="stage">
+          <div id="board" class="board" aria-label="8 by 8 board">${cells.join("")}</div>
+          ${toast ? '<div class="toast" id="toast">' + toast + "</div>" : ""}
+          ${over ? `<div class="overlay" id="overlay">
+            <div class="panel">
+              <h2>No more moves</h2>
+              <p class="score-line">Score <strong>${score.toLocaleString("en-US")}</strong></p>
+              <p class="best">Best <strong>${best.toLocaleString("en-US")}</strong></p>
+              <button class="btn primary" id="again">Play again</button>
+            </div>
+          </div>` : ""}
+        </div>
+        <div class="tray" id="tray">${trayHtml}</div>
+        <p class="fine">Pieces do not rotate. Play is just for fun.</p>
+      </div>
+      <div id="floater" class="floater" hidden></div>`;
+
+    if (over) el("again").onclick = () => resetGame();
+    bindPointer();
+    if (ghost) paintGhost();
+    if (fly) {
+      const f = el("floater");
+      f.hidden = false;
+      f.innerHTML = pieceHTML(fly.piece, false);
+      positionFloater(fly.x, fly.y);
+    }
+  }
+
+  function positionFloater(x, y) {
+    const f = el("floater");
+    if (!f || !drag) return;
+    const board = el("board");
+    const size = board ? board.getBoundingClientRect().width / N : 40;
+    f.style.setProperty("--gs", size + "px");
+    f.style.left = x + "px";
+    f.style.top = y + "px";
+    f.style.transform = "translate(" + (-(drag.gc + 0.5) * size) + "px," + (-(drag.gr + 0.5) * size) + "px)";
+  }
+
+  function bindPointer() {
+    const trayEl = el("tray");
+    if (!trayEl) return;
+    trayEl.querySelectorAll(".slot").forEach((slot) => {
+      slot.addEventListener("pointerdown", onDown);
+    });
+  }
+
+  function onDown(ev) {
+    if (over || clearing) return;
+    const slot = ev.currentTarget;
+    const index = +slot.getAttribute("data-slot");
+    const p = tray[index];
+    if (!p) return;
+    ev.preventDefault();
+    try { ctx(); } catch (e) {}
+    const gem = ev.target.closest("i.gem");
+    let gr = 0, gc = 0;
+    if (gem) {
+      const piece = slot.querySelector(".piece");
+      const gems = [...piece.querySelectorAll("i")];
+      const i = gems.indexOf(gem);
+      if (i >= 0) { gr = Math.floor(i / p.w); gc = i % p.w; }
+      if (!p.cells.some(([r, c]) => r === gr && c === gc)) { gr = p.cells[0][0]; gc = p.cells[0][1]; }
+    } else { gr = p.cells[0][0]; gc = p.cells[0][1]; }
+    drag = { index, piece: p, gr, gc };
+    fly = { piece: p, x: ev.clientX, y: ev.clientY };
+    sfx.pick();
+    slot.classList.add("lifting");
+    const f = el("floater");
+    f.hidden = false;
+    f.innerHTML = pieceHTML(p, false);
+    positionFloater(ev.clientX, ev.clientY);
+    updateGhost(ev.clientX, ev.clientY);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  }
+
+  function onMove(ev) {
+    if (!drag) return;
+    ev.preventDefault();
+    fly = { piece: drag.piece, x: ev.clientX, y: ev.clientY };
+    positionFloater(ev.clientX, ev.clientY);
+    updateGhost(ev.clientX, ev.clientY);
+  }
+
+  async function onUp(ev) {
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onUp);
+    if (!drag) return;
+    const d = drag;
+    const g = ghost;
+    drag = null;
+    fly = null;
+    ghost = null;
+    const f = el("floater");
+    if (f) f.hidden = true;
+    if (g && g.ok) {
+      const ok = await commitPlace(d.index, g.r, g.c);
+      if (!ok) { sfx.deny(); render(); }
+    } else {
+      sfx.deny();
+      render();
+    }
+  }
+
+  function render() {
+    if (screen === "title") renderTitle();
+    else renderPlay();
+  }
+
+  window.__BLAST__ = {
+    selfTest,
+    newGame: resetGame,
+    get state() {
+      return {
+        screen, score, best, combo, over, clearing,
+        tray: tray.map((p) => p && { id: p.shapeId, n: p.n, color: p.color, cells: p.cells }),
+        grid: grid.map((row) => row.slice()),
+        filled: grid.reduce((n, row) => n + row.filter(Boolean).length, 0)
+      };
+    },
+    async place(index, r, c) { return commitPlace(index, r, c); },
+    deal(ids) {
+      if (ids && ids.length) {
+        tray = ids.map((id) => {
+          if (!id) return null;
+          const sh = SHAPES.find((s) => s.id === id);
+          if (!sh) return null;
+          return { id: sh.id + "-set", shapeId: sh.id, cells: sh.cells, h: sh.h, w: sh.w, n: sh.n, color: COLORS[0] };
+        });
+        while (tray.length < 3) tray.push(null);
+      } else dealTray();
+      finishIfStuck();
+      render();
+    },
+    setGrid(values) {
+      grid = emptyGrid();
+      for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+        const v = values && values[r] && values[r][c];
+        grid[r][c] = v || 0;
+      }
+      render();
+    },
+    canPlaceAnywhere: (cells) => canPlaceAnywhere(grid, cells)
+  };
+
+  document.addEventListener("touchmove", (e) => {
+    if (drag) e.preventDefault();
+  }, { passive: false });
+
+  best = loadBest();
+  screen = "title";
+  render();
+})();
+
+  </script>
+</body>
+</html>

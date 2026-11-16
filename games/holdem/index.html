@@ -174,6 +174,30 @@ a.back:hover { border-bottom-color: #111; }
   padding: 3px 8px; font-size: 11px; cursor: pointer;
 }
 .dock-fine { margin: 4px 0 0; text-align: right; }
+.result-panel {
+  background: #fff;
+  border: 1px solid #e6e6e6;
+  border-radius: 10px;
+  padding: 8px 10px 10px;
+  margin-bottom: 8px;
+  max-height: 34vh;
+  overflow: auto;
+  text-align: left;
+}
+.result-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+.result-pot, .result-potline { font-size: 13px; margin-bottom: 6px; }
+.result-who { font-size: 12px; color: #333; margin: 4px 0 2px; }
+.result-cards { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.result-cards .card { --cw: 32px; --ch: 46px; }
+.result-cards .card .r { font-size: 11px; }
+.result-cards .card .s { font-size: 12px; }
+.result-cards .mini-label { font-size: 10px; color: #888; letter-spacing: 0.06em; margin: 0 2px 0 6px; }
+.card.used { box-shadow: 0 0 0 2px #c6a75a, 0 1px 2px rgba(0,0,0,.16); }
+.card.unused { opacity: 0.38; filter: grayscale(.15); }
+@media (max-height: 620px) {
+  .result-panel { max-height: 28vh; padding: 6px 8px; }
+  .result-cards .card { --cw: 28px; --ch: 40px; }
+}
 
 @media (max-width: 1100px), (max-height: 740px) {
   :root { --cw: 42px; --ch: 60px; }
@@ -326,18 +350,29 @@ function bestHand(cards) {
 const RANK_WORD = {14:'Ace',13:'King',12:'Queen',11:'Jack',10:'Ten',9:'Nine',8:'Eight',7:'Seven',6:'Six',5:'Five',4:'Four',3:'Three',2:'Two'};
 const RANK_PLURAL = {14:'Aces',13:'Kings',12:'Queens',11:'Jacks',10:'Tens',9:'Nines',8:'Eights',7:'Sevens',6:'Sixes',5:'Fives',4:'Fours',3:'Threes',2:'Twos'};
 
+function rankShort(r, plural) {
+  if (r >= 11) return plural ? RANK_PLURAL[r] : RANK_WORD[r];
+  if (r === 10) return plural ? "10s" : "10";
+  return plural ? r + "s" : String(r);
+}
 function describeScore(score) {
   const cat = score[0];
-  if (cat === 8 && score[1] === 14) return 'Royal Flush';
-  if (cat === 8) return (score[1] === 5 ? 'Steel Wheel' : RANK_WORD[score[1]] + '-high Straight Flush');
-  if (cat === 7) return 'Four ' + RANK_PLURAL[score[1]];
-  if (cat === 6) return RANK_PLURAL[score[1]] + ' full of ' + RANK_PLURAL[score[2]];
-  if (cat === 5) return RANK_WORD[score[1]] + '-high Flush';
-  if (cat === 4) return (score[1] === 5 ? 'Wheel' : RANK_WORD[score[1]] + '-high Straight');
-  if (cat === 3) return 'Three ' + RANK_PLURAL[score[1]];
-  if (cat === 2) return RANK_PLURAL[score[1]] + ' and ' + RANK_PLURAL[score[2]];
-  if (cat === 1) return 'Pair of ' + RANK_PLURAL[score[1]];
-  return RANK_WORD[score[1]] + '-high';
+  if (cat === 8 && score[1] === 14) return "Royal Flush";
+  if (cat === 8) return score[1] === 5 ? "Straight Flush, Wheel" : "Straight Flush, " + RANK_WORD[score[1]] + "-high";
+  if (cat === 7) return "Four of a Kind, " + rankShort(score[1], true);
+  if (cat === 6) return "Full House, " + rankShort(score[1], true) + " over " + rankShort(score[2], true);
+  if (cat === 5) return "Flush, " + RANK_WORD[score[1]] + "-high";
+  if (cat === 4) return score[1] === 5 ? "Straight, Wheel" : "Straight, " + RANK_WORD[score[1]] + "-high";
+  if (cat === 3) return "Three of a Kind, " + rankShort(score[1], true);
+  if (cat === 2) return "Two Pair, " + rankShort(score[1], true) + " and " + rankShort(score[2], true);
+  if (cat === 1) return "Pair of " + rankShort(score[1], true);
+  return "High Card, " + RANK_WORD[score[1]] + "-high";
+}
+function cardKey(c) { return c && (c.code || (RANK_CHAR[c.r] + c.s)); }
+function inBest(bestCards, c) {
+  if (!bestCards || !c) return false;
+  const k = cardKey(c);
+  return bestCards.some((x) => cardKey(x) === k);
 }
 
 function buildPots(players) {
@@ -378,7 +413,17 @@ function awardPots(players, board) {
     if (!pot.eligible.length) continue;
     if (pot.eligible.length === 1) {
       pot.eligible[0].stack += pot.amount;
-      results.push({ amount: pot.amount, winners: [pot.eligible[0]], score: null, name: 'uncontested' });
+      let ev = null;
+      if (board && board.length >= 5 && pot.eligible[0].hole && pot.eligible[0].hole.length >= 2) {
+        try { ev = bestHand([...pot.eligible[0].hole, ...board]); } catch (e) { ev = null; }
+      }
+      results.push({
+        amount: pot.amount,
+        winners: [pot.eligible[0]],
+        score: ev && ev.score,
+        name: ev ? describeScore(ev.score) : "uncontested",
+        details: [{ player: pot.eligible[0], ev }]
+      });
       continue;
     }
     const evs = pot.eligible.map((p) => ({ p, ev: bestHand([...p.hole, ...board]) }));
@@ -397,6 +442,7 @@ function awardPots(players, board) {
       winners: winners.map((w) => w.p),
       score: top,
       name: describeScore(top),
+      details: winners.map((w) => ({ player: w.p, ev: w.ev }))
     });
   }
   return { pots, results, returned };
@@ -642,6 +688,8 @@ function selfTest() {
   let resultText = "";
   let handOver = false;
   let lastWinners = [];
+  let handResult = null;
+  let nextRoundWait = null;
 
   function blindsForHand(n) {
     const lvl = Math.min(BLIND_LEVELS.length - 1, Math.floor((n - 1) / HANDS_PER_LEVEL));
@@ -1049,30 +1097,48 @@ function selfTest() {
     await finishHand();
   }
 
+  function waitNextRound() {
+    return new Promise((resolve) => {
+      nextRoundWait = resolve;
+      render();
+    });
+  }
+  function clickNextRound() {
+    if (!nextRoundWait) return;
+    const fn = nextRoundWait;
+    nextRoundWait = null;
+    handOver = false;
+    handResult = null;
+    resultText = "";
+    fn();
+  }
   async function finishHand() {
     const live = livePlayers();
     returnUncalled(players);
+    const pot = potSize();
     if (live.length === 1) {
       const w = live[0];
-      const pot = potSize();
       w.stack += pot;
       for (const p of players) p.contrib = 0;
-      resultText = w.name + " wins " + money(pot) + ".";
+      resultText = w.name + " wins, everyone folded";
       lastWinners = [w];
-      log(resultText);
+      handResult = { kind: "fold", pot, winners: [w], pots: [{ amount: pot, winners: [w], name: null, details: [], folded: true }] };
+      log(w.name + " wins " + money(pot) + ", everyone folded.");
     } else {
       revealed = true;
       render();
-      await delay(500);
+      await delay(400);
       const awarded = awardPots(players, board);
       const bits = [];
       for (const r of awarded.results) {
         const names = r.winners.map((w) => w.name).join(" & ");
-        if (r.winners.length > 1) bits.push(names + " split " + money(r.amount) + (r.name && r.name !== "uncontested" ? " with " + r.name : ""));
-        else bits.push(names + " wins " + money(r.amount) + (r.name && r.name !== "uncontested" ? " with " + r.name : ""));
+        const hand = r.name && r.name !== "uncontested" ? r.name : "";
+        if (r.winners.length > 1) bits.push(names + " split " + money(r.amount) + (hand ? " with " + hand : ""));
+        else bits.push(names + " wins " + money(r.amount) + (hand ? " with " + hand : ""));
       }
       resultText = bits.join(" ") || "Pot awarded.";
       lastWinners = awarded.results.reduce((a, r) => a.concat(r.winners), []);
+      handResult = { kind: "showdown", pot, pots: awarded.results, returned: awarded.returned };
       log(resultText);
     }
     updatePeak();
@@ -1080,7 +1146,7 @@ function selfTest() {
     actingId = null;
     humanWait = null;
     render();
-    await delay(2200);
+    await waitNextRound();
   }
 
   async function playRun() {
@@ -1108,13 +1174,15 @@ function selfTest() {
     render();
   }
 
-  function cardHTML(c, hole) {
+  function cardHTML(c, hole, mode, bestCards) {
     if (!c) return '<div class="card empty"></div>';
-    if (!hole && !revealed && arguments[2] === "hidden") {
+    if (mode === "hidden" || (!hole && !revealed && mode === "hidden")) {
       return '<div class="card back" aria-label="Facedown card"></div>';
     }
     const red = c.s === "h" || c.s === "d";
-    return '<div class="card' + (red ? " red" : "") + '" aria-label="' + c.code + '"><span class="r">' + (RANK_CHAR[c.r] === "T" ? "10" : RANK_CHAR[c.r]) + '</span><span class="s">' + SUIT_SYM[c.s] + "</span></div>";
+    const used = bestCards && bestCards.length ? inBest(bestCards, c) : null;
+    const cls = "card" + (red ? " red" : "") + (used === true ? " used" : used === false ? " unused" : "");
+    return '<div class="' + cls + '" aria-label="' + (c.code || "") + '"><span class="r">' + (RANK_CHAR[c.r] === "T" ? "10" : RANK_CHAR[c.r]) + '</span><span class="s">' + SUIT_SYM[c.s] + "</span></div>";
   }
   function holeHTML(p) {
     const show = p.human || (revealed && !p.folded);
@@ -1130,6 +1198,37 @@ function selfTest() {
     return { left: (50 + Math.cos(ang) * 41) + "%", top: (52 + Math.sin(ang) * 36) + "%" };
   }
 
+  function resultPanelHTML() {
+    const r = handResult;
+    if (!r) return '<div class="status">' + (resultText || "") + "</div>";
+    if (r.kind === "fold") {
+      const w = r.winners[0];
+      return '<div class="result-panel">'
+        + '<div class="result-title">' + w.name + " wins, everyone folded</div>"
+        + '<div class="result-pot">Pot ' + money(r.pot) + "</div>"
+        + "</div>";
+    }
+    const pots = r.pots || [];
+    const blocks = pots.map((pot, i) => {
+      const label = pots.length > 1 ? (i === 0 ? "Main pot" : "Side pot") + " " + money(pot.amount) : "Pot " + money(pot.amount);
+      const names = (pot.winners || []).map((w) => w.name).join(" & ");
+      const verb = (pot.winners || []).length > 1 ? " split" : " wins";
+      const hand = pot.name && pot.name !== "uncontested" ? pot.name : "";
+      const details = (pot.details || []).map((d) => {
+        const ev = d.ev;
+        const best = ev && ev.cards;
+        const hole = (d.player.hole || []).map((c) => cardHTML(c, true, null, best)).join("");
+        const boardC = (board || []).map((c) => cardHTML(c, true, null, best)).join("");
+        const hn = ev ? describeScore(ev.score) : "";
+        return '<div class="result-hand">'
+          + '<div class="result-who">' + d.player.name + (hn ? " — " + hn : "") + "</div>"
+          + '<div class="result-cards"><span class="mini-label">Hole</span>' + hole + '<span class="mini-label">Board</span>' + boardC + "</div>"
+          + "</div>";
+      }).join("");
+      return '<div class="result-potline"><div class="result-title">' + names + verb + " " + label + (hand ? " with " + hand : "") + "</div>" + details + "</div>";
+    }).join("");
+    return '<div class="result-panel">' + (blocks || '<div class="status">' + (resultText || "") + "</div>") + "</div>";
+  }
   function renderTitle() {
     best = loadBest();
     el("app").innerHTML = `
@@ -1199,7 +1298,7 @@ function selfTest() {
 
     let actions = "";
     if (handOver) {
-      actions = `<div class="status">${resultText || ""}</div><button class="btn primary" id="nexthand" disabled>Next hand…</button>`;
+      actions = resultPanelHTML() + '<div class="btn-row"><button class="btn primary" id="nextround">Next Round</button></div>';
     } else if (legal) {
       const callAmt = legal.callAmt;
       const btns = [];
@@ -1261,6 +1360,8 @@ function selfTest() {
         <p class="fine dock-fine">Play money only. No real money.</p>
       </div>`;
 
+    const nextBtn = el("nextround");
+    if (nextBtn) nextBtn.onclick = () => clickNextRound();
     if (legal) {
       const range = el("betsize");
       if (range) {
@@ -1311,10 +1412,12 @@ function selfTest() {
         screen, handNo, sb, bb, peak, best, pot: potSize(),
         players: players.map((p) => ({ name: p.name, human: p.human, stack: p.stack, style: p.style, folded: p.folded, allIn: p.allIn })),
         board: board.map((c) => c.code),
-        street, runScore
+        street, runScore, handOver, handResult
       };
     },
-    start: playRun
+    start: playRun,
+    nextRound: () => clickNextRound(),
+    describeScore
   };
 
   document.addEventListener("keydown", (e) => {
