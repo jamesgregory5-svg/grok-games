@@ -6,7 +6,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"/>
 <meta name="color-scheme" content="dark"/>
-<title>Grok Asylum (TEST) — Grok Games</title>
+<title>Grok Asylum — Grok Games</title>
 <style>
 :root{--ink:#e8ddd3;--muted:#8a7d72;--bg:#070605;--panel:#120e0c;--line:#2a201c;--blood:#7a1510;--warn:#c4a36a}
 *{box-sizing:border-box}
@@ -82,7 +82,7 @@ button.mode span{display:block;font-size:12px;color:#9a8e84;margin-top:3px}
 <div class="hud" id="hud" hidden>
   <div class="topbar">
     <div>
-      <h1 class="word">GROK ASYLUM <span class="tag">TEST</span></h1>
+      <h1 class="word">GROK ASYLUM</h1>
       <div class="seed" id="seed-line"></div>
     </div>
     <div class="bars">
@@ -379,7 +379,7 @@ function AsylumAudio() {
   var SAVE_SET = "gg-asylum-settings";
   var SAVE_TIMED = "gg-asylum-best-timed";
   var SAVE_SURV = "gg-asylum-best-survival";
-  var VERSION = "1.10-test2";
+  var VERSION = "1.10";
 
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   function lerp(a, b, t) { return a + (b - a) * t; }
@@ -465,7 +465,27 @@ function AsylumAudio() {
     }
     g.globalAlpha = 1;
   }
+  function dummyTex() {
+    return {
+      colorSpace: THREE.SRGBColorSpace,
+      anisotropy: 1,
+      wrapS: THREE.ClampToEdgeWrapping,
+      wrapT: THREE.ClampToEdgeWrapping,
+      repeat: { set: function (x, y) { this.x = x; this.y = y; }, x: 1, y: 1 },
+      needsUpdate: false,
+      dispose: function () {}
+    };
+  }
   function makeTextures() {
+    if (window.__ASYLUM_HEADLESS__) {
+      if (makeTextures._cache) return makeTextures._cache;
+      var t = { plaster: dummyTex(), floor: dummyTex(), metal: dummyTex(), door: dummyTex(), blood: dummyTex(), face: dummyTex() };
+      t.plaster.repeat.set(2, 1.4);
+      t.floor.repeat.set(4, 4);
+      makeTextures._cache = t;
+      return t;
+    }
+    if (makeTextures._live) return makeTextures._live;
     var plaster = canvasTex(512, 512, function (g, w, h) {
       g.fillStyle = "#6a6158"; g.fillRect(0, 0, w, h);
       g.fillStyle = "#5a524a";
@@ -551,9 +571,11 @@ function AsylumAudio() {
       stain(g, w, h, 5, "#6a1810");
     });
     face.wrapS = face.wrapT = THREE.ClampToEdgeWrapping;
-    return { plaster: plaster, floor: floor, metal: metal, door: door, blood: blood, face: face };
+    makeTextures._live = { plaster: plaster, floor: floor, metal: metal, door: door, blood: blood, face: face };
+    return makeTextures._live;
   }
   function scrawlTex(lines) {
+    if (window.__ASYLUM_HEADLESS__) return dummyTex();
     var t = canvasTex(512, 512, function (g, w, h) {
       g.clearRect(0, 0, w, h);
       g.font = "28px 'Palatino Linotype', Palatino, serif";
@@ -788,9 +810,11 @@ function AsylumAudio() {
     return g;
   }
 
+  var UNIT_BOX = new THREE.BoxGeometry(1, 1, 1);
   function addBox(mat, x, y, z, sx, sy, sz, group) {
-    var m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
+    var m = new THREE.Mesh(UNIT_BOX, mat);
     m.position.set(x, y, z);
+    m.scale.set(sx, sy, sz);
     m.castShadow = false; m.receiveShadow = true;
     group.add(m);
     return m;
@@ -800,9 +824,9 @@ function AsylumAudio() {
     var walls = []; // collision AABBs in XZ (infinite in Y for gameplay)
     var group = new THREE.Group();
     scene.add(group);
-    var matW = new THREE.MeshStandardMaterial({ map: tex.plaster, roughness: 0.92, metalness: 0.02, color: 0x9a9086 });
-    var matF = new THREE.MeshStandardMaterial({ map: tex.floor, roughness: 0.88, metalness: 0.04, color: 0x7a7068 });
-    var matC = new THREE.MeshStandardMaterial({ color: 0x1a1614, roughness: 1, metalness: 0 });
+    var matW = new THREE.MeshLambertMaterial({ map: tex.plaster, color: 0x9a9086 });
+    var matF = new THREE.MeshLambertMaterial({ map: tex.floor, color: 0x7a7068 });
+    var matC = new THREE.MeshLambertMaterial({ color: 0x1a1614 });
     var matD = new THREE.MeshStandardMaterial({ map: tex.door, roughness: 0.85, metalness: 0.05 });
     var matM = new THREE.MeshStandardMaterial({ map: tex.metal, roughness: 0.7, metalness: 0.35, color: 0x8a8680 });
     var matBlood = new THREE.MeshStandardMaterial({ map: tex.blood, transparent: true, roughness: 0.8, metalness: 0.05, depthWrite: false });
@@ -857,7 +881,7 @@ function AsylumAudio() {
     DOOR_DEFS.forEach(function (d) {
       var g = doorGeoms[d.id];
       var mesh = addBox(matD, g.x, DOOR_H / 2, g.z, g.axis === "x" ? 0.1 : DOOR_W + 0.1, DOOR_H, g.axis === "z" ? 0.1 : DOOR_W + 0.1, group);
-      var col = { minx: g.minx, maxx: g.maxx, minz: g.minz, maxz: g.maxz, skip: !d.lock };
+      var col = { minx: g.minx, maxx: g.maxx, minz: g.minz, maxz: g.maxz, skip: !d.lock, door: true };
       if (d.lock) walls.push(col);
       else mesh.visible = false;
       // lintel
@@ -1241,13 +1265,25 @@ function AsylumAudio() {
   /* ---------- game ---------- */
   var game = null;
 
-  function Game(mode, seed) {
+  function harnessAudio() {
+    var n = function () {};
+    return {
+      start: n, tick: n, silence: n, scream: n, distantScream: n, whisper: n, sting: n,
+      bang: n, knock: n, scrape: n, bump: n, foot: n, drag: n, buzz: n, click: n,
+      setStatic: n, stopStatic: n, resume: n
+    };
+  }
+
+  function Game(mode, seed, opts) {
+    this.opts = opts || {};
+    this.harness = !!this.opts.harness;
+    this.invulnerable = !!this.opts.invulnerable || this.harness;
     this.mode = mode;
     this.seed = seed || (Math.floor(Math.random() * 2147483646) + 1);
     this.rng = makeRng(this.seed);
     this.settings = C.loadSettings();
     this.puzzle = makePuzzle(this.rng);
-    this.audio = new AsylumAudio();
+    this.audio = this.harness ? harnessAudio() : new AsylumAudio();
     this.running = false;
     this.ended = false;
     this.escaped = false;
@@ -1285,12 +1321,16 @@ function AsylumAudio() {
     var fogD = this.mode === "nightmare" ? 0.14 : 0.09;
     this.scene.fog = new THREE.FogExp2(this.scene.background, fogD);
     this.cam = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.05, 80);
-    this.renderer = new THREE.WebGLRenderer({ canvas: document.getElementById("c"), antialias: true, powerPreference: "high-performance" });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    this.renderer.setSize(innerWidth, innerHeight);
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = this.mode === "nightmare" ? 0.32 : 0.48;
+    if (this.harness) {
+      this.renderer = { render: function () {}, dispose: function () {}, setPixelRatio: function () {}, setSize: function () {}, getContext: function () { return {}; } };
+    } else {
+      this.renderer = new THREE.WebGLRenderer({ canvas: document.getElementById("c"), antialias: false, powerPreference: "high-performance" });
+      this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
+      this.renderer.setSize(innerWidth, innerHeight);
+      this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+      this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      this.renderer.toneMappingExposure = this.mode === "nightmare" ? 0.32 : 0.48;
+    }
     this.scene.add(new THREE.AmbientLight(0x1a1410, this.mode === "nightmare" ? 0.08 : 0.16));
     this.flash = new THREE.SpotLight(0xffe6c0, 0, 16, Math.PI / 7, 0.38, 1.4);
     this.flash.position.set(0, 0, 0);
@@ -1302,11 +1342,12 @@ function AsylumAudio() {
     this.scene.add(this.flashFill);
     var self = this;
     this._onResize = function () {
+      if (self.harness) return;
       self.cam.aspect = innerWidth / innerHeight;
       self.cam.updateProjectionMatrix();
       self.renderer.setSize(innerWidth, innerHeight);
     };
-    addEventListener("resize", this._onResize);
+    if (!this.harness) addEventListener("resize", this._onResize);
   };
 
   Game.prototype._initPlayer = function () {
@@ -1356,7 +1397,7 @@ function AsylumAudio() {
     this.objective = text;
     var el = document.getElementById("obj-line");
     if (el) el.innerHTML = "<b>Current objective</b>" + text;
-    if (popup) this.showObjPopup(popup.title || "Objective", text);
+    if (popup && !this.harness) this.showObjPopup(popup.title || "Objective", text);
   };
 
   Game.prototype.showObjPopup = function (title, body) {
@@ -1490,14 +1531,102 @@ function AsylumAudio() {
   };
 
   Game.prototype.tryExit = function () {
-    if (this.mode === "survival") { this.toast("The door is sealed from the outside."); return; }
+    if (this.mode === "survival") { this.toast("The door is sealed from the outside."); return false; }
     if (!this.flags.office || !this.flags.power || !this.flags.valves) {
       this.toast("The service door is still sealed.");
-      return;
+      return false;
     }
     this.unlockDoor("d_exit");
     this.unlockDoor("d_office_exit");
     this.win();
+    return true;
+  };
+
+  Game.prototype._afterPuzzle = function (kind) {
+    if (this.harness) return;
+    if (this.scareCd <= 0 && Math.random() < 0.22) {
+      this.scareCd = 8;
+      if (kind === "power") this.audio.bang();
+      else this.audio.knock();
+    }
+  };
+
+  Game.prototype.completeLockbox = function (code) {
+    if (this.flags.box) return true;
+    if (String(code) !== String(this.puzzle.victim.id)) return false;
+    this.flags.box = true;
+    this.inv.morgueKey = true;
+    var boxAct = this.acts.filter(function (a) { return a.id === "lockbox"; })[0];
+    if (boxAct) boxAct.done = true;
+    this.addNote("Effects box", "Chart #" + this.puzzle.victim.id + " — a morgue key.");
+    this.toast("A cold iron key is in the tray.");
+    this.advanceStoryObjective(true);
+    this._afterPuzzle("box");
+    return true;
+  };
+
+  Game.prototype.completeFuses = function () {
+    if (this.flags.power) return true;
+    if (this.inv.fuses < 3 && this.fusePlaced.filter(Boolean).length < 3) return false;
+    var P = this.puzzle, ok = true;
+    // auto-seat the correct routing if the player (or solver) has the fuses
+    if (!this.fusePlaced.some(Boolean)) {
+      if (this.inv.fuses < 3) return false;
+      this.inv.fuses = 0;
+      for (var i = 0; i < 5; i++) this.fusePlaced[i] = P.fuseSlots.indexOf(i) >= 0;
+    }
+    for (var j = 0; j < 5; j++) {
+      if (this.fusePlaced[j] !== (P.fuseSlots.indexOf(j) >= 0)) ok = false;
+    }
+    if (!ok) return false;
+    this.flags.power = true;
+    this.unlockDoor("d_office_exit");
+    this.world.lights.forEach(function (L) { L.base *= 1.25; });
+    var fa = this.acts.filter(function (a) { return a.id === "fuses"; })[0];
+    if (fa) fa.done = true;
+    this.toast("The building takes a breath. Power holds.");
+    this.advanceStoryObjective(true);
+    this._afterPuzzle("power");
+    return true;
+  };
+
+  Game.prototype.completeRadio = function (freq) {
+    if (this.flags.radio) return true;
+    if (!this.flags.power && this.mode !== "survival") return false;
+    if (Math.abs((freq == null ? this.puzzle.freq : freq) - this.puzzle.freq) > 0.15) return false;
+    this.flags.radio = true;
+    this.addNote("Radio", this.puzzle.radioScript);
+    this.toast("The staff band comes through.");
+    this.advanceStoryObjective(true);
+    this._afterPuzzle("radio");
+    return true;
+  };
+
+  Game.prototype.completeValves = function () {
+    if (this.flags.valves) return true;
+    this.flags.valves = true;
+    this.valveStep = 4;
+    this.unlockDoor("d_office_exit");
+    var va = this.acts.filter(function (a) { return a.id === "valves"; })[0];
+    if (va) va.done = true;
+    this.toast("The line holds. The south seal releases a bolt.");
+    this.advanceStoryObjective(true);
+    this._afterPuzzle("valves");
+    return true;
+  };
+
+  Game.prototype.completeKeypad = function (code) {
+    if (this.flags.office) return true;
+    if (String(code) !== String(this.puzzle.code)) return false;
+    this.flags.office = true;
+    this.unlockDoor("d_foyer_office");
+    if (this.flags.power && this.flags.valves) { this.unlockDoor("d_office_exit"); this.unlockDoor("d_exit"); }
+    var ka = this.acts.filter(function (a) { return a.id === "keypad"; })[0];
+    if (ka) ka.done = true;
+    this.toast("The office lock lets go.");
+    this.advanceStoryObjective(true);
+    this._afterPuzzle("keypad");
+    return true;
   };
 
   Game.prototype.openText = function (title, body) {
@@ -1527,16 +1656,8 @@ function AsylumAudio() {
       var ok = document.createElement("button"); ok.className = "btn"; ok.textContent = "Enter";
       ok.style.gridColumn = "span 2";
       ok.onclick = function () {
-        if (code === String(self.puzzle.victim.id)) {
-          self.flags.box = true;
-          self.inv.morgueKey = true;
-          var boxAct = self.acts.filter(function (a) { return a.id === "lockbox"; })[0];
-          if (boxAct) boxAct.done = true;
-          self.closePanel();
-          self.toast("A cold iron key is in the tray.");
-          self.addNote("Effects box", "Chart #" + self.puzzle.victim.id + " — a morgue key.");
-          self.advanceStoryObjective(true);
-        } else { self.audio.buzz(); code = ""; draw(); self.toast("The tumblers refuse it."); }
+        if (self.completeLockbox(code)) self.closePanel();
+        else { self.audio.buzz(); code = ""; draw(); self.toast("The tumblers refuse it."); }
       };
       pad.appendChild(ok);
     });
@@ -1574,14 +1695,7 @@ function AsylumAudio() {
           if (self.fusePlaced[i] !== should) ok = false;
         }
         if (ok) {
-          self.flags.power = true;
-          self.unlockDoor("d_office_exit");
-          self.world.lights.forEach(function (L) { L.base *= 1.25; });
-          var fa = self.acts.filter(function (a) { return a.id === "fuses"; })[0];
-          if (fa) fa.done = true;
-          self.closePanel();
-          self.toast("The building takes a breath. Power holds.");
-          self.advanceStoryObjective(true);
+          if (self.completeFuses()) self.closePanel();
         } else { self.audio.buzz(); self.toast("The breaker kicks back. Wrong routing."); }
       };
     });
@@ -1604,11 +1718,9 @@ function AsylumAudio() {
         self.audio.setStatic(Math.min(1, dist / 4), tuned);
         if (tuned && !announced) {
           announced = true;
-          self.flags.radio = true;
-          self.addNote("Radio", P.radioScript);
           self.audio.stopStatic();
-          self.openText("Through the static", P.radioScript);
-          self.advanceStoryObjective(true);
+          self.completeRadio(P.freq);
+          if (!self.harness) self.openText("Through the static", P.radioScript);
         }
       }
       dial.oninput = show; show();
@@ -1634,13 +1746,8 @@ function AsylumAudio() {
               opened[n - 1] = true; self.valveStep++;
               self.audio.click();
               if (self.valveStep >= 4) {
-                self.flags.valves = true;
-                self.unlockDoor("d_office_exit");
-                var va = self.acts.filter(function (a) { return a.id === "valves"; })[0];
-                if (va) va.done = true;
+                self.completeValves();
                 self.closePanel();
-                self.toast("The line holds. The south seal releases a bolt.");
-                self.advanceStoryObjective(true);
                 return;
               }
               redraw();
@@ -1678,16 +1785,8 @@ function AsylumAudio() {
       pad.appendChild(clr);
       var ok = document.createElement("button"); ok.className = "btn"; ok.textContent = "Enter"; ok.style.gridColumn = "span 2";
       ok.onclick = function () {
-        if (code === self.puzzle.code) {
-          self.flags.office = true;
-          self.unlockDoor("d_foyer_office");
-          if (self.flags.power && self.flags.valves) { self.unlockDoor("d_office_exit"); self.unlockDoor("d_exit"); }
-          var ka = self.acts.filter(function (a) { return a.id === "keypad"; })[0];
-          if (ka) ka.done = true;
-          self.closePanel();
-          self.toast("The office lock lets go.");
-          self.advanceStoryObjective(true);
-        } else { self.audio.buzz(); code = ""; draw(); self.toast("A hard denial tone."); }
+        if (self.completeKeypad(code)) self.closePanel();
+        else { self.audio.buzz(); code = ""; draw(); self.toast("A hard denial tone."); }
       };
       pad.appendChild(ok);
     });
@@ -1704,7 +1803,9 @@ function AsylumAudio() {
   };
 
   Game.prototype.openPanel = function (id, title, html, bind) {
+    if (this.harness) { this._modal = false; return; }
     var ov = document.getElementById("modal");
+    if (!ov) return;
     ov.hidden = false;
     ov.innerHTML = '<div class="panel"><h2>' + title + "</h2>" + html + "</div>";
     this._modal = true;
@@ -1721,7 +1822,9 @@ function AsylumAudio() {
   };
 
   Game.prototype.toast = function (msg) {
+    if (this.harness) return;
     var t = document.getElementById("toast");
+    if (!t) return;
     t.textContent = msg; t.classList.add("on");
     clearTimeout(this._tt);
     this._tt = setTimeout(function () { t.classList.remove("on"); }, 2400);
@@ -1839,10 +1942,12 @@ function AsylumAudio() {
       this.cam.rotation.z += Math.sin(this.t * 46) * this._shake * 0.1;
       this.cam.rotation.x += Math.sin(this.t * 62) * this._shake * 0.05;
     }
-    var look = new THREE.Vector3(0, 0, -1).applyQuaternion(this.cam.quaternion);
+    if (!this._look) { this._look = new THREE.Vector3(); this._tmpV = new THREE.Vector3(); }
+    this._look.set(0, 0, -1).applyQuaternion(this.cam.quaternion);
     this.flash.position.copy(this.cam.position);
-    this.flashTarget.position.copy(this.cam.position).add(look.multiplyScalar(8));
-    this.flashFill.position.copy(this.cam.position).add(new THREE.Vector3(0, -0.2, 0));
+    this.flashTarget.position.copy(this.cam.position).add(this._tmpV.copy(this._look).multiplyScalar(8));
+    this.flashFill.position.copy(this.cam.position);
+    this.flashFill.position.y -= 0.2;
 
     if (moving) {
       this._foot = (this._foot || 0) + dt * (wantSprint ? 3.1 : 1.9);
@@ -1890,6 +1995,7 @@ function AsylumAudio() {
   };
 
   Game.prototype.jumpscare = function (kind, hunter) {
+    if (this.harness) return;
     if (this.ended || this.scareCd > 0 && kind !== "close") return;
     if (kind !== "close") this.scareCd = this.mode === "nightmare" ? 14 : 20 + Math.random() * 10;
     else this.scareCd = Math.max(this.scareCd, 8);
@@ -1919,6 +2025,7 @@ function AsylumAudio() {
   };
 
   Game.prototype.die = function () {
+    if (this.invulnerable) return;
     if (this.ended) return;
     this.ended = true; this.running = false;
     this.audio.sting();
@@ -1948,7 +2055,9 @@ function AsylumAudio() {
   };
 
   Game.prototype.endScreen = function (title, msg) {
+    if (this.harness) return;
     var ov = document.getElementById("overlay");
+    if (!ov) return;
     ov.hidden = false;
     ov.innerHTML = '<div class="panel"><div class="warn">' + (this.escaped ? "Escape" : "End") + "</div><h2>" + title + "</h2><p class=\"lead\">" + msg + '</p><p class="seed">Seed ' + this.seed + " · " + C.VERSION + '</p><button class="btn" id="again">Return to menu</button></div>';
     var self = this;
@@ -1962,6 +2071,16 @@ function AsylumAudio() {
     }
     dt = clamp(dt, 0, 0.05);
     this.t += dt;
+    if (!this.harness) {
+      var nowF = performance.now();
+      if (this._lastFrame) {
+        var ft = nowF - this._lastFrame;
+        var fs = this.frameStats || (this.frameStats = { n: 0, sum: 0, max: 0, samples: [] });
+        fs.n++; fs.sum += ft; if (ft > fs.max) fs.max = ft;
+        if (fs.samples.length < 5000) fs.samples.push(ft);
+      }
+      this._lastFrame = nowF;
+    }
     var st = this.updatePlayer(dt);
     this.updateLights(dt);
     var near = this.updateHunters(dt);
@@ -2007,18 +2126,27 @@ function AsylumAudio() {
     var a = this.nearestAct();
     this._focus = a;
     var pr = document.getElementById("prompt");
-    if (a) { pr.classList.add("on"); pr.innerHTML = this.promptOf(a); }
-    else { pr.classList.remove("on"); pr.innerHTML = ""; }
+    if (pr) {
+      if (a) { pr.classList.add("on"); pr.innerHTML = this.promptOf(a); }
+      else { pr.classList.remove("on"); pr.innerHTML = ""; }
+    }
     var hint = document.getElementById("lock-hint");
     if (hint) hint.classList.toggle("on", !this.ended && !document.pointerLockElement && !this._modal && !this._paused && !this._popupOpen);
     var timeEl = document.getElementById("hud-time");
-    if (timeEl) timeEl.textContent = fmtTime(this.t);
+    if (timeEl) {
+      var fpsTxt = "";
+      if (this.frameStats && this.frameStats.n > 10) {
+        var avg = this.frameStats.sum / this.frameStats.n;
+        fpsTxt = "  " + Math.round(1000 / Math.max(avg, 1)) + " fps";
+      }
+      timeEl.textContent = fmtTime(this.t) + fpsTxt;
+    }
     var bbar = document.getElementById("bar-batt");
     var sbar = document.getElementById("bar-stam");
     if (bbar) {
       var f = this.player.battery / this.player.batteryMax;
       bbar.style.width = (f * 100) + "%";
-      bbar.parentNode.classList.toggle("low", f < 0.2);
+      if (bbar.parentNode && bbar.parentNode.classList) bbar.parentNode.classList.toggle("low", f < 0.2);
     }
     if (sbar) sbar.style.width = (this.player.stamina * 100) + "%";
     this.renderer.render(this.scene, this.cam);
@@ -2102,14 +2230,16 @@ function AsylumAudio() {
 
   Game.prototype.dispose = function () {
     this.running = false; this.ended = true;
+    if (this._raf) { cancelAnimationFrame(this._raf); this._raf = 0; }
     this.unbind();
-    if (document.pointerLockElement) document.exitPointerLock();
-    this.renderer.dispose();
-    game = null;
+    try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) {}
+    if (this.renderer && this.renderer.dispose) this.renderer.dispose();
+    if (game === this) game = null;
   };
 
   Game.prototype.beginPlay = function () {
     this.running = true;
+    if (this.harness) return;
     this.audio.start();
     this.audio.resume();
     this.requestLock();
@@ -2118,9 +2248,9 @@ function AsylumAudio() {
       if (!game || game !== self) return;
       var dt = (now - last) / 1000; last = now;
       self.tick(dt);
-      requestAnimationFrame(loop);
+      self._raf = requestAnimationFrame(loop);
     }
-    requestAnimationFrame(loop);
+    this._raf = requestAnimationFrame(loop);
   };
 
   function el(id) { return document.getElementById(id); }
@@ -2135,9 +2265,9 @@ function AsylumAudio() {
     } catch (e) {}
     var s = C.loadSettings();
     ov.innerHTML = '<div class="panel">'
-      + '<div class="warn">Test 2 · ' + C.VERSION + ' <span class="tag">TEST</span></div>'
+      + '<div class="warn">Harrowmead · Ward 6</div>'
       + "<h1>GROK ASYLUM</h1>"
-      + '<p class="lead">Ward 6 was closed in a hurry and never emptied. You can hear them when the lights fail. This test tightens the hunters, the scares, and the puzzles — still incomplete, expect rough edges.</p>'
+      + '<p class="lead">Ward 6 was closed in a hurry and never emptied. You can hear them when the lights fail. Search, restore what still works, and leave by the south service door — or last as long as you can.</p>'
       + '<p class="fine">Fan-made, original work, not an official xAI or Grok product. Horror imagery and violence. Best with a mouse and keyboard.</p>'
       + '<div class="modes">'
       + '<button class="mode" data-mode="story"><b>Story</b><span>Find a way out of the asylum.</span></button>'
@@ -2168,18 +2298,21 @@ function AsylumAudio() {
     el("enter").onclick = function () { startRun(mode); };
   }
 
-  function startRun(mode, seed) {
+  function startRun(mode, seed, opts) {
     if (game) game.dispose();
-    el("overlay").hidden = true;
-    el("hud").hidden = false;
-    el("hurt").classList.remove("on");
-    game = new Game(mode, seed);
-    el("obj-line").innerHTML = "<b>Current objective</b>" + game.objective;
-    el("hud-time").textContent = "0:00.0";
-    el("seed-line").textContent = "Seed " + game.seed;
-    game.bind();
+    opts = opts || {};
+    var hud = el("hud"), ov = el("overlay"), hurt = el("hurt");
+    if (ov) ov.hidden = true;
+    if (hud) hud.hidden = false;
+    if (hurt) hurt.classList.remove("on");
+    game = new Game(mode, seed, opts);
+    var ol = el("obj-line"); if (ol) ol.innerHTML = "<b>Current objective</b>" + game.objective;
+    var ht = el("hud-time"); if (ht) ht.textContent = "0:00.0";
+    var sl = el("seed-line"); if (sl) sl.textContent = "Seed " + game.seed;
+    if (!game.harness) game.bind();
     game.beginPlay();
     window.__ASYLUM__.game = game;
+    return game;
   }
 
   function boot() {
@@ -2191,21 +2324,26 @@ function AsylumAudio() {
 
   window.__ASYLUM__ = {
     version: C.VERSION,
-    start: function (mode, seed) { startRun(mode || "story", seed); },
+    start: function (mode, seed, opts) { return startRun(mode || "story", seed, opts); },
     getState: function () {
       if (!game) return null;
       return {
         mode: game.mode, seed: game.seed, t: game.t, ended: game.ended, escaped: game.escaped,
         flags: Object.assign({}, game.flags), inv: Object.assign({}, game.inv),
         objective: game.objective, x: game.player.x, z: game.player.z,
-        puzzle: { code: game.puzzle.code, valves: game.puzzle.valves.slice(), fuseSlots: game.puzzle.fuseSlots.slice(), victimId: game.puzzle.victim.id, freq: game.puzzle.freq }
+        puzzle: { code: game.puzzle.code, valves: game.puzzle.valves.slice(), fuseSlots: game.puzzle.fuseSlots.slice(), victimId: game.puzzle.victim.id, freq: game.puzzle.freq },
+        hunters: game.hunters.length
       };
     },
-    showTitle: showTitle
+    getPerf: function () { return game && game.frameStats ? game.frameStats : null; },
+    showTitle: showTitle,
+    Game: Game
   };
 
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
-  else boot();
+  if (!window.__ASYLUM_HEADLESS__) {
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+    else boot();
+  }
 })();
 
 </script>
