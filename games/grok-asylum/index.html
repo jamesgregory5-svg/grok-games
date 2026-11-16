@@ -470,7 +470,7 @@ function AsylumAudio() {
   var SAVE_SET = "gg-asylum-settings";
   var SAVE_TIMED = "gg-asylum-best-timed";
   var SAVE_SURV = "gg-asylum-best-survival";
-  var VERSION = "1.10.3";
+  var VERSION = "1.10.4";
 
 
   // Camera uses Euler YXZ; yaw 0 looks down -Z. Forward and right are recomputed from current yaw.
@@ -870,7 +870,7 @@ function AsylumAudio() {
   var CONTROLS_HTML = '<div class="ctrls">'
     + "<div><b>Mouse</b> Look (pointer lock)</div>"
     + "<div><b>W A S D or arrows</b> Move — W is always the way you are looking</div>"
-    + "<div><b>Q / E</b> Turn left or right</div>"
+    + "<div><b>, / .</b> Optional keyboard turn left or right</div>"
     + "<div><b>Shift</b> Sprint</div>"
     + "<div><b>C or Ctrl</b> Crouch</div>"
     + "<div><b>F</b> Flashlight on or off</div>"
@@ -2392,9 +2392,9 @@ function AsylumAudio() {
     else p.stamina = Math.min(1, p.stamina + dt * 0.18);
     if (p.tired > 0) p.tired -= dt;
     var speed = this.wantCrouch ? 1.45 : (wantSprint ? 5.15 : 3.15);
-    // keyboard turn uses the same yaw the mouse writes, so W stays camera-relative
-    if (k.KeyQ) p.yaw += 2.3 * dt;
-    if (k.KeyE) p.yaw -= 2.3 * dt;
+    // optional keyboard turn on comma/period only — E is exclusively interact
+    if (k.Comma) p.yaw += 2.3 * dt;
+    if (k.Period) p.yaw -= 2.3 * dt;
     var fwd = 0, strafe = 0;
     if (k.KeyW || k.ArrowUp) fwd += 1;
     if (k.KeyS || k.ArrowDown) fwd -= 1;
