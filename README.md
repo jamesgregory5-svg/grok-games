@@ -1,6 +1,6 @@
 # Grok Games
 
-A fan-made game hub by James. One download for [Tour Sim](games/tour-sim/), [City Sim](games/city-sim/), [Hold'em](games/holdem/), [Grok Blast](games/grok-blast/), [Blackjack](games/blackjack/), and any game added later.
+A fan-made game hub by James. One download for [Tour Sim](games/tour-sim/), [City Sim](games/city-sim/), [Grok Casino](games/casino/), [Grok Blast](games/grok-blast/), [Grok Snake](games/grok-snake/), [2048](games/2048/), and any game added later.
 
 This is not an official xAI or Grok product.
 
@@ -11,7 +11,7 @@ This is not an official xAI or Grok product.
 
 The first time you open the hub, create an account (username and password). That account is stored on this device only — one account per device. Sign out and sign back in anytime; a different username is rejected.
 
-Tour Sim is included from Tour Sim v4 Final (v4.48). The copy in this hub does not use Tour Sim's original password gate. City Sim is v3.7.8 (the player is invulnerable while in a car). Hold'em is play-money Texas Hold'em: start with $1,000 and go as high as you can — your highest bankroll is your score. Grok Blast is an original 8×8 gem puzzle: drag three pieces at a time, clear full rows and columns, and chain combos. Pieces do not rotate. Blackjack is play-money casino blackjack: start with $1,000, a 6-deck shoe, dealer stands on soft 17, and your highest bankroll is your score.
+Tour Sim is included from Tour Sim v4 Final (v4.48). The copy in this hub does not use Tour Sim's original password gate. City Sim is v3.7.8 (the player is invulnerable while in a car). Grok Casino combines Hold'em, blackjack, European roulette, and original slots on one play-money bankroll that starts at $1,000 — your highest bankroll is your score. Grok Blast is an original 8×8 gem puzzle: drag three pieces at a time, clear full rows and columns, and chain combos. Pieces do not rotate. Grok Snake is classic snake with speed-ups and walls that end the run. 2048 is the standard sliding-number puzzle, with your best score saved.
 
 The wordmark uses [Inter Tight](https://github.com/googlefonts/inter-tight) (SIL Open Font License 1.1).
 

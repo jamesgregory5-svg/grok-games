@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="../../auth.js"></script>
+<script>GrokAuth.requireSession();</script>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"/>
+<title>Grok Snake — Grok Games</title>
+<style>
+:root { --ink:#1a2a14; --muted:#4d5b45; }
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#f4f7f0;color:var(--ink);font-family:"Segoe UI","Inter Tight",system-ui,sans-serif;-webkit-font-smoothing:antialiased;touch-action:none}
+a.back{color:var(--ink);text-decoration:none;font-size:12px;letter-spacing:.04em;border-bottom:1px solid #c5d0bc}
+a.back:hover{border-bottom-color:#1a2a14}
+.wrap{min-height:100%;display:flex;flex-direction:column;padding:12px 16px 16px;max-width:760px;margin:0 auto}
+.top{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 16px;padding-bottom:8px}
+.word{font-weight:700;letter-spacing:.16em;font-size:18px;margin:0}
+.stats{margin-left:auto;display:flex;gap:14px;font-size:13px}
+.stats strong{font-size:16px}
+.stage{flex:1;display:flex;align-items:center;justify-content:center;position:relative}
+canvas{background:#578a3a;border-radius:16px;box-shadow:0 10px 28px rgba(40,70,20,.18);width:min(92vw,72vh,560px);height:auto;aspect-ratio:1;touch-action:none;display:block}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.panel{pointer-events:auto;background:#fff;border-radius:16px;padding:22px 24px;text-align:center;box-shadow:0 16px 40px rgba(0,0,0,.2);min-width:230px;max-width:92%}
+h1{font-size:28px;letter-spacing:.14em;margin:0 0 8px}
+.lead{color:#333;margin:0 0 14px;font-size:14px;line-height:1.45}
+.btn{appearance:none;border:1px solid #1a2a14;background:#1a2a14;color:#fff;padding:8px 18px;border-radius:999px;cursor:pointer;letter-spacing:.04em;font:inherit}
+.btn.ghost{background:#fff;color:#1a2a14;margin-left:6px}
+.fine{font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="back" href="../../index.html">Back to Grok Games</a>
+    <h1 class="word">GROK SNAKE</h1>
+    <div class="stats"><span>Score <strong id="score">0</strong></span><span>Best <strong id="best">0</strong></span></div>
+  </header>
+  <div class="stage">
+    <canvas id="c" width="570" height="570" aria-label="Snake board"></canvas>
+    <div class="overlay" id="overlay"></div>
+  </div>
+  <p class="fine">Arrows or WASD to steer. Swipe on a phone. Eat apples. Walls and your tail end the run. The snake speeds up as you go.</p>
+</div>
+<script>
+(function(){
+  const KEY="gg-grok-snake-best";
+  const N=17;
+  const GRASS_A="#97c85a";
+  const GRASS_B="#87b84e";
+  const WALL="#4a7a32";
+  const WALL_IN="#3e6a2a";
+  const SNAKE="#3a86ff";
+  const SNAKE_EDGE="#1f64d0";
+  const cv=document.getElementById("c");
+  const ctx=cv.getContext("2d");
+  const overlay=document.getElementById("overlay");
+  const scoreEl=document.getElementById("score");
+  const bestEl=document.getElementById("best");
+
+  function loadBest(){try{const n=parseInt(localStorage.getItem(KEY)||"0",10);return Number.isFinite(n)&&n>0?n:0;}catch(e){return 0;}}
+  function saveBest(n){const b=Math.max(loadBest(),n|0);try{localStorage.setItem(KEY,String(b));}catch(e){}return b;}
+  function rnd(n){const a=new Uint32Array(1);const max=0x100000000;const lim=max-(max%n);let x;do{crypto.getRandomValues(a);x=a[0];}while(x>=lim);return x%n;}
+
+  let snake,dir,nextDir,food,score,best=loadBest(),alive,acc,stepMs,looping,started,willGrow,pendingDie;
+  bestEl.textContent=best;
+
+  function fit(){
+    const css=cv.getBoundingClientRect().width||480;
+    const dpr=Math.min(window.devicePixelRatio||1,2.5);
+    const px=Math.max(320,Math.round(css*dpr));
+    if(cv.width!==px){cv.width=px;cv.height=px;}
+  }
+
+  function layout(){
+    fit();
+    const w=cv.width;
+    const pad=Math.round(w*0.055);
+    const inner=w-pad*2;
+    const cell=inner/N;
+    return {w,pad,cell};
+  }
+
+  function cellCenter(x,y,L){
+    return {x:L.pad+(x+0.5)*L.cell,y:L.pad+(y+0.5)*L.cell};
+  }
+
+  function spawnFood(){
+    let p,guard=0;
+    do{p={x:rnd(N),y:rnd(N)};guard++;}while(guard<500&&snake.some(s=>s.x===p.x&&s.y===p.y));
+    food=p;
+  }
+
+  function reset(){
+    const mid=(N/2)|0;
+    snake=[{x:mid-1,y:mid},{x:mid-2,y:mid},{x:mid-3,y:mid}];
+    dir={x:1,y:0};nextDir={x:1,y:0};
+    score=0;alive=true;acc=0;stepMs=155;pendingDie=null;willGrow=false;started=true;
+    scoreEl.textContent="0";
+    spawnFood();
+    overlay.innerHTML="";
+  }
+
+  function gameOver(){
+    if(!alive)return;
+    alive=false;
+    best=saveBest(score);
+    bestEl.textContent=best;
+    overlay.innerHTML='<div class="panel"><h1>GAME OVER</h1><p class="lead">Score <strong>'+score+'</strong><br>Best <strong>'+best+'</strong></p><button class="btn" id="again">Play again</button></div>';
+    document.getElementById("again").onclick=()=>{reset();};
+  }
+
+  function nextCell(){
+    return {x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+  }
+  function isWall(p){return p.x<0||p.y<0||p.x>=N||p.y>=N;}
+  function onBody(p,ignoreTail){
+    const end=snake.length-(ignoreTail?1:0);
+    for(let i=0;i<end;i++) if(snake[i].x===p.x&&snake[i].y===p.y) return true;
+    return false;
+  }
+  function peekGrow(){
+    const n=nextCell();
+    return !isWall(n)&&n.x===food.x&&n.y===food.y;
+  }
+  function peekDie(){
+    const n=nextCell();
+    if(isWall(n)) return "wall";
+    // tail vacates unless growing
+    if(onBody(n,!peekGrow())) return "body";
+    return null;
+  }
+
+  function tick(){
+    if(!alive)return;
+    dir=nextDir;
+    const n=nextCell();
+    const grow=(!isWall(n)&&n.x===food.x&&n.y===food.y);
+    if(isWall(n)||onBody(n,!grow)){gameOver();return;}
+    snake.unshift({x:n.x,y:n.y});
+    if(grow){
+      score+=1;
+      scoreEl.textContent=score;
+      if(score>best){best=saveBest(score);bestEl.textContent=best;}
+      stepMs=Math.max(68,155-Math.floor(score/2)*6);
+      spawnFood();
+    }else snake.pop();
+    pendingDie=null;
+  }
+
+  function visPoints(p,grow){
+    const pts=[];
+    const die=pendingDie;
+    const hp=die?Math.min(p,0.42):p;
+    pts.push({x:snake[0].x+dir.x*hp,y:snake[0].y+dir.y*hp});
+    for(let i=1;i<snake.length;i++){
+      const prev=snake[i-1],cur=snake[i];
+      const t=(i===snake.length-1&&grow)?0:p;
+      pts.push({x:cur.x+(prev.x-cur.x)*t,y:cur.y+(prev.y-cur.y)*t});
+    }
+    return pts;
+  }
+
+  function drawApple(cx,cy,cell){
+    const r=cell*0.34;
+    ctx.save();
+    ctx.translate(cx,cy);
+    // shadow
+    ctx.fillStyle="rgba(40,70,20,.22)";
+    ctx.beginPath();
+    ctx.ellipse(0,r*0.72,r*0.72,r*0.28,0,0,Math.PI*2);
+    ctx.fill();
+    // body — two lobes for a simple original apple
+    ctx.fillStyle="#e23b3b";
+    ctx.beginPath();
+    ctx.arc(-r*0.22,-r*0.02,r*0.78,0,Math.PI*2);
+    ctx.arc(r*0.22,-r*0.02,r*0.78,0,Math.PI*2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(0,r*0.12,r*0.86,0,Math.PI*2);
+    ctx.fill();
+    // highlight
+    ctx.fillStyle="rgba(255,255,255,.45)";
+    ctx.beginPath();
+    ctx.ellipse(-r*0.28,-r*0.22,r*0.22,r*0.16,-0.5,0,Math.PI*2);
+    ctx.fill();
+    // stem
+    ctx.strokeStyle="#5a3a1c";
+    ctx.lineWidth=Math.max(2,cell*0.07);
+    ctx.lineCap="round";
+    ctx.beginPath();
+    ctx.moveTo(0,-r*0.7);
+    ctx.quadraticCurveTo(r*0.12,-r*1.05,r*0.22,-r*1.2);
+    ctx.stroke();
+    // leaf
+    ctx.fillStyle="#3fa34d";
+    ctx.beginPath();
+    ctx.ellipse(r*0.46,-r*1.05,r*0.38,r*0.2,-0.5,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawSnake(L,p,grow){
+    const pts=visPoints(p,grow).map(q=>cellCenter(q.x,q.y,L));
+    if(!pts.length)return;
+    const width=L.cell*0.86;
+    // soft shadow
+    ctx.save();
+    ctx.strokeStyle="rgba(20,50,10,.2)";
+    ctx.lineWidth=width;
+    ctx.lineCap="round";
+    ctx.lineJoin="round";
+    ctx.beginPath();
+    ctx.moveTo(pts[pts.length-1].x,pts[pts.length-1].y+L.cell*0.08);
+    for(let i=pts.length-2;i>=0;i--) ctx.lineTo(pts[i].x,pts[i].y+L.cell*0.08);
+    ctx.stroke();
+    ctx.restore();
+    // body edge then fill
+    ctx.strokeStyle=SNAKE_EDGE;
+    ctx.lineWidth=width;
+    ctx.lineCap="round";
+    ctx.lineJoin="round";
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x,pts[0].y);
+    for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y);
+    ctx.stroke();
+    ctx.strokeStyle=SNAKE;
+    ctx.lineWidth=width*0.78;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x,pts[0].y);
+    for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y);
+    ctx.stroke();
+
+    // head + eyes
+    const head=pts[0];
+    const ang=Math.atan2(dir.y,dir.x);
+    const eyeR=L.cell*0.13;
+    const pupilR=eyeR*0.48;
+    const spread=L.cell*0.16;
+    const forward=L.cell*0.10;
+    ctx.save();
+    ctx.translate(head.x,head.y);
+    ctx.rotate(ang);
+    // cheeks slightly bigger disk
+    ctx.fillStyle=SNAKE;
+    ctx.beginPath();
+    ctx.arc(L.cell*0.02,0,width*0.42,0,Math.PI*2);
+    ctx.fill();
+    function eye(side){
+      const x=forward,y=side*spread;
+      ctx.fillStyle="#fff";
+      ctx.beginPath();
+      ctx.arc(x,y,eyeR,0,Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle="rgba(20,40,80,.25)";
+      ctx.lineWidth=Math.max(1,L.cell*0.03);
+      ctx.stroke();
+      ctx.fillStyle="#1a1a1a";
+      ctx.beginPath();
+      ctx.arc(x+eyeR*0.28,y,pupilR,0,Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle="#fff";
+      ctx.beginPath();
+      ctx.arc(x+eyeR*0.08,y-pupilR*0.45,pupilR*0.32,0,Math.PI*2);
+      ctx.fill();
+    }
+    eye(-1);eye(1);
+    ctx.restore();
+  }
+
+  function drawBoard(L){
+    const {w,pad,cell}=L;
+    ctx.fillStyle=WALL;
+    ctx.fillRect(0,0,w,w);
+    // inner wall lip
+    ctx.fillStyle=WALL_IN;
+    const lip=Math.max(2,pad*0.22);
+    ctx.fillRect(pad-lip,pad-lip,N*cell+lip*2,N*cell+lip*2);
+    for(let y=0;y<N;y++){
+      for(let x=0;x<N;x++){
+        ctx.fillStyle=(x+y)%2===0?GRASS_A:GRASS_B;
+        ctx.fillRect(pad+x*cell,pad+y*cell,cell+0.5,cell+0.5);
+      }
+    }
+  }
+
+  function progress(){
+    if(!alive||!started) return 0;
+    return Math.max(0,Math.min(1,acc/stepMs));
+  }
+
+  function draw(){
+    fit();
+    const L=layout();
+    drawBoard(L);
+    if(!snake)return;
+    const p=started&&alive?progress():0;
+    const grow=started&&alive?peekGrow():false;
+    if(food){
+      const a=cellCenter(food.x,food.y,L);
+      drawApple(a.x,a.y,L.cell);
+    }
+    drawSnake(L,p,grow);
+  }
+
+  if(!CanvasRenderingContext2D.prototype.roundRect){
+    CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h){this.rect(x,y,w,h);};
+  }
+
+  let last=0;
+  function frame(t){
+    looping=requestAnimationFrame(frame);
+    if(!started){draw();return;}
+    if(!alive){draw();return;}
+    if(!last)last=t;
+    acc+=Math.min(48,t-last);
+    last=t;
+    while(alive&&acc>=stepMs){
+      acc-=stepMs;
+      tick();
+    }
+    pendingDie=alive?peekDie():null;
+    draw();
+  }
+
+  function setDir(x,y){
+    if(!alive||!started)return;
+    if(x===-dir.x&&y===-dir.y)return;
+    nextDir={x,y};
+  }
+  const map={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0],w:[0,-1],s:[0,1],a:[-1,0],d:[1,0],W:[0,-1],S:[0,1],A:[-1,0],D:[1,0]};
+  document.addEventListener("keydown",e=>{
+    const m=map[e.key];
+    if(!m)return;
+    e.preventDefault();
+    setDir(m[0],m[1]);
+  });
+  let sx,sy;
+  cv.addEventListener("touchstart",e=>{const t=e.changedTouches[0];sx=t.clientX;sy=t.clientY;},{passive:true});
+  cv.addEventListener("touchend",e=>{
+    const t=e.changedTouches[0];
+    const dx=t.clientX-sx,dy=t.clientY-sy;
+    if(Math.hypot(dx,dy)<24)return;
+    if(Math.abs(dx)>Math.abs(dy))setDir(dx>0?1:-1,0);else setDir(0,dy>0?1:-1);
+  },{passive:true});
+  window.addEventListener("resize",()=>draw());
+
+  function showTitle(){
+    started=false;alive=false;
+    const mid=(N/2)|0;
+    snake=[{x:mid-1,y:mid},{x:mid-2,y:mid},{x:mid-3,y:mid},{x:mid-4,y:mid}];
+    dir={x:1,y:0};nextDir={x:1,y:0};acc=0;food={x:mid+3,y:mid};score=0;
+    overlay.innerHTML='<div class="panel"><h1>GROK SNAKE</h1><p class="lead">Eat the apples. Don\'t hit the walls or yourself. The snake gets faster as you go.</p><p class="lead">Best <strong>'+best+'</strong></p><button class="btn" id="go">Play</button></div>';
+    document.getElementById("go").onclick=()=>{reset();last=0;if(!looping)requestAnimationFrame(t=>{last=t;frame(t);});};
+    draw();
+  }
+
+  window.__SNAKE__={
+    reset,
+    get state(){return {score,best,alive,started,len:snake&&snake.length,food:food&&{x:food.x,y:food.y},head:snake&&snake[0],dir,wallsKill:true,wrap:false};},
+    tick,
+    setDir,
+    stepMs(){return stepMs;},
+    gameOver
+  };
+  showTitle();
+  if(!looping)requestAnimationFrame(t=>{last=t;frame(t);});
+})();
+</script>
+</body>
+</html>
