@@ -62,6 +62,12 @@ tr.sel{background:#efe4ce}
 .toast.bad{background:#f6e4e4;color:var(--bad)}
 .toast.good{background:#e4f0e7;color:var(--good)}
 select{padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:#fff}
+.status{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:flex-end;margin:-4px 0 12px;padding:8px 12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;font-family:"Segoe UI",system-ui,sans-serif;font-size:14px}
+.status .k{display:block;color:var(--muted);font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:1px}
+.status strong{font-size:15px}
+.status-flag{align-self:center;font-size:10px;letter-spacing:.08em;text-transform:uppercase;border-radius:4px;padding:3px 7px;font-weight:700}
+.status-flag.clinch{border:1px solid var(--good);color:var(--good)}
+.status-flag.out{border:1px solid var(--bad);color:var(--bad)}
 
 </style>
 </head>
@@ -680,6 +686,8 @@ window.DATA = DATA;
         byes: { AL: [al[0], al[1]], NL: [nl[0], nl[1]] },
         results: []
       };
+      const made = al.some((t) => t.id === state.userTeam) || nl.some((t) => t.id === state.userTeam);
+      if (!made) state.playoff.userExit = "missed";
       log(state, "The regular season is over. The playoffs begin.");
     }
 
@@ -708,6 +716,7 @@ window.DATA = DATA;
       if (s.wa >= s.need || s.wb >= s.need) {
         s.done = true;
         s.winner = s.wa > s.wb ? s.a : s.b;
+        markUserSeries(state, s);
       }
     }
 
@@ -780,6 +789,176 @@ window.DATA = DATA;
     function seedIndex(seeds, id) {
       return seeds.findIndex((t) => t.id === id);
     }
+
+    function gamesBack(team, leader) {
+      if (!leader) return 0;
+      return ((leader.w - team.w) + (team.l - leader.l)) / 2;
+    }
+
+    function remainingOf(state, tid) {
+      if (state.phase !== "regular") return 0;
+      let n = 0;
+      for (let i = state.day; i < state.schedule.length; i++) {
+        const sl = state.schedule[i] || [];
+        for (let j = 0; j < sl.length; j++) {
+          const g = sl[j];
+          if (g.home === tid || g.away === tid) n++;
+        }
+      }
+      return n;
+    }
+
+    function ordinal(n) {
+      const v = n % 100;
+      const suf = (v > 10 && v < 14) ? "th" : ({ 1: "st", 2: "nd", 3: "rd" }[n % 10] || "th");
+      return n + suf;
+    }
+
+    function fmtGB(n) {
+      const v = Math.round(n * 10) / 10;
+      const s = v.toFixed(1);
+      return (v < 0 ? Math.abs(v).toFixed(1) + " GA" : s + " GB");
+    }
+
+    function projectedSeeds(state, league, userId, mode) {
+      // mode "worst": user loses remaining, everyone else wins remaining.
+      // mode "best": user wins remaining, everyone else loses remaining.
+      const rows = teams.filter((t) => t.league === league).map((t) => {
+        const s = state.standings[String(t.id)];
+        const rem = remainingOf(state, t.id);
+        let w = s.w, l = s.l;
+        if (mode === "worst") {
+          if (t.id === userId) l += rem;
+          else w += rem;
+        } else {
+          if (t.id === userId) w += rem;
+          else l += rem;
+        }
+        const gp = w + l;
+        const pct = gp ? w / gp : 0;
+        const diff = s.rs - s.ra;
+        return { ...t, w, l, gp, pct, diff, rs: s.rs };
+      });
+      function sortRows(list) {
+        return list.slice().sort((a, b) => b.w - a.w || b.diff - a.diff || b.rs - a.rs);
+      }
+      const divisions = ["East", "Central", "West"];
+      const winners = divisions.map((d) => sortRows(rows.filter((t) => t.division === d))[0]);
+      winners.sort((a, b) => b.w - a.w || b.diff - a.diff || b.rs - a.rs);
+      const winnerIds = new Set(winners.map((t) => t.id));
+      const wc = sortRows(rows.filter((t) => !winnerIds.has(t.id))).slice(0, 3);
+      return winners.concat(wc);
+    }
+
+    const ROUND_LABEL = { wc: "Wild Card", ds: "Division Series", cs: "League Championship Series", ws: "World Series" };
+
+    function markUserSeries(state, s) {
+      if (!s || !s.done) return;
+      if (s.a !== state.userTeam && s.b !== state.userTeam) return;
+      if (s.winner !== state.userTeam && state.playoff) {
+        state.playoff.userExit = state.playoff.round;
+      }
+    }
+
+    function clubStatus(state) {
+      const user = teamById[state.userTeam];
+      const st = state.standings[String(state.userTeam)];
+      const rec = (st.w || 0) + "-" + (st.l || 0);
+      const divTable = tableFor(state, user.league, user.division);
+      const place = divTable.findIndex((t) => t.id === state.userTeam) + 1;
+      const leader = divTable[0];
+      const gb = gamesBack(st, leader);
+      const divName = user.league + " " + user.division;
+      const played = divTable.some((t) => t.gp > 0);
+      let divisionText;
+      if (!played) divisionText = divName;
+      else if (place === 1 && (divTable.length < 2 || gamesBack(divTable[1], leader) > 0)) divisionText = "1st in " + divName;
+      else if (place !== 1 && gb === 0) divisionText = "Tied for 1st in " + divName;
+      else if (place === 1) divisionText = "1st in " + divName;
+      else divisionText = ordinal(place) + " in " + divName + ", " + fmtGB(gb);
+
+      const seeds = playoffSeeds(state, user.league);
+      const seedAt = seeds.findIndex((t) => t.id === state.userTeam);
+      const inPlayoffs = seedAt >= 0;
+      const seed = inPlayoffs ? seedAt + 1 : null;
+      const wc3 = seeds[5];
+      const wcGB = wc3 ? gamesBack(st, wc3) : 0;
+      let playoffText = "";
+      let flag = null;
+      let flagKind = null;
+
+      if (state.phase === "regular") {
+        if (inPlayoffs) {
+          if (seed <= 3) {
+            playoffText = user.league + " #" + seed + " seed" + (seed <= 2 ? " (bye)" : "");
+          } else {
+            playoffText = user.league + " Wild Card #" + (seed - 3);
+          }
+        } else {
+          playoffText = fmtGB(wcGB) + " of WC3";
+        }
+        if (played) {
+          const worst = projectedSeeds(state, user.league, state.userTeam, "worst");
+          const best = projectedSeeds(state, user.league, state.userTeam, "best");
+          const worstIdx = worst.findIndex((t) => t.id === state.userTeam);
+          const bestIdx = best.findIndex((t) => t.id === state.userTeam);
+          function divLeader(list) {
+            return list.filter((t) => t.division === user.division).sort((a, b) => b.w - a.w || b.diff - a.diff || b.rs - a.rs)[0];
+          }
+          const clinchedDivision = divLeader(worst).id === state.userTeam && remainingOf(state, state.userTeam) < 162;
+          const clinchedPlayoff = worstIdx >= 0 && remainingOf(state, state.userTeam) < 162;
+          const clinchedBye = worstIdx >= 0 && worstIdx <= 1 && remainingOf(state, state.userTeam) < 162;
+          const eliminated = bestIdx < 0 && remainingOf(state, state.userTeam) < 162;
+          // avoid preseason / early false flags: only if remaining is less than a full season (always true after day 0 for some teams). Require that the conclusion is real: remaining checked via projection. At the start rem=162, worst case user is 0-162 and out; best case 162-0 and in. Good — eliminated/clinched would be false early. After a few games still false. Late season works.
+          if (eliminated) { flag = "Eliminated from the playoffs"; flagKind = "out"; }
+          else if (clinchedBye) { flag = "Clinched a first-round bye"; flagKind = "clinch"; }
+          else if (clinchedDivision) { flag = "Clinched the division"; flagKind = "clinch"; }
+          else if (clinchedPlayoff) { flag = "Clinched a playoff spot"; flagKind = "clinch"; }
+        }
+      } else {
+        const P = state.playoff || {};
+        const made = (P.al || []).some((t) => t.id === state.userTeam) || (P.nl || []).some((t) => t.id === state.userTeam);
+        if (state.phase === "done") {
+          if (state.champion === state.userTeam) { playoffText = "World Series champions"; flag = "Champions"; flagKind = "clinch"; }
+          else if (P.userExit === "ws") playoffText = "Lost the World Series";
+          else if (P.userExit && P.userExit !== "missed") playoffText = "Eliminated in the " + (ROUND_LABEL[P.userExit] || P.userExit);
+          else if (!made || P.userExit === "missed") playoffText = "Missed the playoffs";
+          else playoffText = "Season complete";
+        } else {
+          if (!made || P.userExit === "missed") {
+            playoffText = "Missed the playoffs";
+          } else if (P.userExit) {
+            playoffText = "Eliminated in the " + (ROUND_LABEL[P.userExit] || P.userExit);
+            flag = "Eliminated"; flagKind = "out";
+          } else {
+            const series = (P.series || []).find((s) => s.a === state.userTeam || s.b === state.userTeam);
+            const bye = P.round === "wc" && ((P.byes && P.byes[user.league] || []).some((t) => t.id === state.userTeam));
+            if (bye) playoffText = "Bye — next up, the Division Series";
+            else if (series) {
+              const youA = series.a === state.userTeam;
+              const youW = youA ? series.wa : series.wb;
+              const themW = youA ? series.wb : series.wa;
+              const opp = teamById[youA ? series.b : series.a];
+              const verb = series.done ? (series.winner === state.userTeam ? "won" : "lost") : (youW > themW ? "leads" : youW < themW ? "trails" : "tied");
+              playoffText = (ROUND_LABEL[P.round] || "Playoffs") + " vs the " + (opp ? opp.name : "opponent") + " (" + verb + " " + youW + "–" + themW + ")";
+            } else {
+              playoffText = "In the " + (ROUND_LABEL[P.round] || "playoffs");
+            }
+          }
+        }
+        divisionText = rec + " · " + divisionText;
+      }
+
+      return {
+        w: st.w || 0, l: st.l || 0, gp: st.gp || 0, rec,
+        place, division: divName, divisionGB: gb, divisionText,
+        inPlayoffs, seed, wcGB, playoffText,
+        flag, flagKind,
+        phase: state.phase,
+        round: state.playoff && state.playoff.round || null
+      };
+    }
+
     function maybeBadge(state) {
       if (originalsLeft(state) === 0 && state.badges.indexOf("sweep") < 0) {
         state.badges.push("sweep");
@@ -808,6 +987,9 @@ window.DATA = DATA;
       simSeason,
       tableFor,
       playoffSeeds,
+      clubStatus,
+      gamesBack,
+      remainingOf,
       originalsLeft,
       maybeBadge,
       payrollOf,
@@ -926,12 +1108,18 @@ window.DATA = DATA;
     const phaseLabel = state.phase === "regular" ? ("Day " + (state.day + 1) + " / " + state.schedule.length)
       : state.phase === "playoffs" ? ("Playoffs · " + (state.playoff && state.playoff.round || "").toUpperCase())
       : state.phase === "done" ? "Season complete" : state.phase;
+    const cs = E.clubStatus(state);
+    const flag = cs.flag ? '<div class="status-flag ' + cs.flagKind + '">' + cs.flag + "</div>" : "";
     el("app").innerHTML = chrome()
       + '<div class="bar"><div><strong>' + t.name + "</strong> <span class=\"muted\">" + t.league + " " + t.division + "</span></div>"
-      + "<div>Record <strong>" + rec(state.userTeam) + "</strong></div>"
       + "<div>Payroll <strong>" + money(pay) + "</strong> / " + money(state.cap) + "</div>"
       + "<div>Originals <strong>" + left + " / " + tot + "</strong>" + badges + "</div>"
       + "<div class=\"muted\">" + phaseLabel + "</div></div>"
+      + '<div class="status" id="club-status" aria-live="polite">'
+      + '<div><span class="k">Record</span><strong>' + cs.rec + "</strong></div>"
+      + '<div><span class="k">Division</span><strong>' + cs.divisionText + "</strong></div>"
+      + '<div><span class="k">Playoffs</span><strong>' + cs.playoffText + "</strong></div>"
+      + flag + "</div>"
       + '<div class="tabs" id="tabs">'
       + tabBtn("roster", "Roster") + tabBtn("lineup", "Lineup") + tabBtn("trade", "Trades")
       + tabBtn("fa", "Free agents") + tabBtn("stand", "Standings") + tabBtn("sim", "Simulate")
@@ -1246,6 +1434,7 @@ window.DATA = DATA;
     get state() { return state; },
     engine: E,
     newGame: (id) => { state = E.newGame(id); render(); return state; },
+    clubStatus: () => state ? E.clubStatus(state) : null,
     selfTest: () => MlbGmEngine.selfTest(DATA)
   };
 
