@@ -1,8 +1,13 @@
 # Tour Sim (Grok Games hub copy)
 
-Tour Sim v1.14.4, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
+Tour Sim v1.14.5, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
 
 This folder is part of [grok-games](https://github.com/jamesgregory5-svg/grok-games). It uses the hub password gate (`../../auth.js`) and does not have a separate password of its own.
+
+## v1.14.5
+
+- **Rae's Creek realism pass.** Hogan and Nelson are warm pale fieldstone with a shared procedural stone-block texture (mortar, color variation, bump shading), curved arches with voussoir rings, rounded parapet caps, and turf decks. Abutments sit in the banks. The Sarazen Bridge is a low stone span that actually crosses the water at the southwest outflow of the 15th pond (left of the pond, toward the green), not a walkway on the grass. Still visual-only and drawn on every graphics preset; texture and stone shading fall back to solid color if they fail.
+- Keeps the v1.14.3 hole-1 freeze fix, v1.14.2 chip / gear-aware distances, and the v1.14.1-hotfix graphics safety fallbacks.
 
 ## v1.14.4
 
