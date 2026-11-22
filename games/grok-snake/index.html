@@ -60,8 +60,10 @@ h1{font-size:28px;letter-spacing:.14em;margin:0 0 8px}
   function loadBest(){try{const n=parseInt(localStorage.getItem(KEY)||"0",10);return Number.isFinite(n)&&n>0?n:0;}catch(e){return 0;}}
   function saveBest(n){const b=Math.max(loadBest(),n|0);try{localStorage.setItem(KEY,String(b));}catch(e){}return b;}
   function rnd(n){const a=new Uint32Array(1);const max=0x100000000;const lim=max-(max%n);let x;do{crypto.getRandomValues(a);x=a[0];}while(x>=lim);return x%n;}
+  function same(a,b){return a&&b&&a.x===b.x&&a.y===b.y;}
+  function isReverse(a,b){return a&&b&&a.x===-b.x&&a.y===-b.y;}
 
-  let snake,dir,nextDir,food,score,best=loadBest(),alive,acc,stepMs,looping,started,willGrow,pendingDie;
+  let snake,dir,food,score,best=loadBest(),alive,acc,stepMs,looping,started,pendingDie,inputQ;
   bestEl.textContent=best;
 
   function fit(){
@@ -93,8 +95,9 @@ h1{font-size:28px;letter-spacing:.14em;margin:0 0 8px}
   function reset(){
     const mid=(N/2)|0;
     snake=[{x:mid-1,y:mid},{x:mid-2,y:mid},{x:mid-3,y:mid}];
-    dir={x:1,y:0};nextDir={x:1,y:0};
-    score=0;alive=true;acc=0;stepMs=155;pendingDie=null;willGrow=false;started=true;
+    dir={x:1,y:0};
+    inputQ=[];
+    score=0;alive=true;acc=0;stepMs=155;pendingDie=null;started=true;
     scoreEl.textContent="0";
     spawnFood();
     overlay.innerHTML="";
@@ -103,6 +106,7 @@ h1{font-size:28px;letter-spacing:.14em;margin:0 0 8px}
   function gameOver(){
     if(!alive)return;
     alive=false;
+    inputQ=[];
     best=saveBest(score);
     bestEl.textContent=best;
     overlay.innerHTML='<div class="panel"><h1>GAME OVER</h1><p class="lead">Score <strong>'+score+'</strong><br>Best <strong>'+best+'</strong></p><button class="btn" id="again">Play again</button></div>';
@@ -125,14 +129,24 @@ h1{font-size:28px;letter-spacing:.14em;margin:0 0 8px}
   function peekDie(){
     const n=nextCell();
     if(isWall(n)) return "wall";
-    // tail vacates unless growing
     if(onBody(n,!peekGrow())) return "body";
     return null;
   }
 
+  function plannedDir(){
+    return inputQ.length?inputQ[inputQ.length-1]:dir;
+  }
+
+  function applyQueuedDir(){
+    while(inputQ.length){
+      const n=inputQ.shift();
+      if(!isReverse(n,dir)&&!same(n,dir)){dir=n;return;}
+    }
+  }
+
   function tick(){
     if(!alive)return;
-    dir=nextDir;
+    applyQueuedDir();
     const n=nextCell();
     const grow=(!isWall(n)&&n.x===food.x&&n.y===food.y);
     if(isWall(n)||onBody(n,!grow)){gameOver();return;}
@@ -147,29 +161,67 @@ h1{font-size:28px;letter-spacing:.14em;margin:0 0 8px}
     pendingDie=null;
   }
 
+  // Visual path follows grid edges and inserts corner vertices so the
+  // body never cuts diagonally across a turn (Google-Snake style).
   function visPoints(p,grow){
     const pts=[];
     const die=pendingDie;
-    const hp=die?Math.min(p,0.42):p;
+    const hp=die?Math.min(p,0.82):p;
     pts.push({x:snake[0].x+dir.x*hp,y:snake[0].y+dir.y*hp});
     for(let i=1;i<snake.length;i++){
       const prev=snake[i-1],cur=snake[i];
       const t=(i===snake.length-1&&grow)?0:p;
-      pts.push({x:cur.x+(prev.x-cur.x)*t,y:cur.y+(prev.y-cur.y)*t});
+      const pos={x:cur.x+(prev.x-cur.x)*t,y:cur.y+(prev.y-cur.y)*t};
+      const into={x:prev.x-cur.x,y:prev.y-cur.y};
+      const out=(i===1)?dir:{x:snake[i-2].x-prev.x,y:snake[i-2].y-prev.y};
+      if(!same(into,out)) pts.push({x:prev.x,y:prev.y});
+      pts.push(pos);
     }
-    return pts;
+    const out=[];
+    for(let i=0;i<pts.length;i++){
+      const q=pts[i], prev=out[out.length-1];
+      if(!prev||Math.hypot(q.x-prev.x,q.y-prev.y)>1e-6) out.push(q);
+    }
+    return out;
+  }
+
+  function strokeBody(pts, radius){
+    if(!pts.length)return;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x,pts[0].y);
+    if(pts.length===1){
+      ctx.lineTo(pts[0].x,pts[0].y);
+      ctx.stroke();
+      return;
+    }
+    for(let i=1;i<pts.length-1;i++){
+      const p0=pts[i-1],p1=pts[i],p2=pts[i+1];
+      const d1=Math.hypot(p1.x-p0.x,p1.y-p0.y);
+      const d2=Math.hypot(p2.x-p1.x,p2.y-p1.y);
+      const cross=(p1.x-p0.x)*(p2.y-p1.y)-(p1.y-p0.y)*(p2.x-p1.x);
+      if(d1>0.5&&d2>0.5&&Math.abs(cross)>1){
+        const r=Math.min(radius,d1*0.5,d2*0.5);
+        const ux=(p1.x-p0.x)/d1,uy=(p1.y-p0.y)/d1;
+        const vx=(p2.x-p1.x)/d2,vy=(p2.y-p1.y)/d2;
+        ctx.lineTo(p1.x-ux*r,p1.y-uy*r);
+        ctx.quadraticCurveTo(p1.x,p1.y,p1.x+vx*r,p1.y+vy*r);
+      }else{
+        ctx.lineTo(p1.x,p1.y);
+      }
+    }
+    const last=pts[pts.length-1];
+    ctx.lineTo(last.x,last.y);
+    ctx.stroke();
   }
 
   function drawApple(cx,cy,cell){
     const r=cell*0.34;
     ctx.save();
     ctx.translate(cx,cy);
-    // shadow
     ctx.fillStyle="rgba(40,70,20,.22)";
     ctx.beginPath();
     ctx.ellipse(0,r*0.72,r*0.72,r*0.28,0,0,Math.PI*2);
     ctx.fill();
-    // body — two lobes for a simple original apple
     ctx.fillStyle="#e23b3b";
     ctx.beginPath();
     ctx.arc(-r*0.22,-r*0.02,r*0.78,0,Math.PI*2);
@@ -178,12 +230,10 @@ h1{font-size:28px;letter-spacing:.14em;margin:0 0 8px}
     ctx.beginPath();
     ctx.arc(0,r*0.12,r*0.86,0,Math.PI*2);
     ctx.fill();
-    // highlight
     ctx.fillStyle="rgba(255,255,255,.45)";
     ctx.beginPath();
     ctx.ellipse(-r*0.28,-r*0.22,r*0.22,r*0.16,-0.5,0,Math.PI*2);
     ctx.fill();
-    // stem
     ctx.strokeStyle="#5a3a1c";
     ctx.lineWidth=Math.max(2,cell*0.07);
     ctx.lineCap="round";
@@ -191,7 +241,6 @@ h1{font-size:28px;letter-spacing:.14em;margin:0 0 8px}
     ctx.moveTo(0,-r*0.7);
     ctx.quadraticCurveTo(r*0.12,-r*1.05,r*0.22,-r*1.2);
     ctx.stroke();
-    // leaf
     ctx.fillStyle="#3fa34d";
     ctx.beginPath();
     ctx.ellipse(r*0.46,-r*1.05,r*0.38,r*0.2,-0.5,0,Math.PI*2);
@@ -203,34 +252,21 @@ h1{font-size:28px;letter-spacing:.14em;margin:0 0 8px}
     const pts=visPoints(p,grow).map(q=>cellCenter(q.x,q.y,L));
     if(!pts.length)return;
     const width=L.cell*0.86;
-    // soft shadow
+    const cornerR=L.cell*0.48;
     ctx.save();
     ctx.strokeStyle="rgba(20,50,10,.2)";
     ctx.lineWidth=width;
     ctx.lineCap="round";
     ctx.lineJoin="round";
-    ctx.beginPath();
-    ctx.moveTo(pts[pts.length-1].x,pts[pts.length-1].y+L.cell*0.08);
-    for(let i=pts.length-2;i>=0;i--) ctx.lineTo(pts[i].x,pts[i].y+L.cell*0.08);
-    ctx.stroke();
-    ctx.restore();
-    // body edge then fill
+    const shadow=pts.map(q=>({x:q.x,y:q.y+L.cell*0.08}));
+    strokeBody(shadow,cornerR);
     ctx.strokeStyle=SNAKE_EDGE;
-    ctx.lineWidth=width;
-    ctx.lineCap="round";
-    ctx.lineJoin="round";
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x,pts[0].y);
-    for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y);
-    ctx.stroke();
+    strokeBody(pts,cornerR);
     ctx.strokeStyle=SNAKE;
     ctx.lineWidth=width*0.78;
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x,pts[0].y);
-    for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y);
-    ctx.stroke();
+    strokeBody(pts,cornerR);
+    ctx.restore();
 
-    // head + eyes
     const head=pts[0];
     const ang=Math.atan2(dir.y,dir.x);
     const eyeR=L.cell*0.13;
@@ -240,7 +276,6 @@ h1{font-size:28px;letter-spacing:.14em;margin:0 0 8px}
     ctx.save();
     ctx.translate(head.x,head.y);
     ctx.rotate(ang);
-    // cheeks slightly bigger disk
     ctx.fillStyle=SNAKE;
     ctx.beginPath();
     ctx.arc(L.cell*0.02,0,width*0.42,0,Math.PI*2);
@@ -271,7 +306,6 @@ h1{font-size:28px;letter-spacing:.14em;margin:0 0 8px}
     const {w,pad,cell}=L;
     ctx.fillStyle=WALL;
     ctx.fillRect(0,0,w,w);
-    // inner wall lip
     ctx.fillStyle=WALL_IN;
     const lip=Math.max(2,pad*0.22);
     ctx.fillRect(pad-lip,pad-lip,N*cell+lip*2,N*cell+lip*2);
@@ -309,8 +343,7 @@ h1{font-size:28px;letter-spacing:.14em;margin:0 0 8px}
   let last=0;
   function frame(t){
     looping=requestAnimationFrame(frame);
-    if(!started){draw();return;}
-    if(!alive){draw();return;}
+    if(!started||!alive){draw();return;}
     if(!last)last=t;
     acc+=Math.min(48,t-last);
     last=t;
@@ -324,9 +357,12 @@ h1{font-size:28px;letter-spacing:.14em;margin:0 0 8px}
 
   function setDir(x,y){
     if(!alive||!started)return;
-    if(x===-dir.x&&y===-dir.y)return;
-    nextDir={x,y};
+    const want={x,y};
+    if(same(want,plannedDir())||isReverse(want,plannedDir()))return;
+    if(inputQ.length>=2) inputQ[1]=want;
+    else inputQ.push(want);
   }
+
   const map={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0],w:[0,-1],s:[0,1],a:[-1,0],d:[1,0],W:[0,-1],S:[0,1],A:[-1,0],D:[1,0]};
   document.addEventListener("keydown",e=>{
     const m=map[e.key];
@@ -345,10 +381,10 @@ h1{font-size:28px;letter-spacing:.14em;margin:0 0 8px}
   window.addEventListener("resize",()=>draw());
 
   function showTitle(){
-    started=false;alive=false;
+    started=false;alive=false;inputQ=[];
     const mid=(N/2)|0;
     snake=[{x:mid-1,y:mid},{x:mid-2,y:mid},{x:mid-3,y:mid},{x:mid-4,y:mid}];
-    dir={x:1,y:0};nextDir={x:1,y:0};acc=0;food={x:mid+3,y:mid};score=0;
+    dir={x:1,y:0};acc=0;food={x:mid+3,y:mid};score=0;
     overlay.innerHTML='<div class="panel"><h1>GROK SNAKE</h1><p class="lead">Eat the apples. Don\'t hit the walls or yourself. The snake gets faster as you go.</p><p class="lead">Best <strong>'+best+'</strong></p><button class="btn" id="go">Play</button></div>';
     document.getElementById("go").onclick=()=>{reset();last=0;if(!looping)requestAnimationFrame(t=>{last=t;frame(t);});};
     draw();
@@ -356,9 +392,10 @@ h1{font-size:28px;letter-spacing:.14em;margin:0 0 8px}
 
   window.__SNAKE__={
     reset,
-    get state(){return {score,best,alive,started,len:snake&&snake.length,food:food&&{x:food.x,y:food.y},head:snake&&snake[0],dir,wallsKill:true,wrap:false};},
+    get state(){return {score,best,alive,started,len:snake&&snake.length,food:food&&{x:food.x,y:food.y},head:snake&&snake[0],dir,queue:inputQ.slice(),wallsKill:true,wrap:false};},
     tick,
     setDir,
+    visPoints,
     stepMs(){return stepMs;},
     gameOver
   };
