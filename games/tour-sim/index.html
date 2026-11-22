@@ -162,7 +162,29 @@ td.l,th.l{text-align:left}
 #gimme.on{display:flex}#gimme .gb{display:flex;align-items:center;gap:18px;padding:12px 44px 12px 40px;background:linear-gradient(90deg,#0b1f17 0%,#103a2a 60%,#145c3e 100%);border-left:8px solid #34e0a1;color:#fff;transform:skewX(-12deg);box-shadow:0 10px 40px rgba(0,0,0,.45);animation:gin 1.5s cubic-bezier(.2,.9,.2,1) forwards}
 #gimme b{font-size:clamp(40px,8vw,86px);font-weight:900;letter-spacing:.06em;font-style:italic;line-height:1;transform:skewX(12deg)}#gimme span{font-size:clamp(13px,1.8vw,18px);font-weight:700;opacity:.85;letter-spacing:.08em;text-transform:uppercase;transform:skewX(12deg)}
 @keyframes gin{0%{transform:translateX(-110vw) skewX(-12deg)}18%{transform:translateX(0) skewX(-12deg) scale(1.04)}26%{transform:translateX(0) skewX(-12deg) scale(1)}82%{transform:translateX(0) skewX(-12deg);opacity:1}100%{transform:translateX(110vw) skewX(-12deg);opacity:0}}
-.gnote{font-size:12px;font-weight:700;color:#ffd27a;margin-top:6px;letter-spacing:.02em}</style>
+.gnote{font-size:12px;font-weight:700;color:#ffd27a;margin-top:6px;letter-spacing:.02em}
+#putt .bar{overflow:visible}
+#putt .bar #pZone{position:absolute;top:-3px;bottom:-3px;width:12%;left:0;background:rgba(63,224,176,.42);border-radius:3px;box-shadow:0 0 0 1px rgba(63,224,176,.65);pointer-events:none}
+#putt .bar #pCup{position:absolute;top:-3px;bottom:-3px;width:3px;margin-left:-1px;background:#fff;border-radius:1px;z-index:1}
+.pn,#shopScr,#estScr,#casScr,#trnScr,#crScr{max-height:calc(100vh - 24px);overflow:auto;-webkit-overflow-scrolling:touch}
+#acts{max-height:calc(100vh - 240px);overflow-y:auto}
+#shape{flex-wrap:wrap;max-width:min(280px,calc(100vw - 160px))}
+#spinP{max-width:min(280px,calc(100vw - 16px));max-height:calc(100vh - 16px);overflow:auto}
+@media (max-height:760px){
+  #acts{bottom:calc(132px + env(safe-area-inset-bottom))}
+  #putt{bottom:calc(118px + env(safe-area-inset-bottom));min-width:0;max-width:min(320px,calc(100vw - 24px));padding:4px 10px}
+  #rec{bottom:calc(50px + env(safe-area-inset-bottom))}
+  #shape{bottom:calc(50px + env(safe-area-inset-bottom))}
+  #meter{bottom:calc(70px + env(safe-area-inset-bottom));height:180px}
+  #third{bottom:calc(118px + env(safe-area-inset-bottom))}
+  #intro{bottom:calc(96px + env(safe-area-inset-bottom))}
+  #strike{bottom:calc(250px + env(safe-area-inset-bottom));right:max(8px,env(safe-area-inset-right))}
+}
+@media (max-width:1280px) and (max-height:800px){
+  #shot{padding:4px 8px}
+  #lm{width:150px}
+}
+</style>
 </head>
 <body>
 <canvas id="gl"></canvas>
@@ -178,7 +200,7 @@ td.l,th.l{text-align:left}
  <div id="strike"><div class="st">STRIKE</div><canvas id="strikeC" width="200" height="140" style="width:100px;height:70px"></canvas><div class="sr"><span>TEMPO</span><b id="tempo">—</b></div><div class="sr"><span>TIMING</span><b id="acc">—</b></div><div class="sr"><span>FACE</span><b id="fF">—</b></div><div class="sr"><span>PATH</span><b id="fP">—</b></div></div>
  <div id="shape"><button data-s="0" class="sel">STRAIGHT</button><button data-s="1">DRAW</button><button data-s="2">FADE</button><button data-t="1">HIGH</button><button data-t="-1">LOW</button></div>
  <div id="hint"><span id="hintT">TAP, CLICK OR PRESS SPACE TO SWING</span><small id="hintS">Tap 2 sets power · tap 3 on the white line · drag sideways to aim</small></div>
- <div id="putt"><small>PUTT</small><b id="pFt">0 ft</b><div class="bar"><i id="pBar"></i><em id="pCup"></em></div><small id="pInfo" style="margin-top:4px">CUP 0 FT</small></div>
+ <div id="putt"><small>PUTT</small><b id="pFt">0 ft</b><div class="bar"><i id="pBar"></i><em id="pZone"></em><em id="pCup"></em></div><small id="pInfo" style="margin-top:4px">CUP 0 FT</small></div>
  <div id="rec"></div>
  <div id="clubs"></div>
 </div>
@@ -195,7 +217,7 @@ td.l,th.l{text-align:left}
 <div id="ldr" style="position:fixed;inset:0;z-index:9999;background:#0b1014;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;color:#e8eef2;font:700 28px/1 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:.18em;transition:opacity .6s ease"><div>LOADING</div><div style="width:min(420px,70vw)"><div style="height:10px;background:#1a2430;border-radius:999px;overflow:hidden;border:1px solid #2a3a44"><div id="ldrBar" style="height:100%;width:0%;background:linear-gradient(90deg,#3fe0b0,#7cf0d0);border-radius:999px;box-sizing:border-box;transition:none"></div></div><div id="ldrPct" style="margin-top:8px;text-align:center;font:800 14px/1.2 system-ui,sans-serif;letter-spacing:.12em;opacity:.85">0%</div></div></div><div id="fps"></div><div id="gimme"><div class="gb"><b>GIMME</b><span id="gimmeS"></span></div></div>
 <script type="text/x-tour" id="gsrc">
 'use strict';
-const VERSION='v4.48';
+const VERSION='v1.12';
 const TAU=Math.PI*2,DEG=Math.PI/180;
 const clamp=(v,a,b)=>v<a?a:v>b?b:v,lerp=(a,b,t)=>a+(b-a)*t,smooth=t=>t*t*(3-2*t);
 const pad=n=>String(n).padStart(2,'0');
@@ -351,30 +373,38 @@ function groundRoll(F,surfAt,slopeAt,cup,rec){
       const ns=sp-dec*dt;if(ns<=0||(ns<.06&&Math.hypot(ax,ay)<dec*.9))break;
       vx*=ns/sp;vy*=ns/sp;const nx=x+vx*dt,ny=y+vy*dt;
       if(cup){const sx=nx-x,sy=ny-y,L2=sx*sx+sy*sy;let t=L2?((cup.x-x)*sx+(cup.y-y)*sy)/L2:0;t=t<0?0:t>1?1:t;const cx=x+sx*t-cup.x,cy=y+sy*t-cup.y,cd=Math.hypot(cx,cy);
-        // cup physics (capture-speed rule): cup radius 2.125 in = .059 yd; the ball's centre must pass inside ~R+ (edge catch). Max capture speed ~1.63 m/s (1.78 yd/s) dead centre, falling to ~0 at the edge.
-        const RC=.066,LIPR=.084;const pinOn=cup.pin!==undefined?!!cup.pin:(typeof pinIn==='function'?pinIn():true);
-        const tu=L2?((cup.x-x)*sx+(cup.y-y)*sy)/L2:-1;// decide at the point of closest approach (the line's offset from the cup centre), not on first contact
-        if(cd<LIPR&&!lip&&tu>=0&&tu<=1){const e=Math.min(1,cd/RC);const vcap=e<1?1.78*Math.sqrt(1-e*e)+.08:0;const side=(cx*vy-cy*vx)>0?1:-1;res.cupV=ns;res.cupE=+(cd/RC).toFixed(2);
-          if(e<1&&ns<vcap){put(cup.x,cup.y,0);res.kind='sunk';x=cup.x;y=cup.y;break}
-          if(pinOn&&e<.6&&ns<6){// hits the flagstick: the pin soaks up pace, so a firm putt on line can still drop; a hard one rebounds (a very rare dead-centre blast can still fall)
-            const vpin=1.78+1.6*(1-e/.6);const lucky=e<.08&&((Math.sin(ns*917.3+e*311.7)*43758.5)%1+1)%1<.03;res.pinHit=1;
-            if(ns<vpin||lucky){put(cup.x,cup.y,0);res.kind='sunk';res.pin=1;x=cup.x;y=cup.y;break}
-            const after=ns*(.25+.2*e);const a=Math.PI-side*(.5+1.6*e),c=Math.cos(a),sn=Math.sin(a),k=after/ns;const qx=(vx*c-vy*sn)*k,qy=(vx*sn+vy*c)*k;vx=qx;vy=qy;lip=1;res.lip='pin'}
-          else if(ns<vcap*1.9+.5&&e>.3){// medium pace on the edge: lips out / horseshoes around the rim
-            const a=side*(.7+1.4*(1-e)*(1-e)+.35),k=.55;/* v4.1: ride smoothly around the rim instead of turning in one step */
+        /* v1.12 cup: capture radius, ~1.60 m/s (1.75 yd/s) max holeable in the centre, softer mid-radius than a hard edge cliff, partial-edge lip rolls, no pop-out once below the rim */
+        const RC=.066,LIPR=.090,VMAX=1.75;const pinOn=cup.pin!==undefined?!!cup.pin:(typeof pinIn==='function'?pinIn():true);
+        const tu=L2?((cup.x-x)*sx+(cup.y-y)*sy)/L2:-1;
+        if(res.belowRim){put(cup.x,cup.y,-.03);res.kind='sunk';x=cup.x;y=cup.y;break}
+        if(cd<LIPR&&tu>=0&&tu<=1){const e=Math.min(1.2,cd/RC);const vcap=e<1?VMAX*Math.pow(Math.max(0,1-e*e),.45)+.05:Math.max(0,VMAX*(1-e)*.15);
+          const side=(cx*vy-cy*vx)>0?1:-1;res.cupV=ns;res.cupE=+(cd/RC).toFixed(2);
+          if(e<1&&ns<vcap){put(cup.x,cup.y,-.02);res.kind='sunk';res.belowRim=1;x=cup.x;y=cup.y;break}
+          if(pinOn&&e<.6&&ns<6){
+            const vpin=VMAX+1.45*(1-e/.6);const lucky=e<.08&&((Math.sin(ns*917.3+e*311.7)*43758.5)%1+1)%1<.03;res.pinHit=1;
+            if(ns<vpin||lucky){put(cup.x,cup.y,-.02);res.kind='sunk';res.pin=1;res.belowRim=1;x=cup.x;y=cup.y;break}
+            const after=ns*(.22+.18*e);const a=Math.PI-side*(.5+1.6*e),c=Math.cos(a),sn=Math.sin(a),k=after/ns;const qx=(vx*c-vy*sn)*k,qy=(vx*sn+vy*c)*k;vx=qx;vy=qy;res.lip='pin'}
+          else if(ns<vcap*2.1+.55&&e>.25){
+            const a=side*(.7+1.4*(1-Math.min(1,e))*(1-Math.min(1,e))+.35),k=.50;
             const px=cup.x+cx,py=cup.y+cy;const d0=Math.hypot(px-x,py-y),st=Math.max(1,Math.ceil(d0/(ns*dt)));for(let q=1;q<=st;q++)put(x+(px-x)*q/st,y+(py-y)*q/st,0);
-            const th0=Math.atan2(cy,cx),N=Math.max(10,Math.ceil(Math.abs(a)/.05));let ex=px,ey=py;for(let q=1;q<=N;q++){const t=q/N,sm=t*t*(3-2*t);const r=cd+(.062-cd)*sm;const th=th0+a*t;ex=cup.x+Math.cos(th)*r;ey=cup.y+Math.sin(th)*r;put(ex,ey,-.008*Math.sin(t*Math.PI))}
-            const c=Math.cos(a),sn=Math.sin(a);const qx=(vx*c-vy*sn)*k,qy=(vx*sn+vy*c)*k;vx=qx;vy=qy;lip=1;res.lip='lip';x=ex;y=ey;continue}
-          else{// too fast: skips over the hole / catches the far rim and keeps rolling
-            const a=side*.12*(1-e)+side*.05,c=Math.cos(a),sn=Math.sin(a),k=ns>4?.9:.8;const qx=(vx*c-vy*sn)*k,qy=(vx*sn+vy*c)*k;vx=qx;vy=qy;lip=1;res.lip='over';
-            for(let q=1;q<=4;q++)put(x+vx*dt*q*.25,y+vy*dt*q*.25,.012*Math.sin(q/4*Math.PI))}}
-        else if(lip&&cd>LIPR*2.5)lip=0}
-      x=nx;y=ny;put(x,y,0);
-      /* v1.21 cup assist: a slow ball whose centre is over the opening always drops (no hovering, even after a lip); a slow ball hanging on the edge is drawn in. Fast/off-line lip-outs above are untouched. */
+            const th0=Math.atan2(cy,cx),N=Math.max(10,Math.ceil(Math.abs(a)/.05));let ex=px,ey=py;for(let q=1;q<=N;q++){const u=q/N,sm=u*u*(3-2*u);const rr=cd+(.062-cd)*sm;const th=th0+a*u;ex=cup.x+Math.cos(th)*rr;ey=cup.y+Math.sin(th)*rr;put(ex,ey,-.01*Math.sin(u*Math.PI))}
+            const c=Math.cos(a),sn=Math.sin(a);const qx=(vx*c-vy*sn)*k,qy=(vx*sn+vy*c)*k;vx=qx;vy=qy;res.lip='lip';x=ex;y=ey;
+            const n2=Math.hypot(vx,vy),e2=Math.hypot(ex-cup.x,ey-cup.y)/RC;const v2=e2<1?VMAX*Math.pow(Math.max(0,1-e2*e2),.45)+.05:0;
+            if(e2<1&&n2<v2*1.15){put(cup.x,cup.y,-.02);res.kind='sunk';res.belowRim=1;x=cup.x;y=cup.y;break}
+            continue}
+          else{
+            const a=side*.12*(1-Math.min(1,e))+side*.05,c=Math.cos(a),sn=Math.sin(a),k=ns>4?.62:.52;const qx=(vx*c-vy*sn)*k,qy=(vx*sn+vy*c)*k;vx=qx;vy=qy;res.lip='over';
+            for(let q=1;q<=4;q++)put(x+vx*dt*q*.25,y+vy*dt*q*.25,.01*Math.sin(q/4*Math.PI));
+            const cd3=Math.hypot((x+vx*dt)-cup.x,(y+vy*dt)-cup.y),n3=Math.hypot(vx,vy);
+            if(cd3<RC&&n3<.65){put(cup.x,cup.y,-.02);res.kind='sunk';res.belowRim=1;x=cup.x;y=cup.y;break}
+          }
+        }}
+      x=nx;y=ny;put(x,y,res.belowRim?-.03:0);
       if(cup){const dx=cup.x-x,dy=cup.y-y,dc=Math.hypot(dx,dy),v2=Math.hypot(vx,vy);
-        if(dc<.059&&v2<(lip?.3:1.1)){put(cup.x,cup.y,0);res.kind='sunk';res.assist=1;x=cup.x;y=cup.y;break}
-        if(!lip&&dc<.092&&v2<.7&&dc>1e-4){const pull=2.4*dt;vx+=dx/dc*pull;vy+=dy/dc*pull}}}
-    if(res.kind==='rest'&&cup&&Math.hypot(cup.x-x,cup.y-y)<.075){put(cup.x,cup.y,0);res.kind='sunk';res.assist=2;x=cup.x;y=cup.y}}
+        const vDrop=res.lip==='over'?.5:(res.lip==='lip'?.95:1.0);
+        if(res.belowRim||(dc<.059&&v2<vDrop)){put(cup.x,cup.y,-.03);res.kind='sunk';res.belowRim=1;if(dc<.059)res.assist=1;x=cup.x;y=cup.y;break}
+        if(res.lip!=='over'&&dc<.088&&v2<.85&&dc>1e-4){const pull=3*dt;vx+=dx/dc*pull;vy+=dy/dc*pull}}}
+    if((res.kind==='rest'||res.belowRim)&&cup&&Math.hypot(cup.x-x,cup.y-y)<.075){put(cup.x,cup.y,-.02);res.kind='sunk';res.belowRim=1;res.assist=2;x=cup.x;y=cup.y}}
   res.x=x;res.y=y;res.n=n/3;res.surf=surfAt(x,y);return res}
 /* putt: initial speed (yd/s) along heading */
 function puttRoll(x,y,hd,v,surfAt,slopeAt,cup,rec){
@@ -1777,7 +1807,7 @@ function updHUD(){const H=G.H;if(!H)return;const b=G.ball;const isR=G.mode==='ro
   const pu=G.phase==='putt';$('putt').style.display=pu?'block':'none';
   for(const id of['meter','strike','shape','hint'])$(id).classList.toggle('hide',pu||G.phase==='intro');
   $('rec').innerHTML=G.rec?'Recommended: <b>'+recText()+'</b>':'';$('rec').classList.toggle('hide',pu||G.phase==='intro');
-  if(pu){$('pInfo').textContent='CUP '+Math.round(d*3)+' FT · TAP TO START · TAP TO STRIKE';G.puttMax=puttMaxFor(G.ball,G.H);$('pCup').style.left=clamp(d*3/G.puttMax*100,0,100)+'%'}
+  if(pu){$('pInfo').textContent='CUP '+Math.round(d*3)+' FT · TAP TO START · TAP TO STRIKE';G.puttMax=puttMaxFor(G.ball,G.H);$('pCup').style.left=clamp(d*3/G.puttMax*100,0,100)+'%';try{if(typeof puttMeterApply==='function')puttMeterApply();else if($('pZone'))$('pZone').style.left=$('pCup').style.left}catch(e){}}
   fillLM()}
 function recText(){const r=G.rec,b=G.ball;if(!r||r.ci===PUTTER)return r?r.txt:'';const c=clubCarry(r.ci,r.pwPhys||r.pw,b.surf===S_GREEN?S_FW:b.surf,G.wind||{x:0,y:0},G.aim);
   const extra=/lay up/.test(r.txt)?' · lay up':(G.recForced&&r.ci<13?' · must carry':G.recFront&&r.ci<13?' · '+G.recFront+' to front':'');return CN[r.ci]+(r.pw<.99?' '+Math.round(r.pw*100)+'%':'')+' · '+Math.round(c.carry)+' carry / '+Math.round(c.total)+' total'+extra}
@@ -1878,7 +1908,7 @@ function inputInit(){
 const SW_UP=2600/1.15,SW_DOWN=SW_UP/1.75,SW_TEMPO=1.75;
 function swNow(){return performance.now()}
 /* v1.30: difficulty = swing meter speed only */
-const DIFF=[['Reggie',.6],['Easy',.8],['Medium',1],['Hard',1.2],['PGA',1.45],['Woods',1.75]];
+const DIFF=[['Reggie',.6],['Easy',.8],['Medium',1],['Hard',1.2],['PGA',1.45],['Woods',1.75],['Legend',2.05],['Icon',2.4],['Immortal',2.8],['GOAT',3.25],['Mythic',3.75]];
 function diffI(){const v=store('ts.diff');return v===null||v===undefined||!DIFF[+v]?2:+v}
 function swValue(s,t){const k=s.k||1;if(s.phase==='up')return Math.min(1.15,(t-s.t0)*k/SW_UP);return s.pow-(t-s.tPow)*k/SW_DOWN}
 function swingTap(){if(G.phase!=='address'&&G.phase!=='putt'&&G.phase!=='swing')return;const t=swNow();let s=G.sw;
@@ -2817,12 +2847,12 @@ function crDay(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth
 const TN_STYLES=[{n:'Long hitter',m:-.3,sd:1.25},{n:'Steady putter',m:0,sd:.7},{n:'Risk taker',m:-.2,sd:1.45},{n:'Grinder',m:.2,sd:.8},{n:'Wedge wizard',m:-.1,sd:1}];
 function tnStyleI(n){let h=2166136261;for(const ch of String(n))h=Math.imul(h^ch.charCodeAt(0),16777619);return (h>>>0)%TN_STYLES.length}
 // ---- live leaderboard (during tournament rounds) ----
-function tnLiveRows(){const r=G.round;if(!r||!r.tour)return null;const t=tnLoad();if(!t)return null;const day=r.tday;const par=cpar(CID[t.cid],t.tee);
+function tnLiveRows(){const r=G.round;if(!r||!(r.tour||r.car))return null;const t=tnLoad();if(!t||!t.cid||!CID[t.cid])return null;const day=Number.isFinite(r.tday)?r.tday:0;t.me=Array.isArray(t.me)?t.me:[];const par=cpar(CID[t.cid],t.tee);
   const thru=r.sc.filter(x=>x>0).length;const TP=tnDayTP(t,day);const P=par.reduce((a,b)=>a+b,0);
   const rows=t.field.map((f,i)=>{const prev=f.sc.slice(0,day).reduce((a,b)=>a+b,0)-P*Math.min(day,f.sc.length);const R=tnRng((t.seed^(i*2654435761))+day);let part=Math.round(TP[i]*thru/18);if(thru>0&&thru<18)part+=Math.round((R()-.5)*2.2);return{n:f.n,tp:prev+part,me:false}});
-  const mePrev=t.me.slice(0,day).reduce((a,b)=>a+b,0)-P*day;let meT=0;for(let i=0;i<18;i++)if(r.sc[i])meT+=r.sc[i]-par[i];rows.push({n:ownerName()||'You',tp:mePrev+meT,me:true});
+  const mePrev=(t.me.slice(0,day).reduce((a,b)=>a+(Number(b)||0),0)||0)-P*day;let meT=0;for(let i=0;i<18;i++)if(Number.isFinite(r.sc[i])&&r.sc[i]>0)meT+=r.sc[i]-(par[i]||0);rows.push({n:ownerName()||'You',tp:mePrev+meT,me:true});
   rows.sort((a,b)=>a.tp-b.tp||(a.me?-1:b.me?1:0));let pos=0;rows.forEach((x,i)=>{if(i===0||x.tp!==rows[i-1].tp)pos=i+1;x.pos=pos});return{rows,thru,day,evn:t.car&&t.ev?t.ev.name:''}}
-function tnLiveUpd(){let el=$('tnLive');const on=G.mode==='round'&&G.round&&G.round.tour&&!G.cartOn&&$('hud')&&$('hud').classList.contains('on');
+function tnLiveUpd(){let el=$('tnLive');const on=G.mode==='round'&&G.round&&(G.round.tour||G.round.car)&&!G.cartOn&&$('hud')&&$('hud').classList.contains('on');
   if(!on){if(el)el.style.display='none';return}
   if(!el){el=document.createElement('div');el.id='tnLive';el.style.cssText='position:fixed;left:10px;top:162px;z-index:12;width:196px;background:rgba(10,16,20,.72);border-radius:12px;color:#e8eef2;font:600 12px/1.35 system-ui,sans-serif;padding:7px 9px;pointer-events:auto';document.body.appendChild(el);
     el.addEventListener('click',e=>{if(e.target.closest('#tnLvT')){store('ts.tlb',el.dataset.col==='1'?0:1);el.dataset.k=''}})}
@@ -2843,14 +2873,14 @@ function showTrophies(back){const L=trLoad().slice().reverse();const s=show('scS
 /* ================= v3.3: Career mode (core) ================= */
 const CR_TIERS=[{n:'Regional',purse:25000,tee:-1,mu:2},{n:'Challenger',purse:80000,tee:1,mu:1},{n:'Pro',purse:300000,tee:0,mu:0},{n:'Major Series',purse:1000000,tee:0,mu:-1}];
 const CR_COURSES=[['lookaway','fiveponds','prairie','shadowcreek','peachtree','crystal','chicago','pcc','plainfield','somerset','aronimink'],['bethpage','pacificdunes','oakhill','oaklandhills','muirfieldv','friars','fishers','seminole'],['sawgrass','riviera','tcc','lacc','wingedfoot','sandhills','ngla','merion'],['augusta','standrews','pebble','pinevalley','oakmont','shinnecock','cypress']];
-const CR_BASE=[4,2.8,1.6,.4,-.8,-2];/* CPU field mean (to par) per career level Reggie..Woods */
+const CR_BASE=[4,2.8,1.6,.4,-.8,-2,-2.8,-3.5,-4.2,-5,-5.8];/* CPU field mean (to par) per career level Reggie..Woods */
 const CR_RIVALS=['Bruno Vance','Dex Harlan','Miles Okoro','Tobias Wren'];
 const CR_REGULARS=['Hank Ostrow','Jules Marchetti','Ravi Desai','Colt Brannigan','Soren Ekdahl','Mateo Rios','Gus Pelletier','Ty Abernathy','Ollie Fenwick','Kenji Sato'];
 const CR_EVN=['Open','Classic','Invitational','Championship'];const CR_SEASON=8,CR_PROMO=1000;
 /* Named majors: pinned venues (U.S. Open rotates). Masters = Augusta. */
 const CR_MAJORS=[{id:'masters',n:'The Masters',cid:'augusta',mul:1.65,slot:0},{id:'pga',n:'PGA Championship',cid:'aronimink',mul:1.45,slot:2},{id:'usopen',n:'U.S. Open',cids:['oakmont','shinnecock','pebble','bethpage'],mul:1.55,slot:4},{id:'open',n:'The Open Championship',cid:'standrews',mul:1.5,slot:6}];
-function crLoad(){const v=store('ts.career');return v&&v.v===1&&typeof v.name==='string'?v:null}
-function crSave(C){store('ts.career',C)}
+function crLoad(){try{let v=store('ts.career');if(!(v&&v.v===1&&typeof v.name==='string'))v=store('ts.career.bak');return v&&v.v===1&&typeof v.name==='string'?v:null}catch(e){try{const v=store('ts.career.bak');return v&&v.v===1&&typeof v.name==='string'?v:null}catch(e2){return null}}}
+function crSave(C){try{if(!C)return;store('ts.career',C);store('ts.career.bak',C)}catch(e){try{store('ts.career',C)}catch(e2){console.warn('crSave',e2)}}}
 function crNew(name,ball){return{v:1,name:String(name||'Player').slice(0,16),ball:BALL_COLS[ball]?ball:'white',lvl:0,season:1,tier:0,maxT:0,tpts:0,spts:0,ev:0,cash:0,earn:0,wins:0,rp:{},hist:[],res:[],cur:null,sched:null,made:crDay()}}
 function crCourseOK(C,cid){return CR_COURSES.some((L,i)=>i<=C.maxT&&L.includes(cid))}
 function crUnlocked(C){return CR_COURSES.slice(0,(C.maxT|0)+1).flat().filter(id=>CID[id])}
@@ -2859,7 +2889,7 @@ function crTourTee(cid){/* prefer real tournament / championship tee index 0 whe
   let i=c.tees.findIndex(t=>pref.test(t.n||''));if(i<0)i=0;return i}
 function crTeeFor(C,cid,major){const c=CID[cid],T=CR_TIERS[C.tier];if(major)return crTourTee(cid);return T.tee<0?c.tees.length-1:Math.min(T.tee,c.tees.length-1)}
 function crShuffle(a,R){const A=a.slice();for(let i=A.length-1;i>0;i--){const j=Math.floor(R()*(i+1));const t=A[i];A[i]=A[j];A[j]=t}return A}
-function crMkEv(C,cid,name,major,mul,mid){const tee=crTeeFor(C,cid,major);const E={cid,tee,name,purse:Math.round(CR_TIERS[C.tier].purse*(mul||1)*(1+.25*C.lvl)),major:!!major};if(mid)E.mid=mid;if(major){E.tour=1;E.firm=1;E.cupHard=.85}return E}
+function crMkEv(C,cid,name,major,mul,mid){const tee=crTeeFor(C,cid,major);const E={cid,tee,name,purse:(typeof crPurseOf==='function'?crPurseOf(C,C.ev,!!major,mul||1):Math.round(CR_TIERS[C.tier].purse*(mul||1)*(1+.18*C.lvl+.10*Math.max(0,(C.season||1)-1)))),major:!!major};if(mid)E.mid=mid;if(major){E.tour=1;E.firm=1;E.cupHard=.85}return E}
 function crEventLegacy(C){const L=CR_COURSES[C.tier];const R=tnRng((C.season*131+C.ev*977+C.tier*31+7)>>>0);const cid=L[Math.floor(R()*L.length)];const major=C.tier===3;
   const nm=(major?'Major: ':CR_TIERS[C.tier].n+' ')+CID[cid].name.replace(/ \(.*\)$/,'').replace(/ (Golf|Country) Club$/,'')+' '+CR_EVN[(C.ev+C.season)%4];
   return crMkEv(C,cid,nm,major,major?1.25:1,major?'legacy':null)}
@@ -2875,7 +2905,7 @@ function crBuildSched(C){const R=tnRng((C.season*7919+C.lvl*104729+C.tier*97+C.n
     const cid=pickFrom[Math.floor(R()*pickFrom.length)]||'pinevalley';used.add(cid);
     const short=CID[cid].name.replace(/ \(.*\)$/,'').replace(/ (Golf|Country) Club$/,'');
     evs.push(crMkEv(C,cid,CR_TIERS[C.tier].n+' '+short+' '+CR_EVN[(i+C.season)%4],0,1))}
-  return{s:C.season,evs,v:3}}
+  if(typeof crClampPurses==='function')crClampPurses(C,evs);return{s:C.season,evs,v:3}}
 function crEvent(C){if(C.sched&&C.sched.s===C.season&&C.sched.evs&&C.sched.evs[C.ev])return C.sched.evs[C.ev];
   /* Mid-season old saves keep legacy picks until the season rolls; new seasons get a full rotation */
   if((C.ev>0||C.cur)&&!(C.sched&&C.sched.s===C.season))return crEventLegacy(C);
@@ -2892,7 +2922,7 @@ function crMakeField(C,E){const seed=(Date.now()^Math.floor(Math.random()*1e9))>
 {const _b=custBallRGB;custBallRGB=function(){const r=G.round;if((r&&r.car)||G.crCh){const C=crLoad();if(C&&BALL_COLS[C.ball])return BALL_COLS[C.ball]}return _b()}}
 {const _l=tnLoad;tnLoad=function(){const r=G.round;if(r&&r.car){const C=crLoad();return C&&C.cur}return _l()}}
 function crStart(){const C=crLoad();if(!C)return;if(!C.cur){C.cur=crMakeField(C,crEvent(C));crSave(C)}const t=C.cur;startRound(t.cid,t.tee,0,18,[{name:C.name,owner:1}],0,typeof todKey==='function'?todKey():undefined);if(G.round){G.round.car=1;G.round.tour=1;G.round.tday=0;store('ts.round',{r:G.round,hs:null})}}
-{const _fr=finishRound;finishRound=function(){const r=G.round;if(!(r&&r.car&&r.n===18))return _fr.apply(this,arguments);const tot=r.sc.reduce((a,b)=>a+b,0);try{const CP=cpar(CID[r.cid],r.tee);let fw=0,fwN=0,gir=0,pt=0,bd=0;for(let i=0;i<18;i++){if(CP[i]>3){fwN++;if(r.fir[i])fw++}if(r.gir[i])gir++;pt+=r.pt[i]||0;if(r.sc[i]&&r.sc[i]<CP[i])bd++}let eg=0,pa=0,bo=0;for(let i=0;i<18;i++){const d=r.sc[i]-CP[i];if(d<=-2)eg++;else if(d===0)pa++;else if(d>0)bo++}G.crRd={tp:tot-CP.reduce((a,b)=>a+b,0),fw,fwN,gir,pt,bd,eg,pa,bo,tot,cid:r.cid,dr:Math.max(0,...(r.dr||[]).filter(Number.isFinite))}}catch(e){G.crRd=null}delete r.tour;const out=_fr.apply(this,arguments);try{crFinish(tot)}catch(e){console.warn('career',e)}return out}}
+{const _fr=finishRound;finishRound=function(){const r=G.round;if(!(r&&r.car&&r.n===18))return _fr.apply(this,arguments);const tot=(r.sc||[]).reduce((a,b)=>a+(Number(b)||0),0);try{const CP=cpar(CID[r.cid],r.tee);let fw=0,fwN=0,gir=0,pt=0,bd=0;for(let i=0;i<18;i++){if(CP[i]>3){fwN++;if(r.fir[i])fw++}if(r.gir[i])gir++;pt+=r.pt[i]||0;if(r.sc[i]&&r.sc[i]<CP[i])bd++}let eg=0,pa=0,bo=0;for(let i=0;i<18;i++){const d=r.sc[i]-CP[i];if(d<=-2)eg++;else if(d===0)pa++;else if(d>0)bo++}G.crRd={tp:tot-CP.reduce((a,b)=>a+b,0),fw,fwN,gir,pt,bd,eg,pa,bo,tot,cid:r.cid,dr:Math.max(0,...(r.dr||[]).filter(Number.isFinite))}}catch(e){G.crRd=null}delete r.tour;const out=_fr.apply(this,arguments);try{crFinish(tot)}catch(e){console.warn('career',e)}return out}}
 function crTable(t,tot){const par=cpar(CID[t.cid],t.tee).reduce((a,b)=>a+b,0);const TP=tnDayTP(t,0);const C=crLoad();
   const rows=t.field.map((f,i)=>({n:f.n,tp:TP[i],rv:f.rv,rg:f.rg}));rows.push({n:C.name,tp:tot-par,me:true});rows.sort((a,b)=>a.tp-b.tp||(a.me?-1:b.me?1:0)||a.n.localeCompare(b.n));
   let pos=0;rows.forEach((x,i)=>{if(i===0||x.tp!==rows[i-1].tp)pos=i+1;x.pos=pos});return{rows,par}}
@@ -2968,23 +2998,23 @@ const SHOPI={};SHOP.forEach(x=>SHOPI[x.id]=x);
 function crGear(C){C.own=Array.isArray(C.own)?C.own:[];C.eq=C.eq&&typeof C.eq==='object'?C.eq:{};return C}
 function crEq(C,s){const id=C&&C.eq&&C.eq[s];return id&&SHOPI[id]&&C.own.includes(id)?SHOPI[id]:null}
 function crSlotFor(ci){const c=CLUBS[ci];return c.putter?'p':c.wood?'w':c.loft>=45?'g':'i'}
-function crStats(C,ci){const a=crEq(C,crSlotFor(ci)),b=crEq(C,'b');const z={pow:0,acc:0,con:0};for(const x of[a,b])if(x){z.pow+=x.pow;z.acc+=x.acc;z.con+=x.con}return z}
+function crStats(C,ci){const a=crEq(C,crSlotFor(ci)),b=crEq(C,'b');const z={pow:0,acc:0,con:0,spin:0,launch:0,forg:0};for(const x of[a,b])if(x){z.pow+=x.pow||0;z.acc+=x.acc||0;z.con+=x.con||0;z.spin+=x.spin||0;z.launch+=x.launch||0;z.forg+=x.forg||0}return z}
 {const _x=executeShot;executeShot=function(inp){const r=G.round;if(((r&&r.car)||G.crCh)&&inp){const C=crLoad();if(C){crGear(C);const z=crStats(C,G.club);G.crLast=z;
-   if(G.club===PUTTER||Number.isFinite(inp.ft)){if(Number.isFinite(inp.err))inp.err*=1-.04*z.acc-.02*z.con}
-   else{const sh=SHAPES[G.shape]||SHAPES[0];const ka=1-.03*z.acc,kc=1-.05*z.con;if(Number.isFinite(inp.face))inp.face=sh.f+(inp.face-sh.f)*ka;if(Number.isFinite(inp.path))inp.path=sh.p+(inp.path-sh.p)*ka;
-     if(Number.isFinite(inp.sx))inp.sx*=kc;if(Number.isFinite(inp.sy))inp.sy*=kc;if(Number.isFinite(inp.power))inp.power*=1+.01*z.pow}}}return _x.apply(this,arguments)}}
+   if(G.club===PUTTER||Number.isFinite(inp.ft)){if(Number.isFinite(inp.err))inp.err*=1-.07*z.acc-.04*z.con}
+   else{const sh=SHAPES[G.shape]||SHAPES[0];const ka=1-.06*z.acc,kc=1-.08*z.con;if(Number.isFinite(inp.face))inp.face=sh.f+(inp.face-sh.f)*ka;if(Number.isFinite(inp.path))inp.path=sh.p+(inp.path-sh.p)*ka;
+     if(Number.isFinite(inp.sx))inp.sx*=kc;if(Number.isFinite(inp.sy))inp.sy*=kc;if(Number.isFinite(inp.power))inp.power*=1+.025*z.pow}}}return _x.apply(this,arguments)}}
 {const _t=custTrailRGB;custTrailRGB=function(){const r=G.round;if((r&&r.car)||G.crCh){const C=crLoad();const t=C&&crGear(C)&&crEq(C,'t');if(t)return t.rgb}return _t()}}
 {const _o=custTrailOn;custTrailOn=function(){const r=G.round;if((r&&r.car)||G.crCh){const C=crLoad();return !!(C&&crGear(C)&&crEq(C,'t'))}return _o()}}/* v3.6: career trail = only the pro-shop trail */
 function crBuy(id){const C=crLoad();const it=SHOPI[id];if(!C||!it)return false;crGear(C);if(C.own.includes(id))return false;if(C.cash<it.p)return false;C.cash-=it.p;C.own.push(id);C.eq[it.s]=id;crSave(C);return true}
 function crEquip(s,id){const C=crLoad();if(!C)return;crGear(C);if(id&&!C.own.includes(id))return;if(id)C.eq[s]=id;else delete C.eq[s];crSave(C)}
-function showShop(slot){const C=crLoad();if(!C){showCareer();return}crGear(C);slot=slot||'w';const bar=(k,v,col)=>`<div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:82px;opacity:.7">${k}</span><span style="flex:1;height:6px;background:#22303a;border-radius:3px;overflow:hidden"><span style="display:block;height:100%;width:${v*20}%;background:${col}"></span></span><span style="width:22px;text-align:right">+${v}</span></div>`;
+function showShop(slot){const C=crLoad();if(!C){showCareer();return}crGear(C);slot=slot||'w';const bar=(k,v,col)=>`<div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="width:82px;opacity:.7">${k}</span><span style="flex:1;height:6px;background:#22303a;border-radius:3px;overflow:hidden"><span style="display:block;height:100%;width:${Math.min(100,v*10)}%;background:${col}"></span></span><span style="width:22px;text-align:right">+${v}</span></div>`;
   const items=SHOP.filter(x=>x.s===slot);const cur=crEq(C,slot);
   const card=x=>{const own=x?C.own.includes(x.id):true,on=x?cur===x:!cur;const nm=x?(x.b?`<span style="opacity:.7">${esc(x.b)}</span> `:'')+esc(x.n):(slot==='t'?'No trail':'Stock '+(slot==='b'?'ball':'set'));
-    const stats=x&&x.s!=='t'?bar('Accuracy',x.acc,'#3fe0b0')+bar('Power',x.pow,'#ffb84a')+bar('Consistency',x.con,'#7ab8ff'):x?`<div style="display:flex;align-items:center;gap:8px;font-size:12px;opacity:.8"><span style="width:40px;height:5px;border-radius:3px;background:rgb(${x.rgb.map(v=>Math.round(v*255)).join(',')})"></span>Cosmetic, no stats</div>`:(slot==='t'?'':bar('Accuracy',0,'#3fe0b0')+bar('Power',0,'#ffb84a')+bar('Consistency',0,'#7ab8ff'));
+    const stats=x&&x.s!=='t'?bar('Accuracy',x.acc||0,'#3fe0b0')+bar('Power',x.pow||0,'#ffb84a')+bar('Consistency',x.con||0,'#7ab8ff')+(x.spin?bar('Spin',x.spin,'#e0a0ff'):'')+(x.launch?bar('Launch',x.launch,'#9ad4ff'):'')+(x.forg?bar('Forgiveness',x.forg,'#ffd24a'):''):x?`<div style="display:flex;align-items:center;gap:8px;font-size:12px;opacity:.8"><span style="width:40px;height:5px;border-radius:3px;background:rgb(${x.rgb.map(v=>Math.round(v*255)).join(',')})"></span>Cosmetic, no stats</div>`:(slot==='t'?'':bar('Accuracy',0,'#3fe0b0')+bar('Power',0,'#ffb84a')+bar('Consistency',0,'#7ab8ff'));
     const btn=on?'<b style="color:#3fe0b0">EQUIPPED</b>':own?`<button class="btn alt" data-eq="${x?x.id:''}" style="padding:6px 10px;margin:0;width:auto">Equip</button>`:`<button class="btn" data-buy="${x.id}" style="padding:6px 10px;margin:0;width:auto;${C.cash<x.p?'opacity:.45':''}">${crMoney(x.p)}</button>`;
     return`<div style="background:#121a20;border-radius:12px;padding:9px 10px;${on?'outline:2px solid #3fe0b0':''}"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:800;font-size:14px">${nm}</div>${btn}</div><div style="margin-top:6px;display:grid;gap:3px">${stats}</div></div>`};
   const s=show('scSetup',`<div class="pn" id="shopScr"><div class="hdr"><button class="ib" id="shB">‹</button><h2>Pro shop</h2></div>
-  <div class="gnote">Prize money: <b style="color:#3fe0b0">${crMoney(C.cash)}</b>. Gear works in career rounds. Each stat point is small: +1 power ≈ +1% carry, +1 accuracy ≈ 3% less miss off your aim line, +1 consistency ≈ 5% less strike variance. Your club and your ball add together. Your swing still matters most. Cart colors stay free in Cart Part Only.</div>
+  <div class="gnote">Prize money: <b style="color:#3fe0b0">${crMoney(C.cash)}</b>. Gear works in career rounds. Stats go to 10. Each point is clearer on the ball: +1 power ≈ +2.5% carry, +1 accuracy ≈ 6% less miss off your aim line, +1 consistency ≈ 8% less strike variance. Luxury and Legend clubs also add spin, launch, and forgiveness. Your club and your ball add together. Your swing still matters most. Cart colors stay free in Cart Part Only.</div>
   <div class="seg" id="shT" style="flex-wrap:wrap;margin-top:8px">${SHOP_SLOTS.map(([k,n])=>`<button style="flex:1 1 30%" data-s="${k}" class="${k===slot?'sel':''}">${n}</button>`).join('')}</div>
   <div style="display:grid;gap:8px;margin-top:10px">${card(null)}${items.map(card).join('')}</div><div id="shMsg" class="gnote" style="min-height:18px"></div></div>`);
   $('shB').onclick=showCareer;$('shT').onclick=e=>{const b=e.target.closest('button');if(b)showShop(b.dataset.s)};
@@ -2992,13 +3022,13 @@ function showShop(slot){const C=crLoad();if(!C){showCareer();return}crGear(C);sl
 {const _sc=showCareer;showCareer=function(){const out=_sc.apply(this,arguments);try{const p=$('crPlay');const C=crLoad();if(p&&C&&!$('crShop')){crGear(C);const b=document.createElement('button');b.className='btn alt';b.id='crShop';b.style.marginTop='8px';const n=SHOP_SLOTS.filter(([k])=>crEq(C,k)).length;b.innerHTML=`Pro shop<small>${crMoney(C.cash)} to spend · ${n} upgrade${n===1?'':'s'} equipped</small>`;b.onclick=()=>showShop();p.after(b)}}catch(e){console.warn(e)}return out}}
 
 /* ================= v3.5: Career Hall of Fame + level ups + gear indicator ================= */
-const CR_METER=[.6,.82,1.1,1.42,1.75,2.1];/* career swing meter speed per level: each Hall of Fame = ~30% faster */
+const CR_METER=[.6,.82,1.1,1.42,1.75,2.1,2.4,2.7,3.05,3.4,3.8];/* career swing meter speed per level: each Hall of Fame = ~30% faster */
 function crMeterK(){const r=G.round;if(!((r&&r.car)||G.crCh))return 0;const C=crLoad();return C?CR_METER[C.lvl]||0:0}
 function crHof(C,why,send){C.hof=Array.isArray(C.hof)?C.hof:[];const from=C.lvl;C.hof.push({s:send?send.s:C.season,lvl:from,why,date:crDay(),earn:C.earn,wins:C.wins});
-  if(C.lvl<5){C.lvl++;C.tier=0;C.tpts=0;return{why,from,to:C.lvl}}C.maxed=1;C.tier=0;C.tpts=0;return{why,from,to:5,max:1}}
+  if(C.lvl<10){C.lvl++;C.tier=0;C.tpts=0;return{why,from,to:C.lvl}}C.maxed=1;C.tier=0;C.tpts=0;return{why,from,to:10,max:1}}
 function showHofScreen(h){const C=crLoad();const n=(C.hof||[]).length;
   if(h.max){show('scSetup',`<div class="pn" id="crHofS" style="text-align:center"><div style="font-size:72px;line-height:1;margin-top:6px">🏆⭐🏆</div><div style="font:900 34px/1.1 system-ui,sans-serif;color:#ffd24a;margin-top:8px">TOUR SIM CLEARED!</div>
-   <div style="margin-top:10px;font-size:16px">${esc(C.name)} has made the Hall of Fame at <b>Woods</b>, the highest level.</div><div class="gnote" style="margin-top:8px">${esc(h.why)}. Hall of Fame entries: <b>${n}</b> · career wins: <b>${C.wins}</b> · earnings: <b>${crMoney(C.earn)}</b>.<br>You can keep playing Woods seasons; every new Hall of Fame season gets added to your list.</div>
+   <div style="margin-top:10px;font-size:16px">${esc(C.name)} has made the Hall of Fame at <b>Mythic</b>, the highest level.</div><div class="gnote" style="margin-top:8px">${esc(h.why)}. Hall of Fame entries: <b>${n}</b> · career wins: <b>${C.wins}</b> · earnings: <b>${crMoney(C.earn)}</b>.<br>You can keep playing Woods seasons; every new Hall of Fame season gets added to your list.</div>
    <button class="btn c" id="crHc" style="margin-top:16px">Career</button></div>`);$('crHc').onclick=showCareer;setTimeout(()=>custBoom(null,true),300);return}
   const f=CR_METER[h.to]/CR_METER[h.from];const dcpu=(CR_BASE[h.from]-CR_BASE[h.to]).toFixed(1);
   show('scSetup',`<div class="pn" id="crHofS" style="text-align:center"><div style="font-size:64px;line-height:1;margin-top:6px">⭐</div><div style="font:900 32px/1.1 system-ui,sans-serif;color:#ffd24a;margin-top:8px">HALL OF FAME</div>
@@ -3079,7 +3109,7 @@ function crChOffer(C){if(!C)return null;const t=CH_AFTER[C.ev];if(!t)return null
 function crChPurse(C){return Math.round(CR_TIERS[C.tier].purse*(1+.25*C.lvl)*.6/100)*100}
 function crChPays(P){return[.5,.25,.12,.06,.04,.03,0,0].map(x=>Math.round(P*x/10)*10)}
 function crChField(C,type,seed){const R=tnRng(seed);const names=[...CR_RIVALS,...CR_REGULARS.slice(0,3)];return names.map((n,i)=>{const rv=i<4;let v;
-  if(type==='ld'){v=Math.round([252,262,272,282,292,302][C.lvl]+C.tier*5+(rv?6:0)+tnGauss(R)*9)}else{v=+([24,18,13,9,6.5,4.5][C.lvl]*(1-.08*C.tier)*(rv?.85:1)*Math.exp(tnGauss(R)*.45)).toFixed(1)}return{n,v,rv}})}
+  if(type==='ld'){v=Math.round([252,262,272,282,292,302,312,322,332,342,352][C.lvl]+C.tier*5+(rv?6:0)+tnGauss(R)*9)}else{v=+([24,18,13,9,6.5,4.5,3.6,2.9,2.3,1.8,1.4][C.lvl]*(1-.08*C.tier)*(rv?.85:1)*Math.exp(tnGauss(R)*.45)).toFixed(1)}return{n,v,rv}})}
 function crChPick(C){const L=[];for(const c of COURSES)if(crCourseOK(C,c.id)&&GEO[c.id])c.par.forEach((x,i)=>{if(x===3)L.push([c.id,i+1])});const P=L.length?L:CTP_POOL.filter(([c,h])=>CID[c]&&CID[c].par[h-1]===3);const R=tnRng(C.season*7+C.ev*13+1);return P[Math.floor(R()*P.length)]}
 function crChStart(){const C=crLoad();const o=crChOffer(C);if(!o)return;o.seed=o.seed||((Date.now()^Math.floor(Math.random()*1e9))>>>0);C.chal=o;crSave(C);G.crCh={type:o.type,seed:o.seed};
   if(o.type==='ld'){startLd()}else{const [cid,h]=crChPick(C);const T=ctpToday();const c=CID[cid];G.menuCtp=Object.assign({},T,{cid,h,key:'car'+o.seed,label:c.name.replace(/ (Golf|Country) Club.*$/,'').replace(/ \(.*\)$/,'')+' · hole '+h});startCtp()}}
@@ -3202,8 +3232,17 @@ function leafPass(t,x,y,z){if(z<t.h*t.cb)return false;const r=clamp(Math.hypot(x
   for(const [k,hz] of [[1,null],[.7,null],[.5,null],[.35,null]]){const cb=Math.max(.7,t.h*t.cb-.4);const nx=b.x+ex*k,ny=b.y+ey*k;const nz=H.hAt(nx,ny)+Math.min(c.eye[2]-bz,cb);const e=v3(nx,ny,nz);const t2=blocked(e);if(!t2){c.eye=e;c.at=v3(c.at[0],c.at[1],Math.min(c.at[2],bz+cb+1));return c}t=t2}
   const nx=b.x+ex/d*1.6,ny=b.y+ey/d*1.6;c.eye=v3(nx,ny,H.hAt(nx,ny)+.75);c.at=v3(c.at[0],c.at[1],Math.min(c.at[2],bz+2));c.fov=Math.max(c.fov||.8,.95)}catch(e){}return c}}
 /* v4.6: leaf pass-through costs ~15-25% speed: re-fly the rest of the shot from the canopy */
-function leafSlow(S,i,F,h0,H){try{if(i<2)return 0;const k=.75+Math.random()*.1;const dt=1/240;let x=S[i*3],y=S[i*3+1],z=S[i*3+2];let vx=(x-S[i*3-3])/dt*k,vy=(y-S[i*3-2])/dt*k,vz=(z-S[i*3-1])/dt*k;const g=GRAV*YD;let j=i+1;const M=Math.floor(S.length/3)-1;
-  while(j<M){vz-=g*dt;const dr=1-.35*dt;vx*=dr;vy*=dr;x+=vx*dt;y+=vy*dt;z+=vz*dt;S[j*3]=x;S[j*3+1]=y;S[j*3+2]=z;j++;if(z+h0<=H.hAt(x,y)&&vz<0)break}
+function leafSlow(S,i,F,h0,H){try{if(i<2)return 0;
+  const dtS=1/60;/* flyBall records every 4 steps of 1/240 — using 1/240 here used to multiply speed ~4x and the ball flew too far */
+  let x=S[i*3],y=S[i*3+1],z=S[i*3+2];
+  let vx=(x-S[i*3-3])/dtS,vy=(y-S[i*3-2])/dtS,vz=(z-S[i*3-1])/dtS;
+  const spd0=Math.hypot(vx,vy,vz)||1e-6;
+  const k=.52+Math.random()*.16;/* canopy keeps 52–68% of speed; never add energy */
+  vx*=k;vy*=k;vz*=k;
+  try{const t=H.treeHit&&H.treeHit(x,y,z);if(t){const dx=x-t.x,dy=y-t.y,dd=Math.hypot(dx,dy)||1;const bump=(.35+Math.random()*.25)*Math.hypot(vx,vy);vx+=dx/dd*bump;vy+=dy/dd*bump}}catch(e){}
+  let spd1=Math.hypot(vx,vy,vz);if(spd1>spd0){const s=spd0/spd1;vx*=s;vy*=s;vz*=s;spd1=spd0}
+  const g=GRAV*YD;let j=i+1;const M=Math.floor(S.length/3)-1;const dt=1/240;
+  while(j<M){vz-=g*dt;const dr=1-.55*dt;vx*=dr;vy*=dr;x+=vx*dt;y+=vy*dt;z+=vz*dt;S[j*3]=x;S[j*3+1]=y;S[j*3+2]=z;j++;if(z+h0<=H.hAt(x,y)&&vz<0)break}
   const hv=Math.hypot(vx,vy)||1e-6;F.lx=x;F.ly=y;F.hx=vx/hv;F.hy=vy/hv;F.vh=hv/YD;F.vz=vz/YD;F.wb=(F.wb||0)*k;F.n=j;F.leaf=1;return j}catch(e){return 0}}
 /* v4.6: strike-quality impact sound — pure strikes ring higher and crisper, mishits are dull thuds */
 {const _s=sfx;sfx=function(k,q){if(k==='hit'&&typeof AC!=='undefined'&&AC&&Number.isFinite(q)){try{const C=CLUBS[G.club]||{};const qr=clamp(q/(C.sm||1.4),.7,1);const Q=Math.pow((qr-.7)/.3,2);const t=AC.currentTime;
@@ -3218,7 +3257,7 @@ let _plC=null,_plK='',_plP=null;
 function plDraw(){requestAnimationFrame(plDraw);try{if(!_plC){_plC=document.createElement('canvas');_plC.id='plC';_plC.style.cssText='position:fixed;left:0;top:0;pointer-events:none;z-index:3';document.body.appendChild(_plC)}
   const c=_plC;if(c.width!==innerWidth||c.height!==innerHeight){c.width=innerWidth;c.height=innerHeight}const x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);
   const H=G.H,b=G.ball;if(!plOn()||G.phase!=='putt'||!H||!b||!H.cup||G.mode==='range')return;if(G.round&&!plCar()&&!G.round.assisted){G.round.assisted=1;try{toast('Assisted round','Putt line used · this round will not count toward records',2600)}catch(e){}}
-  const k=b.x.toFixed(2)+','+b.y.toFixed(2)+','+(G.aim||0).toFixed(3);if(k!==_plK){_plK=k;const ft=distYd(b,H.cup)*3;const up=(H.hAt(H.cup.x,H.cup.y)-H.hAt(b.x,b.y))*36;const pf=Math.max(1,ft+up+1.5);const rec=new Float32Array(9000);const r=puttRoll(b.x,b.y,G.aim,puttSpeedFor(pf/3),H.surfAt,H.slopeAt,H.cup,rec);_plP={rec,n:r.n||0}}
+  const k=b.x.toFixed(2)+','+b.y.toFixed(2)+','+(G.aim||0).toFixed(3);if(k!==_plK){_plK=k;const pace=(typeof puttPaceUpdate==='function'&&puttPaceUpdate())||(typeof puttPaceFor==='function'&&puttPaceFor(b,H,G.caddyAim||G.aim));const pf=pace&&pace.ft?pace.ft:Math.max(1,distYd(b,H.cup)*3+(H.hAt(H.cup.x,H.cup.y)-H.hAt(b.x,b.y))*36+1.5);const hd=(pace&&pace.aim!=null)?pace.aim:(G.caddyAim||G.aim);const rec=_plP&&_plP.rec&&_plP.rec.length?_plP.rec:new Float32Array(9000);const r=puttRoll(b.x,b.y,hd,puttSpeedFor(pf/3),H.surfAt,H.slopeAt,H.cup,rec);_plP={rec,n:r.n||0,hd,pf}}
   const P=_plP;if(!P)return;x.fillStyle='rgba(255,255,255,.85)';const st=Math.max(1,Math.floor(P.n/40));for(let i=0;i<P.n;i+=st){const wx=P.rec[i*3],wy=P.rec[i*3+1];const s=project(wx,wy,H.hAt(wx,wy)+.02);if(s){x.beginPath();x.arc(s[0],s[1],2.2,0,7);x.fill()}}}catch(e){}}
 requestAnimationFrame(plDraw);
 /* v4.6: course handicap = Index x slope/113 + (rating - par), with a rating/slope estimated from the tee's yardage */
@@ -3382,7 +3421,7 @@ function gullF(ph){const G=new T.Group();const white=M(0xf2f2ee,.7),grey=M(0x9aa
 
 let R=null,cv=null,scene=null,cam=null,GF=null,SQ=null,GA=null,curH=null,list=[];
 function init(){cv=document.createElement('canvas');cv.id='wlC';cv.style.cssText='position:fixed;left:0;top:0;width:100vw;height:100vh;pointer-events:none;z-index:1';document.body.appendChild(cv);
- R=new T.WebGLRenderer({canvas:cv,alpha:true,antialias:true,powerPreference:'low-power'});R.setPixelRatio(Math.min(devicePixelRatio||1,1.5));R.outputColorSpace=T.SRGBColorSpace;R.toneMapping=T.ACESFilmicToneMapping;
+ R=new T.WebGLRenderer({canvas:cv,alpha:true,antialias:true,powerPreference:'low-power'});R.setPixelRatio(Math.min(devicePixelRatio||1,1.25));if(R.shadowMap){R.shadowMap.enabled=false}R.outputColorSpace=T.SRGBColorSpace;R.toneMapping=T.ACESFilmicToneMapping;
  scene=new T.Scene();scene.add(new T.HemisphereLight(0xdfeeff,0x4a6a30,1.1));const d=new T.DirectionalLight(0xfff4e0,2.2);d.position.set(4,-5,8);scene.add(d);
  cam=new T.Camera();cam.matrixAutoUpdate=false;cam.matrixWorldAutoUpdate=false;
  GF=[];for(let i=0;i<12;i++)GF.push(gullF(i/12));SQ=squirrel();GA=gator();
@@ -4231,7 +4270,7 @@ function showWorldRank(){const C=crLoad();if(!C){showCareer();return}const L=wrB
 
 /* ---------- Injuries ---------- */
 const INJ_L=['Wrist strain','Back tightness','Twisted ankle','Shoulder pinch','Hand bruise'];
-function injRoll(C){if(C.inj&&C.inj.left>0)return;const R=Math.random();if(R>.08)return;/* ~8% */
+function injRoll(C){if(C.inj&&C.inj.left>0)return;const R=Math.random();const risk=.08*(typeof crInjRisk==='function'?crInjRisk(C):1);if(R>risk)return;
   C.inj={left:2+Math.floor(Math.random()*3),label:INJ_L[Math.floor(Math.random()*INJ_L.length)]}}
 function injTick(C){if(C.inj&&C.inj.left>0){C.inj.left--;if(C.inj.left<=0)C.inj=null}}
 {const _m=crMeterK;crMeterK=function(){let k=_m.apply(this,arguments);try{const C=crLoad();if(C&&C.inj&&C.inj.left>0&&((G.round&&G.round.car)||G.crCh||G.crQ))k=Math.max(.35,(k||DIFF[diffI()][1])*.82)}catch(e){}return k}}
@@ -4437,6 +4476,646 @@ window.crEnsure=crEnsure;window.wrRoster=wrRoster;window.wrBackfill=wrBackfill;w
 window.showSeasonRecap=showSeasonRecap;window.showPress=showPress;window.pressNeeded=pressNeeded;window.crExempt=crExempt;
 window.showQualifier=showQualifier;window.showRyder=showRyder;window.rcSeason=rcSeason;window.rcInject=rcInject;
 })();
+
+/* ===== Tour Sim v1.12 overhaul ===== */
+(function(){
+try{
+
+/* ---------- 2. putt pace + caddy line share one simulation ---------- */
+const PAST_M=0.40, PAST_LO=0.30, PAST_HI=0.50;
+function puttLeftover(b,H,hd,ft){
+  const ux=Math.cos(hd),uy=Math.sin(hd);
+  const d=Math.hypot(H.cup.x-b.x,H.cup.y-b.y);
+  const r=puttRoll(b.x,b.y,hd,puttSpeedFor(Math.max(.05,ft)/3),H.surfAt,H.slopeAt,null,null);
+  if(!r||!Number.isFinite(r.x))return -d;
+  return ((r.x-b.x)*ux+(r.y-b.y)*uy)-d;
+}
+function puttFtForPast(b,H,hd,past,maxFt){
+  const cap=Math.max(8,maxFt||20);
+  const left=ft=>puttLeftover(b,H,hd,ft);
+  const t0=left(.25);
+  if(t0>=past)return .35;/* downhill already runs out — a tap is plenty */
+  if(t0>40)return .35;
+  let lo=.15,hi=cap;
+  for(let i=0;i<8&&left(hi)<past;i++){hi=Math.min(cap*3,hi*1.45);if(hi>=cap*3-1e-6&&left(hi)<past)return hi}
+  for(let i=0;i<14;i++){const m=(lo+hi)/2;if(left(m)<past)lo=m;else hi=m}
+  return Math.min(cap*3,hi);
+}
+function puttPaceFor(b,H,hd){
+  if(!b||!H||!H.cup)return null;
+  hd=hd==null?Math.atan2(H.cup.y-b.y,H.cup.x-b.x):hd;
+  const d=Math.hypot(H.cup.x-b.x,H.cup.y-b.y);
+  const maxFt=typeof puttMaxFor==='function'?puttMaxFor(b,H):Math.max(20,Math.ceil(d*3*1.6/5)*5);
+  const target=PAST_M*YD, loT=PAST_LO*YD, hiT=PAST_HI*YD;
+  const ft=puttFtForPast(b,H,hd,target,maxFt);
+  const ftLo=puttFtForPast(b,H,hd,loT,maxFt), ftHi=puttFtForPast(b,H,hd,hiT,maxFt);
+  return{ft,ftLo,ftHi,max:maxFt,aim:hd,past:puttLeftover(b,H,hd,ft),d};
+}
+function caddyAim(b,H){
+  if(!b||!H||!H.cup)return 0;
+  const d=Math.hypot(H.cup.x-b.x,H.cup.y-b.y)||1;
+  let hd=Math.atan2(H.cup.y-b.y,H.cup.x-b.x);
+  try{const r=typeof crCadRead==='function'?crCadRead():null;
+    if(r&&!r.flat){const sign=r.dir==='left'?-1:1;hd+=Math.atan2((r.inch||0)/12/3,d)*sign}}catch(e){}
+  let best=hd,bestS=1e9;
+  const span=Math.atan2(4/3,d);
+  function tryA(a){
+    const pace=puttPaceFor(b,H,a);if(!pace)return;
+    const r=puttRoll(b.x,b.y,a,puttSpeedFor(pace.ft/3),H.surfAt,H.slopeAt,H.cup,null);
+    const s=r&&r.kind==='sunk'?0:(r&&Number.isFinite(r.x)?Math.hypot(r.x-H.cup.x,r.y-H.cup.y):1e9);
+    if(s<bestS){bestS=s;best=a}
+  }
+  const n=17;for(let i=0;i<n;i++)tryA(hd-span+2*span*i/(n-1));
+  const sp=span/8;for(let i=0;i<9;i++)tryA(best-sp+2*sp*i/8);
+  return best;
+}
+function puttPaceUpdate(){
+  const H=G.H,b=G.ball;if(!H||!b||!H.cup)return null;
+  const aim=caddyAim(b,H);const pace=puttPaceFor(b,H,aim);if(!pace)return null;
+  pace.aim=aim;G.caddyAim=aim;G.puttPace=pace;return pace;
+}
+window.puttPaceFor=puttPaceFor;window.caddyAim=caddyAim;window.puttPaceUpdate=puttPaceUpdate;window.puttLeftover=puttLeftover;
+
+function puttMeterApply(){
+  try{
+    if(!$('pZone')){const bar=document.querySelector('#putt .bar');if(bar){const z=document.createElement('em');z.id='pZone';bar.insertBefore(z,$('pCup')||null)}}
+    const pace=puttPaceUpdate();if(!pace)return;
+    const max=G.puttMax||pace.max||1;
+    const lo=clamp(Math.min(pace.ftLo,pace.ftHi)/max*100,0,100);
+    const hi=clamp(Math.max(pace.ftLo,pace.ftHi)/max*100,0,100);
+    const mid=clamp(pace.ft/max*100,0,100);
+    const z=$('pZone');if(z){z.style.left=lo+'%';z.style.width=Math.max(2,hi-lo)+'%'}
+    if($('pCup'))$('pCup').style.left=mid+'%';
+    const d=pace.d||0;
+    const brk=function(){try{const r=crCadRead();if(!r||r.flat)return ' · straight';return ' · breaks ~'+r.inch+' in '+r.dir}catch(e){return ''}}();
+    if($('pInfo'))$('pInfo').textContent='PACE '+pace.ft.toFixed(pace.ft<10?1:0)+' FT · CUP '+Math.round(d*3)+' FT'+brk+' · TAP TO START · TAP TO STRIKE';
+  }catch(e){}
+}
+
+/* hook existing putt-meter setup (called when entering putt) */
+const _updPutt=typeof updPutt==='function'?updPutt:null;
+if(_updPutt){updPutt=function(){const r=_updPutt.apply(this,arguments);try{if(G.phase==='putt')puttMeterApply()}catch(e){}return r}}
+
+/* ---------- 7. next-level requirements panel ---------- */
+function crNeedHtml(C){
+  if(!C)return'';
+  const bar=(lab,cur,goal,ok,note)=>{
+    const g=Math.max(1,goal||1),pct=ok?100:clamp((cur/g)*100,0,100);
+    return`<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800"><span>${lab}</span><span style="color:${ok?'#3fe0b0':'#ffd24a'}">${ok?'DONE':(note||(Math.round(cur)+' / '+goal))}</span></div>
+      <div style="height:7px;background:#22303a;border-radius:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${ok?'#3fe0b0':'#7ab8ff'}"></div></div></div>`};
+  const nxt=C.tier<3;const ptsNeed=CR_PROMO,pts=C.tpts||0;
+  const lvlN=(DIFF[C.lvl]||DIFF[DIFF.length-1])[0];
+  const nxtN=C.lvl>=(DIFF.length-1)?null:(DIFF[C.lvl+1]||[])[0];
+  const wonMaj=(C.res||[]).some(x=>x.pos===1&&(x.tier===3||/major/i.test(x.name||'')));
+  const last=C.hist&&C.hist[C.hist.length-1];
+  const seasonNo1=!!(last&&last.rank===1&&last.s===C.season-1)||false;
+  /* HoF this career: win a major or finish No.1 in a season */
+  const hofReady=wonMaj||(C.hist||[]).some(h=>h.rank===1);
+  let html=`<div id="crNeed" style="background:#121a20;border:1px solid var(--line);border-radius:12px;padding:10px;margin:10px 0">
+    <div style="font-weight:900;letter-spacing:.08em;font-size:11px;opacity:.75">WHAT YOU NEED NEXT</div>
+    <div style="font-size:13px;margin-top:4px">Level <b>${esc(lvlN)}</b>${nxtN?` → <b style="color:#ffd24a">${esc(nxtN)}</b>`:' · max level'}</div>`;
+  if(nxt)html+=bar('Promotion to '+CR_TIERS[C.tier+1].n,pts,ptsNeed,pts>=ptsNeed,pts>=ptsNeed?'Ready':pts+' / '+ptsNeed+' pts');
+  else html+=`<div style="margin:6px 0;font-size:12px;opacity:.8">Already on the Major Series — the top tour.</div>`;
+  html+=bar('Hall of Fame (next level)',0,1,false,nxtN?'Win a Major or finish No. 1 in the season rankings':'Tour Sim cleared at '+esc(lvlN));
+  html+=`<div style="font-size:11px;opacity:.75;margin-top:4px">Season rank: <b>No. ${(typeof crRank==='function'&&crRank(C).find(x=>x.me)||{pos:'—'}).pos}</b> · wins <b>${C.wins|0}</b> · earnings <b>${crMoney(C.earn||0)}</b></div></div>`;
+  return html;
+}
+function crNeedMount(){
+  try{const C=crLoad();const host=$('crPlay')||$('crScr');if(!C||!host)return;
+    let el=$('crNeed');const html=crNeedHtml(C);
+    if(el){const w=document.createElement('div');w.innerHTML=html;const n=w.firstElementChild;el.replaceWith(n)}
+    else{const w=document.createElement('div');w.innerHTML=html;host.parentNode.insertBefore(w.firstElementChild,host)}
+  }catch(e){console.warn(e)}
+}
+{const _sc=showCareer;showCareer=function(){let out;try{out=_sc.apply(this,arguments)}catch(e){console.warn(e);try{const C=store('ts.career.bak');if(C){store('ts.career',C);toast&&toast('Career recovered','Loaded the last autosave',2600);return _sc.apply(this,arguments)}}catch(e2){}throw e}
+  try{crNeedMount();const p=$('crPlay');if(p&&!$('crCas')){const b=document.createElement('button');b.className='btn alt';b.id='crCas';b.style.marginTop='8px';b.innerHTML='Career Casino<small>Lottery · Blackjack · Texas Hold\'em — career money</small>';b.onclick=showCasino;p.after(b)}
+    if(p&&!$('crEst')){const b=document.createElement('button');b.className='btn alt';b.id='crEst';b.style.marginTop='8px';const C=crLoad();const n=C&&C.est?Object.keys(C.est).filter(k=>C.est[k]).length:0;b.innerHTML=`Estate & staff<small>${n?n+' owned · money sinks with real effects':'Jet, home course, staff, brand, charity'}</small>`;b.onclick=showEstate;p.after(b)}
+  }catch(e){console.warn(e)}return out}}
+{const _cr=crResult;crResult=function(){const r=_cr.apply(this,arguments);try{const bk=$('crBk');if(bk&&!$('crNeed')){const w=document.createElement('div');w.innerHTML=crNeedHtml(crLoad());bk.parentNode.insertBefore(w.firstElementChild,bk)}}catch(e){}return r}}
+
+/* ---------- 8/9. expanded shop + 10-point stats already in catalog; bigger flight effects in-place ---------- */
+const SHOP_V12=[
+  {s:'w',id:'kb-3w',b:'Kobra',n:'Snakebite 3 Wood',p:14000,pow:1,acc:1,con:0,spin:1,launch:1},
+  {s:'w',id:'tf-5w',b:'Taylor Fade',n:'Rocket 5 Wood',p:18000,pow:1,acc:1,con:1,launch:2},
+  {s:'w',id:'cw-heaven',b:'Calloway',n:'Heavenwood',p:45000,pow:2,acc:1,con:1,launch:2},
+  {s:'w',id:'tt-tsr3',b:'Titlist',n:'TSR 3 Wood',p:120000,pow:2,acc:2,con:2,spin:1},
+  {s:'w',id:'lx-carbon',b:'Lumina',n:'Carbon Apex Driver',p:1200000,pow:5,acc:4,con:4,spin:2,launch:1,forg:3},
+  {s:'w',id:'lg-excal',b:'Camelot',n:'Excalibur Driver',p:4000000,pow:8,acc:6,con:6,spin:3,launch:2,forg:5},
+  {s:'i',id:'cw-rogue',b:'Calloway',n:'Rogue X Irons',p:22000,pow:1,acc:1,con:1},
+  {s:'i',id:'kb-king',b:'Kobra',n:'King Forged Irons',p:95000,pow:2,acc:2,con:2,spin:1},
+  {s:'i',id:'pg-blueprint',b:'Pong',n:'Blueprint Irons',p:260000,pow:3,acc:3,con:3,spin:2},
+  {s:'i',id:'lx-tourproto',b:'Lumina',n:'Tour Proto Irons',p:1500000,pow:5,acc:5,con:5,spin:3,forg:3},
+  {s:'i',id:'lg-caliber',b:'Camelot',n:'Caliber Blades',p:4500000,pow:7,acc:8,con:7,spin:4,forg:4},
+  {s:'g',id:'cw-jaws',b:'Calloway',n:'Jaws Spin Wedges',p:18000,pow:0,acc:2,con:1,spin:3},
+  {s:'g',id:'kb-raw',b:'Kobra',n:'Raw Tour Wedges',p:70000,pow:1,acc:3,con:2,spin:4},
+  {s:'g',id:'lx-hand',b:'Lumina',n:'Handmade Wedges',p:900000,pow:2,acc:5,con:4,spin:6,forg:2},
+  {s:'g',id:'lg-grail',b:'Camelot',n:'Grail Wedges',p:2800000,pow:3,acc:7,con:6,spin:8,forg:3},
+  {s:'p',id:'od-ai',b:'Odyssee',n:'AI-One Putter',p:25000,pow:0,acc:3,con:2},
+  {s:'p',id:'tt-scotty2',b:'Scotty Cameroon',n:'Special Select',p:400000,pow:0,acc:6,con:5,forg:2},
+  {s:'p',id:'lx-true',b:'Lumina',n:'True Roll Putter',p:1100000,pow:0,acc:8,con:7,forg:3},
+  {s:'p',id:'lg-crown',b:'Camelot',n:'Crown Mallet',p:3500000,pow:0,acc:10,con:9,forg:4},
+  {s:'b',id:'tf-tp5x',b:'Taylor Fade',n:'TP5X Firm Ball',p:12000,pow:2,acc:0,con:1,spin:1},
+  {s:'b',id:'kb-kingb',b:'Kobra',n:'King Tour Ball',p:45000,pow:2,acc:1,con:2,spin:2},
+  {s:'b',id:'lx-aero',b:'Lumina',n:'Aero Pro Ball',p:400000,pow:4,acc:2,con:3,spin:3,launch:1},
+  {s:'b',id:'lg-orb',b:'Camelot',n:'Orb Legend Ball',p:1800000,pow:6,acc:4,con:5,spin:4,launch:2,forg:2},
+  {s:'t',id:'tr-sunset',n:'Sunset Trail',p:90000,rgb:[1,.45,.15]},
+  {s:'t',id:'tr-legend',n:'Legend Gold Trail',p:500000,rgb:[1,.85,.35]},
+  {s:'gl',id:'gl-tour',n:'Tour Cabretta Glove',p:8000,pow:0,acc:1,con:1},
+  {s:'gl',id:'gl-pro',n:'Pro Grip Glove',p:35000,pow:0,acc:2,con:1,forg:1},
+  {s:'gl',id:'gl-lx',n:'Lumina Silk Glove',p:250000,pow:0,acc:3,con:2,forg:1},
+  {s:'sh',id:'sh-spike',n:'Tour Spike Shoes',p:20000,pow:0,acc:1,con:1},
+  {s:'sh',id:'sh-stab',n:'Stable Tour Shoes',p:80000,pow:0,acc:2,con:2,forg:1},
+  {s:'sh',id:'sh-lx',n:'Lumina Race Spikes',p:450000,pow:1,acc:3,con:2,forg:2},
+  {s:'ta',id:'ta-sticks',n:'Alignment Sticks',p:15000,pow:0,acc:2,con:0},
+  {s:'ta',id:'ta-mirror',n:'Tour Stroke Mirror',p:60000,pow:0,acc:2,con:2},
+  {s:'ta',id:'ta-launch',n:'Launch Pod',p:220000,pow:1,acc:2,con:2,launch:2,spin:1},
+  {s:'ft',id:'ft-gym',n:'Tour Gym Membership',p:40000,pow:1,acc:0,con:1},
+  {s:'ft',id:'ft-camp',n:'Altitude Fitness Camp',p:180000,pow:2,acc:1,con:2},
+  {s:'ft',id:'ft-lx',n:'Private Performance Lab',p:1500000,pow:3,acc:2,con:3,forg:2}
+];
+SHOP_V12.forEach(x=>{if(!SHOPI[x.id]){SHOP.push(x);SHOPI[x.id]=x}});
+[['gl','Gloves'],['sh','Shoes'],['ta','Training aids'],['ft','Fitness']].forEach(s=>{if(!SHOP_SLOTS.some(x=>x[0]===s[0]))SHOP_SLOTS.push(s)});
+
+{const _st=crStats;crStats=function(C,ci){
+  const z=_st.apply(this,arguments)||{pow:0,acc:0,con:0};
+  z.spin=z.spin||0;z.launch=z.launch||0;z.forg=z.forg||0;
+  try{
+    crGear(C);
+    for(const s of['gl','sh','ta','ft']){const it=crEq(C,s);if(it){z.pow+=it.pow||0;z.acc+=it.acc||0;z.con+=it.con||0;z.spin+=it.spin||0;z.launch+=it.launch||0;z.forg+=it.forg||0}}
+    const a=crEq(C,crSlotFor(ci)),b=crEq(C,'b');
+    for(const it of[a,b])if(it){z.spin+=it.spin||0;z.launch+=it.launch||0;z.forg+=it.forg||0}
+    const E=C.est||{};
+    if(E.home){z.pow+=1;z.acc+=1;z.con+=1}
+    if(E.practice){z.acc+=1;z.con+=1}
+    if(E.swing)z.acc+=2;
+    if(E.mental)z.con+=1;
+    if(E.lab){z.pow+=1;z.acc+=1;z.con+=1}
+  }catch(e){}
+  return z}}
+
+/* bigger ball-flight already patched in executeShot; add launch/spin/forgiveness */
+{const _x=executeShot;executeShot=function(inp){
+  try{
+    const r=G.round;if(((r&&r.car)||G.crCh)&&inp&&!(G.club===PUTTER||Number.isFinite(inp.ft))){
+      const C=crLoad();if(C){const z=crStats(C,G.club);
+        if(Number.isFinite(inp.dLoft))inp.dLoft+=(z.launch||0)*.15;
+        else inp.dLoft=(z.launch||0)*.15;
+        if(z.forg){const k=1-.035*z.forg;if(Number.isFinite(inp.sx))inp.sx*=k;if(Number.isFinite(inp.sy))inp.sy*=k}
+      }
+    }
+  }catch(e){}
+  const out=_x.apply(this,arguments);
+  try{
+    const r=G.round;if(((r&&r.car)||G.crCh)&&G.lm){const C=crLoad();if(C){const z=crStats(C,G.club);if(z.spin&&G.lm.spin)G.lm.spin=Math.round(G.lm.spin*(1+.025*z.spin))}}
+  }catch(e){}
+  return out}}
+
+/* ---------- 11. promotion / endgame money sinks ---------- */
+const ESTATE=[
+  {id:'jet',n:'Private jet',p:8000000,txt:'Skip the red-eyes. Cuts injury risk in half and keeps you fresh for every event (small consistency bonus).',con:1},
+  {id:'home',n:'Home course',p:5000000,txt:'Your own club. Permanent +1 power, accuracy, and consistency, and training costs drop 25%.',pow:1,acc:1,con:1},
+  {id:'practice',n:'Practice facility',p:3500000,txt:'Short-game studio and indoor bays. Permanent +1 accuracy and consistency.',acc:1,con:1},
+  {id:'swing',n:'Swing coach (staff)',p:1500000,txt:'A full-time coach on the range. Permanent +2 accuracy.',acc:2},
+  {id:'mental',n:'Mental coach (staff)',p:1200000,txt:'Keeps the week calm. Permanent +1 consistency, and press / fans bounce back faster.',con:1},
+  {id:'physio',n:'Tour physiotherapist',p:1000000,txt:'Cuts injury chance by 40% and shortens existing layoffs.'},
+  {id:'nutri',n:'Nutritionist',p:800000,txt:'Cuts injury chance another 20% and a little extra energy (power +1).',pow:1},
+  {id:'brand',n:'Brand & sponsorship shop',p:3000000,txt:'Your own label. Prize money and sponsor bonuses pay 25% more.'},
+  {id:'trophy',n:'Trophy wing',p:2000000,txt:'A private museum for the shelf. Cosmetic, plus a small fans bump when you buy it.'},
+  {id:'manor',n:'Tour manor',p:6000000,txt:'A house that looks like a win. Cosmetic, and a one-time fans surge.'},
+  {id:'charity',n:'Charity invitational',p:500000,txt:'Host a charity pro-am (repeatable). Spend $500k, gain fans and sponsor goodwill.',repeat:1},
+  {id:'charity2',n:'Major charity classic',p:2000000,txt:'A big-ticket charitable classic (repeatable). $2M out the door, a lot of goodwill.',repeat:1}
+];
+function crEst(C){if(!C.est||typeof C.est!=='object')C.est={};return C.est}
+function crEstOwn(C,id){return !!(C&&C.est&&C.est[id])}
+function crEstBuy(id){
+  const C=crLoad();const it=ESTATE.find(x=>x.id===id);if(!C||!it)return false;
+  const E=crEst(C);if(!it.repeat&&E[id])return false;if(C.cash<it.p)return false;
+  C.cash-=it.p;if(!it.repeat)E[id]=1;else E[id]=(E[id]|0)+1;
+  if(id==='trophy'||id==='manor'||id==='charity'||id==='charity2'){C.fans=(C.fans|0)+(id==='manor'?80:id==='charity2'?50:id==='charity'?18:30)}
+  if(id==='charity'||id==='charity2')C.sponMood=Math.min(100,(C.sponMood||55)+ (id==='charity2'?12:6));
+  if(id==='physio'&&C.inj&&C.inj.left>1)C.inj.left=Math.max(1,C.inj.left-1);
+  crSave(C);return true;
+}
+function showEstate(){
+  const C=crLoad();if(!C){showCareer();return}
+  const E=crEst(C);
+  const card=it=>{
+    const own=!it.repeat&&E[it.id], times=it.repeat?(E[it.id]|0):0;
+    const btn=own?'<b style="color:#3fe0b0">OWNED</b>':`<button class="btn" data-est="${it.id}" style="padding:6px 10px;margin:0;width:auto;${C.cash<it.p?'opacity:.45':''}">${crMoney(it.p)}${it.repeat?' · again':''}</button>`;
+    return`<div style="background:#121a20;border-radius:12px;padding:9px 10px;${own?'outline:2px solid #3fe0b0':''}"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><div style="font-weight:800">${esc(it.n)}${times?` <small style="opacity:.7">×${times}</small>`:''}</div>${btn}</div><div style="font-size:12px;opacity:.8;margin-top:4px">${esc(it.txt)}</div></div>`};
+  const s=show('scSetup',`<div class="pn" id="estScr" style="max-width:820px"><div class="hdr"><button class="ib" id="estB">‹</button><h2>Estate & staff</h2></div>
+    <div class="gnote">Prize money: <b style="color:#3fe0b0">${crMoney(C.cash)}</b>. These are the late-career money sinks — jet, a home course, staff, a brand, a trophy wing, and charity. They have real effects where it makes sense. Charity events can be run again.</div>
+    <div style="display:grid;gap:8px;margin-top:10px">${ESTATE.map(card).join('')}</div><div id="estMsg" class="gnote"></div></div>`);
+  $('estB').onclick=showCareer;
+  s.querySelector('#estScr').addEventListener('click',e=>{const b=e.target.closest('[data-est]');if(!b)return;if(crEstBuy(b.dataset.est))showEstate();else $('estMsg').textContent='Not enough prize money yet.'});
+}
+{const _pay=crPay;crPay=function(pos,purse){const v=_pay.apply(this,arguments);try{const C=crLoad();if(C&&C.est&&C.est.brand)return Math.round(v*1.25)}catch(e){}return v}}
+{const _sp=typeof crSponsorPay==='function'?crSponsorPay:null;
+  if(_sp){crSponsorPay=function(){const r=_sp.apply(this,arguments);try{const C=crLoad();if(r&&r.pay&&C&&C.est&&C.est.brand)r.pay=Math.round(r.pay*1.25)}catch(e){}return r}}}
+{const _tc=typeof crTrnCost==='function'?crTrnCost:null;
+  if(_tc){crTrnCost=function(){const v=_tc.apply(this,arguments);try{const C=crLoad();if(C&&C.est&&C.est.home)return Math.round(v*.75)}catch(e){}return v}}}
+{const _inj=injTick;injTick=function(C){try{if(C&&C.inj&&C.est){if(C.est.physio&&C.inj.left>1){/* already shortened on buy; tick normally */}}}catch(e){}return _inj.apply(this,arguments)}}
+
+/* injury chance reduction: wrap whatever assigns inj if present later */
+function crInjRisk(C){
+  let k=1;if(!C||!C.est)return k;if(C.est.jet)k*=.5;if(C.est.physio)k*=.6;if(C.est.nutri)k*=.8;return k;
+}
+window.crInjRisk=crInjRisk;
+
+/* ---------- 4/5 career safety: ensure + live board + resume flags ---------- */
+{const _en=crEnsure;crEnsure=function(C){
+  C=_en?_en.apply(this,arguments):C;if(!C)return C;
+  try{
+    if(!Array.isArray(C.own))C.own=[];if(!C.eq||typeof C.eq!=='object')C.eq={};
+    if(!Array.isArray(C.res))C.res=[];if(!Array.isArray(C.hist))C.hist=[];if(!Array.isArray(C.hof))C.hof=[];
+    if(!C.est||typeof C.est!=='object')C.est={};
+    if(!C.casino||typeof C.casino!=='object')C.casino={lot:0,lotW:0,lotSpent:0,bj:0,bjW:0,bjSpent:0,he:0,heW:0,heSpent:0,hist:[]};
+    if(!Array.isArray(C.casino.hist))C.casino.hist=[];
+    C.lvl=clamp(C.lvl|0,0,DIFF.length-1);C.tier=clamp(C.tier|0,0,CR_TIERS.length-1);
+    C.cash=Number.isFinite(+C.cash)?+C.cash:0;C.earn=Number.isFinite(+C.earn)?+C.earn:0;
+    if(C.cur){if(!Array.isArray(C.cur.me))C.cur.me=[];if(!Array.isArray(C.cur.field))C.cur.field=[];
+      if(C.cur.ev&&!Number.isFinite(C.cur.ev.purse)){try{C.cur.ev.purse=crPurseOf(C,C.ev,!!C.cur.ev.major,C.cur.ev.mul|| (C.cur.ev.major?1.5:1))}catch(e){C.cur.ev.purse=25000}}}
+    if(C.sched&&Array.isArray(C.sched.evs))crClampPurses(C,C.sched.evs);
+  }catch(e){console.warn(e)}
+  return C}}
+
+function crPurseOf(C,evI,major,mul){
+  const tier=CR_TIERS[C.tier]||CR_TIERS[0];
+  const base=tier.purse*(1+.18*(C.lvl||0)+.10*Math.max(0,(C.season||1)-1)+.07*(evI||0));
+  let p=base*(major?Math.max(mul||1,1.35):1);
+  if(C.purseFloor)p=Math.max(p,C.purseFloor);
+  return Math.round(p/10)*10;
+}
+function crClampPurses(C,evs){
+  if(!evs||!evs.length)return evs;
+  let floor=C.purseFloor||0;
+  evs.forEach((E,i)=>{if(!E.major){E.purse=Math.max(E.purse||0,crPurseOf(C,i,false,1),floor);floor=E.purse}});
+  const maxReg=evs.filter(e=>!e.major).reduce((a,e)=>Math.max(a,e.purse||0),C.purseFloor||0);
+  let mFloor=0;
+  evs.forEach((E,i)=>{if(E.major){E.purse=Math.max(E.purse||0,crPurseOf(C,i,true,E.mul||1.5),Math.round(maxReg*1.18/10)*10,mFloor);mFloor=E.purse}});
+  C.purseFloor=Math.max(C.purseFloor||0,...evs.map(e=>e.purse||0));
+  return evs;
+}
+window.crPurseOf=crPurseOf;window.crClampPurses=crClampPurses;
+
+/* resume career rounds always expose the live tour board */
+{const _lr=typeof loadRoundHole==='function'?loadRoundHole:null;
+  if(_lr){loadRoundHole=function(){const out=_lr.apply(this,arguments);try{const r=G.round;if(r&&r.car){r.tour=1;if(!Number.isFinite(r.tday))r.tday=0;const C=crLoad();if(C&&C.cur&&!Array.isArray(C.cur.me)){C.cur.me=[];crSave(C)}}}catch(e){}return out}}}
+{const _h=holed;holed=function(){try{return _h.apply(this,arguments)}catch(e){console.warn(e);try{const r=G.round;if(r){r.sc[r.i]=G.strokes||(G.H&&G.H.par+5)||10;store('ts.round',{r,hs:null})}}catch(e2){}try{toast&&toast('Hole saved','Something went wrong, but the score was kept',2600)}catch(e3){}}}}
+
+/* ---------- 10. menus fit common laptop sizes ---------- */
+function tsFitMenus(){
+  const w=innerWidth,h=innerHeight;
+  const short=h<=760, mid=h<=800, narr=w<=1280;
+  const acts=$('acts'), putt=$('putt'), rec=$('rec'), shape=$('shape'), meter=$('meter'), strike=$('strike'), spin=$('spinP'), shot=$('shot');
+  if(acts){acts.style.maxHeight=Math.max(80,h- (short?210:260))+'px';acts.style.overflowY='auto';
+    if(short)acts.style.bottom='calc(132px + env(safe-area-inset-bottom))';
+    else acts.style.bottom='';}
+  if(putt&&short)putt.style.bottom='calc(118px + env(safe-area-inset-bottom))';
+  else if(putt)putt.style.bottom='';
+  if(rec&&short)rec.style.bottom='calc(50px + env(safe-area-inset-bottom))';
+  else if(rec)rec.style.bottom='';
+  if(shape){if(short)shape.style.bottom='calc(50px + env(safe-area-inset-bottom))';else shape.style.bottom='';
+    shape.style.maxWidth=Math.max(120,w- (meter&&meter.offsetParent?160:20))+'px';shape.style.flexWrap='wrap'}
+  if(meter&&short){meter.style.height='180px';meter.style.bottom='calc(70px + env(safe-area-inset-bottom))'}
+  else if(meter){meter.style.height='';meter.style.bottom=''}
+  if(strike&&(short||narr)){strike.style.right='max(8px, env(safe-area-inset-right))';strike.style.bottom=short?'calc(250px + env(safe-area-inset-bottom))':'calc(110px + env(safe-area-inset-bottom))'}
+  else if(strike){strike.style.right='';strike.style.bottom=''}
+  if(spin){const r=spin.getBoundingClientRect();if(spin.style.display!=='none'&&r.width){let l=r.left,t=r.top;if(l+r.width>w-8)spin.style.left=(w-r.width-8)+'px';if(t+r.height>h-8)spin.style.top=Math.max(8,h-r.height-8)+'px';if(parseFloat(spin.style.left)<8)spin.style.left='8px'}}
+  document.querySelectorAll('.pn,.screen .pn,#shopScr,#estScr,#casScr,#trnScr').forEach(p=>{p.style.maxHeight='calc(100vh - 24px)';p.style.overflow='auto'});
+}
+addEventListener('resize',()=>{try{tsFitMenus()}catch(e){}});
+setInterval(()=>{try{tsFitMenus()}catch(e){}},700);
+setTimeout(()=>{try{tsFitMenus()}catch(e){}},0);
+window.tsFitMenus=tsFitMenus;
+
+/* ---------- 12. smoother frames ---------- */
+const TS_PERF={n:0,t:0,fps:60,adj:0};
+function tsPerfTick(now){
+  TS_PERF.n++;if(!TS_PERF.t)TS_PERF.t=now;
+  if(now-TS_PERF.t>=500){TS_PERF.fps=TS_PERF.n*1000/(now-TS_PERF.t);TS_PERF.n=0;TS_PERF.t=now;G.fps=TS_PERF.fps;
+    if(TS_PERF.fps<42&&typeof T3ST==='object'&&T3ST.n>0.62){T3ST.n=0.62;TS_PERF.adj=1}
+    if(TS_PERF.fps<36&&typeof T3ST==='object'){T3ST.n=Math.min(T3ST.n,0.5);TS_PERF.adj=2}
+  }
+}
+{const _loop=loop;loop=function(now){try{tsPerfTick(now)}catch(e){}try{
+    /* skip far wildlife when frames are tight */
+    if(G.fps&&G.fps<40&&typeof list!=='undefined'&&list&&list.length>6){for(let i=6;i<list.length;i++)if(list[i]&&list[i].g)list[i].g.visible=false}
+  }catch(e){}return _loop.apply(this,arguments)}}
+window.TS_PERF=TS_PERF;
+
+/* ---------- 13. Career Casino ---------- */
+function crCash(){const C=crLoad();return C&&Number.isFinite(+C.cash)?+C.cash:0}
+function crCashSet(n,why,delta){
+  const C=crLoad();if(!C)return 0;
+  C.cash=Math.max(0,Math.round(n));
+  const cas=C.casino||(C.casino={lot:0,lotW:0,lotSpent:0,bj:0,bjW:0,bjSpent:0,he:0,heW:0,heSpent:0,hist:[]});
+  if(why){cas.hist=cas.hist||[];cas.hist.push({t:Date.now(),why,delta:delta||0,cash:C.cash});if(cas.hist.length>80)cas.hist.shift()}
+  crSave(C);return C.cash;
+}
+function crBetMax(){const c=crCash();return Math.max(50,Math.min(500000,Math.round(c*0.15/10)*10))}
+function crBetMin(){const c=crCash();return c>=50?50:0}
+function rngCrypto(){const a=new Uint32Array(1);(self.crypto||window.crypto).getRandomValues(a);return a[0]/4294967296}
+function rngInt(n){return Math.floor(rngCrypto()*n)}
+function casShell(title,body,back){
+  const C=crLoad();
+  const s=show('scSetup',`<div class="pn" id="casScr" style="max-width:860px"><div class="hdr"><button class="ib" id="casB">‹</button><h2>${title}</h2></div>
+    <div class="gnote">Career bankroll: <b style="color:#3fe0b0">${crMoney(C?C.cash:0)}</b>. Bets use career prize money and are saved to your career.</div>
+    ${body}</div>`);
+  $('casB').onclick=back||showCasino;return s;
+}
+function showCasino(){
+  const C=crLoad();if(!C){showCareer();return}
+  const cas=C.casino||{};
+  const st=(k,v)=>`<div style="background:#121a20;border-radius:10px;padding:8px;text-align:center"><div style="font-size:11px;opacity:.65">${k}</div><div style="font-weight:800">${v}</div></div>`;
+  const hist=(cas.hist||[]).slice().reverse().slice(0,12);
+  casShell('Career Casino',`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0">
+      ${st('LOTTERY',(cas.lot||0)+' tix · won '+crMoney(cas.lotW||0))}
+      ${st('BLACKJACK',(cas.bj||0)+' hands · '+(cas.bjW>=0?crMoney(cas.bjW||0):crMoney(cas.bjW)))}
+      ${st('HOLD\'EM',(cas.he||0)+' sessions · '+crMoney(cas.heW||0))}
+    </div>
+    <button class="btn" id="casLot">Lottery<small>Several ticket tiers · long-shot jackpots · negative EV</small></button>
+    <button class="btn alt" id="casBj">Blackjack<small>Standard rules · crypto-random shoe</small></button>
+    <button class="btn alt" id="casHe">Texas Hold'em<small>Vs AI · buy-ins scale with your bankroll · showdown panel</small></button>
+    <div class="sec">Recent results</div>
+    ${hist.length?`<table style="width:100%;font-size:13px">${hist.map(h=>`<tr><td>${new Date(h.t).toLocaleDateString()}</td><td>${esc(h.why)}</td><td style="text-align:right;color:${h.delta>=0?'#3fe0b0':'#ff9a6a'}">${h.delta>=0?'+':''}${crMoney(h.delta)}</td></tr>`).join('')}</table>`:'<div class="gnote">No bets yet.</div>'}
+    <button class="btn alt c" id="casBack" style="margin-top:12px">Career</button>`);
+  $('casLot').onclick=showLottery;$('casBj').onclick=showBlackjack;$('casHe').onclick=showHoldem;$('casBack').onclick=showCareer;$('casB').onclick=showCareer;
+}
+
+const LOT_TIERS=[
+  {id:'quick',n:'Quick Pick',p:10,jack:25000,jodds:8e6,mids:[[100,800],[25,80],[10,18]]},
+  {id:'club',n:'Club Special',p:50,jack:250000,jodds:6e6,mids:[[500,900],[100,70],[50,16]]},
+  {id:'tour',n:'Tour Jackpot',p:200,jack:2000000,jodds:4e6,mids:[[2000,1200],[400,80],[200,16]]},
+  {id:'major',n:'Major Lotto',p:1000,jack:20000000,jodds:2.5e6,mids:[[10000,1400],[2000,90],[1000,18]]}
+];
+function lotPlay(id){
+  const C=crLoad();const T=LOT_TIERS.find(x=>x.id===id);if(!C||!T)return{ok:false,msg:'No ticket'};
+  if(C.cash<T.p)return{ok:false,msg:'Not enough prize money'};
+  C.cash-=T.p;C.casino=C.casino||{hist:[]};C.casino.lot=(C.casino.lot||0)+1;C.casino.lotSpent=(C.casino.lotSpent||0)+T.p;
+  const u=rngCrypto();
+  let win=0,label='No prize';
+  if(u<1/T.jodds){win=T.jack;label='JACKPOT'}
+  else{
+    let acc=1/T.jodds;
+    for(const [amt,odds] of T.mids){acc+=1/odds;if(u<acc){win=amt;label='Won '+crMoney(amt);break}}
+  }
+  C.cash+=win;C.casino.lotW=(C.casino.lotW||0)+win;
+  const delta=win-T.p;C.casino.hist=C.casino.hist||[];C.casino.hist.push({t:Date.now(),why:'Lottery '+T.n+(win?(' · '+label):' · miss'),delta,cash:C.cash});if(C.casino.hist.length>80)C.casino.hist.shift();
+  crSave(C);return{ok:true,win,label,delta,tier:T};
+}
+function showLottery(){
+  const C=crLoad();if(!C){showCareer();return}
+  const rows=LOT_TIERS.map(T=>`<div style="background:#121a20;border-radius:12px;padding:9px 10px;display:flex;justify-content:space-between;gap:8px;align-items:center">
+    <div><div style="font-weight:800">${esc(T.n)} · ${crMoney(T.p)}</div><div style="font-size:12px;opacity:.75">Jackpot ${crMoney(T.jack)} · about 1 in ${Math.round(T.jodds).toLocaleString()} · small prizes more often, still a losing ticket long-run</div></div>
+    <button class="btn" data-lot="${T.id}" style="padding:6px 10px;margin:0;width:auto;${C.cash<T.p?'opacity:.45':''}">Buy</button></div>`).join('');
+  casShell('Lottery',`<div style="display:grid;gap:8px;margin-top:8px">${rows}</div><div id="lotMsg" class="gnote"></div><button class="btn alt c" id="lotBk" style="margin-top:10px">Casino</button>`,showCasino);
+  $('lotBk').onclick=showCasino;
+  $('casScr').addEventListener('click',e=>{const b=e.target.closest('[data-lot]');if(!b)return;const r=lotPlay(b.dataset.lot);const m=$('lotMsg');
+    if(!r.ok)m.textContent=r.msg;else{m.innerHTML=r.win?`<b style="color:#3fe0b0">${esc(r.label)}</b> · net ${r.delta>=0?'+':''}${crMoney(r.delta)}`:`No prize · ${crMoney(r.tier.p)} ticket. Net ${crMoney(r.delta)}`;showLottery();if($('lotMsg'))$('lotMsg').innerHTML=m.innerHTML}});
+}
+
+/* Blackjack */
+const BJ_SUITS=['♠','♥','♦','♣'];const BJ_RANKS=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+function shoeNew(){const d=[];for(let s=0;s<6;s++)for(const su of BJ_SUITS)for(const r of BJ_RANKS)d.push({r,su});
+  for(let i=d.length-1;i>1;i--){const j=rngInt(i+1);const t=d[i];d[i]=d[j];d[j]=t}return d}
+function bjVal(hand){let t=0,a=0;for(const c of hand){if(c.r==='A'){t+=11;a++}else if('JQK'.includes(c.r)||c.r==='10')t+=10;else t+=+c.r}
+  while(t>21&&a){t-=10;a--}return{t,soft:a>0}}
+function bjCard(c){const red=c.su==='♥'||c.su==='♦';return`<span style="display:inline-block;min-width:36px;padding:4px 6px;margin:2px;border-radius:6px;background:#f4f0e6;color:${red?'#c21414':'#111'};font-weight:800">${c.r}${c.su}</span>`}
+let BJ=null;
+function bjStart(bet){
+  const C=crLoad();if(!C||C.cash<bet)return false;
+  C.cash-=bet;C.casino=C.casino||{};C.casino.bj=(C.casino.bj||0)+1;C.casino.bjSpent=(C.casino.bjSpent||0)+bet;crSave(C);
+  const shoe=shoeNew();const p=[shoe.pop(),shoe.pop()],d=[shoe.pop(),shoe.pop()];
+  BJ={shoe,p,d,bet,done:false,msg:'',win:0};bjEvalStart();return true;
+}
+function bjEvalStart(){
+  const pv=bjVal(BJ.p).t,dv=bjVal(BJ.d).t;
+  if(pv===21&&dv===21)bjSettle(0,'Push — both blackjack');
+  else if(pv===21)bjSettle(Math.round(BJ.bet*2.5),'Blackjack! 3:2');
+  else if(dv===21)bjSettle(0,'Dealer blackjack');
+}
+function bjSettle(payout,msg){
+  BJ.done=true;BJ.msg=msg;BJ.win=payout-BJ.bet;
+  const C=crLoad();C.cash+=payout;C.casino.bjW=(C.casino.bjW||0)+BJ.win;
+  C.casino.hist.push({t:Date.now(),why:'Blackjack · '+msg,delta:BJ.win,cash:C.cash});if(C.casino.hist.length>80)C.casino.hist.shift();
+  crSave(C);
+}
+function bjHit(){if(!BJ||BJ.done)return;BJ.p.push(BJ.shoe.pop());if(bjVal(BJ.p).t>21)bjSettle(0,'Bust')}
+function bjStand(){
+  if(!BJ||BJ.done)return;
+  while(bjVal(BJ.d).t<17)BJ.d.push(BJ.shoe.pop());
+  const p=bjVal(BJ.p).t,d=bjVal(BJ.d).t;
+  if(d>21)bjSettle(BJ.bet*2,'Dealer busts');
+  else if(p>d)bjSettle(BJ.bet*2,'You win '+p+' over '+d);
+  else if(p===d)bjSettle(BJ.bet,'Push');
+  else bjSettle(0,'Dealer '+d+' beats '+p);
+}
+function bjDouble(){
+  if(!BJ||BJ.done||BJ.p.length!==2)return;
+  const C=crLoad();if(C.cash<BJ.bet){BJ.msg='Not enough to double';return}
+  C.cash-=BJ.bet;C.casino.bjSpent=(C.casino.bjSpent||0)+BJ.bet;crSave(C);BJ.bet*=2;bjHit();if(!BJ.done)bjStand();
+}
+function showBlackjack(){
+  const C=crLoad();if(!C){showCareer();return}
+  const min=crBetMin(),max=Math.min(crBetMax(),C.cash);
+  if(!BJ){
+    casShell('Blackjack',`<div class="gnote">Standard rules: dealer stands on 17, blackjack pays 3:2, double on first two cards. Crypto-random 6-deck shoe. Min ${crMoney(min)} · max ${crMoney(max)}.</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:10px"><label>Bet</label><input id="bjBet" type="number" min="${min}" max="${max}" step="50" value="${Math.min(Math.max(min,200),max)}" style="flex:1;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:#121a20;color:#fff"><button class="btn" id="bjDeal">Deal</button></div>
+      <div id="bjMsg" class="gnote"></div><button class="btn alt c" id="bjBk" style="margin-top:10px">Casino</button>`,showCasino);
+    $('bjBk').onclick=showCasino;
+    $('bjDeal').onclick=()=>{const bet=clamp(+($('bjBet').value)||0,min,max);if(bet<min){$('bjMsg').textContent='Bet is below the minimum.';return}if(bjStart(bet))showBlackjack();else $('bjMsg').textContent='Not enough prize money.'};
+    return;
+  }
+  const hide=BJ.done?false:true;
+  const dShow=hide?[BJ.d[0],{r:'?',su:''}]:BJ.d;
+  casShell('Blackjack',`
+    <div>Dealer${BJ.done?' · '+bjVal(BJ.d).t:''}</div><div style="margin:4px 0 10px">${dShow.map(c=>c.r==='?'?'<span style="display:inline-block;min-width:36px;padding:4px 6px;margin:2px;border-radius:6px;background:#1a3040;color:#889">?</span>':bjCard(c)).join('')}</div>
+    <div>You · ${bjVal(BJ.p).t} · bet ${crMoney(BJ.bet)}</div><div style="margin:4px 0 10px">${BJ.p.map(bjCard).join('')}</div>
+    <div id="bjMsg" class="gnote">${esc(BJ.msg||'')}${BJ.done?(BJ.win>0?' · <b style="color:#3fe0b0">'+crMoney(BJ.win)+'</b>':BJ.win<0?' · <b style="color:#ff9a6a">'+crMoney(BJ.win)+'</b>':' · push'):''}</div>
+    ${BJ.done?`<button class="btn" id="bjAgain">Next hand</button>`:`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="bjHit">Hit</button><button class="btn alt" id="bjStay">Stand</button>${BJ.p.length===2?`<button class="btn alt" id="bjDbl">Double</button>`:''}</div>`}
+    <button class="btn alt c" id="bjBk" style="margin-top:10px">Casino</button>`,showCasino);
+  $('bjBk').onclick=()=>{if(BJ&&!BJ.done){/* mid-hand leave keeps bet already taken */}BJ=null;showCasino()};
+  if($('bjAgain'))$('bjAgain').onclick=()=>{BJ=null;showBlackjack()};
+  if($('bjHit'))$('bjHit').onclick=()=>{bjHit();showBlackjack()};
+  if($('bjStay'))$('bjStay').onclick=()=>{bjStand();showBlackjack()};
+  if($('bjDbl'))$('bjDbl').onclick=()=>{bjDouble();showBlackjack()};
+}
+
+/* Texas Hold'em vs AI */
+const HE_RANK=['2','3','4','5','6','7','8','9','T','J','Q','K','A'];
+function heDeck(){const d=[];for(const su of BJ_SUITS)for(const r of HE_RANK)d.push({r,su});
+  for(let i=d.length-1;i>0;i--){const j=rngInt(i+1);const t=d[i];d[i]=d[j];d[j]=t}return d}
+function heVal(rank){return HE_RANK.indexOf(rank)}
+function heScore(cards){
+  /* best 5 of 7 — returns [cat, ...kickers] higher better. cat: 8=SF ... 0=high */
+  const n=cards.length;let best=[0];
+  const idx=[];for(let i=0;i<n;i++)idx.push(i);
+  const pick=function(start,need,cur){
+    if(need===0){const h=cur.map(i=>cards[i]);const s=heFive(h);if(heCmp(s,best)>0)best=s;return}
+    for(let i=start;i<=n-need;i++){cur.push(idx[i]);pick(i+1,need-1,cur);cur.pop()}
+  };
+  if(n<5)return[0];
+  if(n===5)return heFive(cards);
+  pick(0,5,[]);return best;
+}
+function heFive(h){
+  const vs=h.map(c=>heVal(c.r)).sort((a,b)=>b-a);
+  const suits={};for(const c of h)suits[c.su]=(suits[c.su]||0)+1;
+  const flush=Object.keys(suits).some(s=>suits[s]===5);
+  const uniq=[...new Set(vs)];
+  const isStr=()=>{const u=uniq.slice().sort((a,b)=>b-a);if(u.length<5)return false;
+    if(u[0]-u[4]===4&&u.length===5)return u[0];
+    if(u.includes(12)&&u.includes(0)&&u.includes(1)&&u.includes(2)&&u.includes(3))return 3;/* A-5 */
+    return false};
+  const str=isStr();
+  const cnt={};for(const v of vs)cnt[v]=(cnt[v]||0)+1;
+  const groups=Object.keys(cnt).map(Number).sort((a,b)=>cnt[b]-cnt[a]||b-a);
+  if(flush&&str)return[8,str];
+  if(cnt[groups[0]]===4)return[7,groups[0],groups[1]];
+  if(cnt[groups[0]]===3&&cnt[groups[1]]===2)return[6,groups[0],groups[1]];
+  if(flush)return[5,...vs];
+  if(str)return[4,str];
+  if(cnt[groups[0]]===3)return[3,groups[0],...groups.slice(1)];
+  if(cnt[groups[0]]===2&&cnt[groups[1]]===2)return[2,Math.max(groups[0],groups[1]),Math.min(groups[0],groups[1]),groups[2]];
+  if(cnt[groups[0]]===2)return[1,groups[0],...groups.slice(1)];
+  return[0,...vs];
+}
+function heCmp(a,b){const n=Math.max(a.length,b.length);for(let i=0;i<n;i++){const d=(a[i]||0)-(b[i]||0);if(d)return d}return 0}
+const HE_LAB=['High card','Pair','Two pair','Trips','Straight','Flush','Full house','Quads','Straight flush'];
+function hePretty(s){return HE_LAB[s[0]]||'Hand'}
+function heCard(c){const red=c.su==='♥'||c.su==='♦';return`<span style="display:inline-block;min-width:36px;padding:4px 6px;margin:2px;border-radius:6px;background:#f4f0e6;color:${red?'#c21414':'#111'};font-weight:800">${c.r==='T'?'10':c.r}${c.su}</span>`}
+let HE=null;
+function heBuyins(){
+  const c=crCash();const opts=[1000,5000,25000,100000,500000,2000000].filter(x=>c>=x);
+  if(!opts.length&&c>=200)opts.push(Math.max(200,Math.floor(c/5/50)*50));
+  return opts;
+}
+function heStart(buy){
+  const C=crLoad();if(!C||C.cash<buy)return false;
+  C.cash-=buy;C.casino=C.casino||{};C.casino.he=(C.casino.he||0)+1;C.casino.heSpent=(C.casino.heSpent||0)+buy;crSave(C);
+  const deck=heDeck();
+  const names=['You','Dex Harlan','Jules Marchetti','Kenji Sato'];
+  const ply=[];
+  for(let i=0;i<4;i++)ply.push({n:names[i],me:i===0,hole:[deck.pop(),deck.pop()],stack:buy,in:true,bet:0,folded:false});
+  HE={deck,ply,board:[],pot:0,buy,street:0,done:false,log:[],show:null,toAct:0,bet:Math.max(20,Math.round(buy/50)),need:0};
+  hePost();return true;
+}
+function hePost(){
+  const sb=Math.max(10,Math.round(HE.buy/100)),bb=sb*2;
+  /* player 3 SB, 1 BB for simplicity — actually 1=SB 2=BB if 4-handed, you are 0 button */
+  HE.ply[1].stack-=sb;HE.ply[1].bet=sb;HE.ply[2].stack-=bb;HE.ply[2].bet=bb;HE.pot=sb+bb;HE.need=bb;HE.toAct=3;HE.log.push('Blinds '+crMoney(sb)+' / '+crMoney(bb));
+  heAdvanceAI();
+}
+function heAlive(){return HE.ply.filter(p=>p.in&&!p.folded)}
+function heAdvanceAI(){
+  /* run AI until it's you or street ends */
+  let guard=0;
+  while(HE&&!HE.done&&guard++<40){
+    const p=HE.ply[HE.toAct];
+    if(!p||p.folded||!p.in){heNext();continue}
+    if(p.me)return;
+    heAI(p);heNext();
+    if(heStreetDone()){heNextStreet();if(HE.done)return}
+  }
+}
+function heStreetDone(){
+  const a=heAlive();if(a.length<=1)return true;
+  const need=Math.max(...HE.ply.map(p=>p.bet));
+  return a.every(p=>p.bet===need||p.stack===0)&&HE.acted;
+}
+function heNext(){do{HE.toAct=(HE.toAct+1)%HE.ply.length}while(HE.ply[HE.toAct].folded||!HE.ply[HE.toAct].in)}
+function heAI(p){
+  const all=p.hole.concat(HE.board);const s=HE.board.length?heScore(all):[p.hole[0]&&p.hole[0].r===p.hole[1].r?1:0,Math.max(heVal(p.hole[0].r),heVal(p.hole[1].r))];
+  const str=s[0]+(s[1]||0)/20;const toCall=Math.max(0,HE.need-p.bet);
+  const r=rngCrypto();
+  if(toCall>0){
+    if(str<.4&&r<.55){p.folded=true;HE.log.push(p.n+' folds');return}
+    if(str>2&&p.stack>toCall&&r<.4){const raise=Math.min(p.stack,toCall+HE.bet*2);hePut(p,toCall+raise);HE.log.push(p.n+' raises to '+crMoney(p.bet));return}
+    const call=Math.min(p.stack,toCall);hePut(p,call);HE.log.push(p.n+(call===p.stack?' all-in':' calls '+crMoney(call)));return;
+  }
+  if(str>1.5&&r<.45){const raise=Math.min(p.stack,HE.bet*2);hePut(p,raise);HE.log.push(p.n+' bets '+crMoney(raise))}
+  else HE.log.push(p.n+' checks');
+}
+function hePut(p,amt){amt=Math.max(0,Math.min(p.stack,amt));p.stack-=amt;p.bet+=amt;HE.pot+=amt;if(p.bet>HE.need)HE.need=p.bet;HE.acted=1}
+function heAct(kind){
+  if(!HE||HE.done)return;const p=HE.ply[0];if(HE.toAct!==0||p.folded)return;
+  const toCall=Math.max(0,HE.need-p.bet);
+  if(kind==='fold'){p.folded=true;HE.log.push('You fold')}
+  else if(kind==='call'){const a=Math.min(p.stack,toCall||0);if(toCall===0)HE.log.push('You check');else{hePut(p,a);HE.log.push('You '+(p.stack===0?'all-in':'call '+crMoney(a)))}}
+  else if(kind==='raise'){const a=Math.min(p.stack,toCall+HE.bet*2);hePut(p,a);HE.log.push('You raise to '+crMoney(p.bet))}
+  HE.acted=1;heNext();if(heStreetDone())heNextStreet();else heAdvanceAI();
+}
+function heNextStreet(){
+  const a=heAlive();
+  if(a.length<=1){heShowdown();return}
+  HE.ply.forEach(p=>p.bet=0);HE.need=0;HE.acted=0;
+  if(HE.street===0){HE.board.push(HE.deck.pop(),HE.deck.pop(),HE.deck.pop());HE.street=1;HE.log.push('Flop')}
+  else if(HE.street===1){HE.board.push(HE.deck.pop());HE.street=2;HE.log.push('Turn')}
+  else if(HE.street===2){HE.board.push(HE.deck.pop());HE.street=3;HE.log.push('River')}
+  else{heShowdown();return}
+  HE.toAct=HE.ply.findIndex(p=>!p.folded&&p.in);heAdvanceAI();if(!HE.done&&heStreetDone()&&HE.street>=3)heShowdown();
+}
+function heShowdown(){
+  HE.done=true;
+  const a=heAlive();
+  const rows=a.map(p=>{const s=heScore(p.hole.concat(HE.board));return{p,s,lab:hePretty(s)}});
+  rows.sort((x,y)=>heCmp(y.s,x.s));
+  const best=rows[0].s;const winners=rows.filter(r=>heCmp(r.s,best)===0);
+  const share=Math.floor(HE.pot/winners.length);
+  winners.forEach(w=>w.p.stack+=share);
+  const you=HE.ply[0];const delta=you.stack-HE.buy;
+  HE.show={rows,winners,share,delta,you:you.stack};
+  const C=crLoad();C.cash+=you.stack;C.casino.heW=(C.casino.heW||0)+delta;
+  C.casino.hist.push({t:Date.now(),why:"Hold'em · "+(delta>0?'won':delta<0?'lost':'even')+' '+hePretty(heScore(you.hole.concat(HE.board))),delta,cash:C.cash});
+  if(C.casino.hist.length>80)C.casino.hist.shift();crSave(C);
+}
+function showHoldem(){
+  const C=crLoad();if(!C){showCareer();return}
+  if(!HE){
+    const opts=heBuyins();
+    casShell("Texas Hold'em",`<div class="gnote">Four-handed vs tour AI. Blinds scale with the buy-in. A clear showdown panel lists every live hand at the end. Leftover chips cash back into your career.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">${opts.length?opts.map(b=>`<button class="btn" data-he="${b}">Buy in ${crMoney(b)}</button>`).join(''):'<div>You need a little more prize money to sit down.</div>'}</div>
+      <button class="btn alt c" id="heBk" style="margin-top:10px">Casino</button>`,showCasino);
+    $('heBk').onclick=showCasino;
+    $('casScr').addEventListener('click',e=>{const b=e.target.closest('[data-he]');if(!b)return;if(heStart(+b.dataset.he))showHoldem();});
+    return;
+  }
+  const you=HE.ply[0];
+  const board=HE.board.length?HE.board.map(heCard).join(''):'<span style="opacity:.6">No board yet</span>';
+  let show='';
+  if(HE.show){
+    show=`<div id="heShow" style="background:#121a20;border:2px solid #ffd24a;border-radius:12px;padding:10px;margin:10px 0">
+      <div style="font-weight:900;color:#ffd24a">SHOWDOWN</div>
+      <div style="font-size:13px;margin:6px 0">Pot ${crMoney(HE.pot)} · your stack cashes ${crMoney(HE.show.you)} · net <b style="color:${HE.show.delta>=0?'#3fe0b0':'#ff9a6a'}">${HE.show.delta>=0?'+':''}${crMoney(HE.show.delta)}</b></div>
+      <table style="width:100%;font-size:13px">${HE.show.rows.map(r=>`<tr style="${r.p.me?'color:#3fe0b0;font-weight:800':''}${HE.show.winners.includes(r)?'background:rgba(255,210,74,.12)':''}"><td>${esc(r.p.n)}${r.p.me?' (you)':''}${HE.show.winners.includes(r)?' · WINS':''}</td><td>${r.p.hole.map(heCard).join('')}</td><td>${esc(r.lab)}</td></tr>`).join('')}</table>
+      <div style="margin-top:6px;font-size:12px;opacity:.8">Board ${HE.board.map(heCard).join('')}</div></div>`;
+  }
+  const toCall=Math.max(0,HE.need-you.bet);
+  casShell("Texas Hold'em",`
+    <div style="margin-top:4px"><b>Board</b><div>${board}</div></div>
+    <div style="margin-top:8px"><b>Your hand</b><div>${you.hole.map(heCard).join('')} · stack ${crMoney(you.stack)} · pot ${crMoney(HE.pot)}</div></div>
+    <div style="margin-top:8px;font-size:13px">${HE.ply.map(p=>`<div style="opacity:${p.folded?.4:1}">${p.me?'You':esc(p.n)}${p.folded?' (folded)':''} · ${crMoney(p.stack)}${HE.toAct===HE.ply.indexOf(p)&&!HE.done?' · to act':''}</div>`).join('')}</div>
+    ${show}
+    <div class="gnote" style="max-height:80px;overflow:auto">${HE.log.slice(-8).map(esc).join('<br>')}</div>
+    ${HE.done?`<button class="btn" id="heAgain">New table</button>`:(!you.folded&&HE.toAct===0?`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn alt" id="heFold">Fold</button><button class="btn" id="heCall">${toCall?('Call '+crMoney(toCall)):'Check'}</button><button class="btn alt" id="heRaise">Raise</button></div>`:'<div class="gnote">AI is acting…</div>')}
+    <button class="btn alt c" id="heBk" style="margin-top:10px">Casino</button>`,showCasino);
+  $('heBk').onclick=()=>{if(HE&&!HE.done){/* mid-hand: cash current stack? keep it simple — cash out remaining */const C2=crLoad();C2.cash+=HE.ply[0].stack;C2.casino.heW=(C2.casino.heW||0)+(HE.ply[0].stack-HE.buy);C2.casino.hist.push({t:Date.now(),why:"Hold'em · left table",delta:HE.ply[0].stack-HE.buy,cash:C2.cash});crSave(C2)}HE=null;showCasino()};
+  if($('heAgain'))$('heAgain').onclick=()=>{HE=null;showHoldem()};
+  if($('heFold'))$('heFold').onclick=()=>{heAct('fold');showHoldem()};
+  if($('heCall'))$('heCall').onclick=()=>{heAct('call');showHoldem()};
+  if($('heRaise'))$('heRaise').onclick=()=>{heAct('raise');showHoldem()};
+  if(HE&&!HE.done&&HE.toAct!==0)setTimeout(()=>{try{if(HE&&!HE.done){heAdvanceAI();showHoldem()}}catch(e){}},180);
+}
+
+window.showCasino=showCasino;window.showLottery=showLottery;window.showBlackjack=showBlackjack;window.showHoldem=showHoldem;
+window.lotPlay=lotPlay;window.heScore=heScore;window.heFive=heFive;window.heCmp=heCmp;window.bjVal=bjVal;window.rngCrypto=rngCrypto;
+window.ESTATE=ESTATE;window.SHOP_V12=SHOP_V12;window.crNeedHtml=crNeedHtml;window.crEstBuy=crEstBuy;window.LOT_TIERS=LOT_TIERS;
+
+}catch(e){console.warn('v1.12 init',e)}
+})();
+
 
 </script>
 <script>(function(){function boot(){var s=document.createElement('script');s.text=document.getElementById('gsrc').textContent;document.body.appendChild(s)}boot()})()</script>
