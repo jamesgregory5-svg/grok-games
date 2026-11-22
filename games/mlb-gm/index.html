@@ -136,25 +136,97 @@ window.DATA = DATA;
       return Math.round(rosterIds.reduce((s, id) => s + (players[String(id)] ? players[String(id)].aav : 0), 0) * 100) / 100;
     }
 
-    function playerValue(p) {
+    function estWar(p) {
+      const ovr = p.ovr || 60;
+      let w = (ovr - 68) / 4.1;
+      if (p.pos === "RP" || p.pos === "CL") w *= 0.72;
+      if (p.pos === "SP") w *= 1.05;
+      if (p.pos === "C" || p.pos === "SS" || p.pos === "CF") w *= 1.06;
+      return Math.max(-1.2, w);
+    }
+
+    function isPreArb(p) {
+      return p.kind === "club" || ((p.aav || 0) <= 1.2 && (p.years || 0) >= 2 && (p.age || 27) <= 29);
+    }
+
+    function isProspect(p) {
+      return (p.age || 27) <= 23 && (p.pot || p.ovr) >= 78 && (p.ovr || 0) < 80;
+    }
+
+    function playerValue(p, posture) {
+      posture = posture || "mid";
+      if (!p) return 0;
       const age = p.age || 27;
-      const ageF = age <= 23 ? 1.22 : age <= 25 ? 1.14 : age <= 27 ? 1.06 : age <= 30 ? 1.0 : age <= 33 ? 0.86 : age <= 36 ? 0.7 : 0.52;
-      const potF = 1 + Math.max(0, (p.pot - p.ovr)) * 0.035;
-      let val = Math.max(0.15, (p.ovr - 48) * 1.15) * ageF * potF;
-      // remaining contract burden: expensive older deals drag value
-      const remain = (p.years || 0) * (p.aav || 0);
-      const fairAav = Math.max(0.8, (p.ovr - 60) * 1.35);
-      const surplus = (fairAav - (p.aav || 0)) * (p.years || 1);
-      val += surplus * 0.25;
-      if (p.ovr >= 88) val *= 1.15;
-      return val;
+      const war = estWar(p);
+      const years = Math.max(0, p.years || 0);
+      const aav = p.aav || 0;
+      const pot = p.pot || p.ovr;
+      const ovr = p.ovr || 60;
+      const upside = Math.max(0, (pot - ovr) / 4.5);
+      let proj = war + upside * (age <= 24 ? 0.85 : age <= 26 ? 0.5 : 0.2);
+      if (age >= 34) proj *= 0.82;
+      if (age >= 36) proj *= 0.7;
+      const control = Math.max(0.5, years || 1);
+      let prodVal = Math.max(0.2, proj) * 9 * Math.min(control, 8);
+      const fairAav = Math.max(0.74, proj * 9);
+      let contractAav = aav;
+      if (isPreArb(p)) contractAav = Math.min(contractAav, 0.85 + Math.max(0, years - 3) * 1.15);
+      prodVal += (fairAav - contractAav) * control * 0.85;
+      if (isPreArb(p) && years >= 3 && ovr >= 70) prodVal += 8 + (ovr - 70) * 0.6 + years * 1.4;
+      else if (aav < 4 && years >= 2 && age <= 30 && ovr >= 72) prodVal += 4 + years * 0.8;
+      if (isProspect(p)) {
+        const pval = 3 + Math.max(0, pot - 78) * 0.9 + Math.max(0, 24 - age) * 1.1;
+        prodVal = Math.max(prodVal, pval);
+      }
+      if (p.pos === "SS" || p.pos === "CF" || p.pos === "C") prodVal *= 1.08;
+      if (p.pos === "SP") prodVal *= 1.06;
+      if (p.pos === "DH") prodVal *= 0.9;
+      if (posture === "contend") {
+        if (age >= 32 && ovr >= 80) prodVal *= 1.08;
+        if (isProspect(p) && ovr < 72) prodVal *= 0.62;
+        if (age <= 22 && ovr < 70) prodVal *= 0.7;
+      }
+      if (posture === "rebuild") {
+        if (age >= 32) prodVal *= 0.72;
+        if (age <= 25 && (years >= 3 || isProspect(p))) prodVal *= 1.22;
+        if (aav >= 20 && age >= 30) prodVal *= 0.8;
+      }
+      if (ovr >= 90) prodVal *= 1.12;
+      return Math.max(0.15, prodVal);
+    }
+
+    function packageValue(plist, posture, againstStar) {
+      const scored = plist.filter(Boolean).map(function (p) { return { p: p, v: playerValue(p, posture) }; }).sort(function (a, b) { return b.v - a.v; });
+      let v = 0;
+      scored.forEach(function (x, i) {
+        const w = i === 0 ? 1 : i === 1 ? 0.82 : i === 2 ? 0.5 : 0.22;
+        v += x.v * w;
+      });
+      if (againstStar && againstStar.ovr >= 86) {
+        const head = scored[0] && scored[0].p;
+        const ycVal = plist.filter(function (p) { return p && (p.age || 27) <= 25 && ((p.years || 0) >= 3 || isProspect(p)); }).reduce(function (s, p) { return s + playerValue(p, "rebuild"); }, 0);
+        const hasHeadliner = head && (head.ovr >= againstStar.ovr - 9 || (isProspect(head) && (head.pot || 0) >= againstStar.ovr - 2 && (againstStar.age || 27) >= 31));
+        if (!hasHeadliner && ycVal < playerValue(againstStar, posture) * 1.05) v *= 0.35;
+      }
+      return v;
+    }
+
+    function aiPosture(state, tid) {
+      const ros = (state.rosters[String(tid)] || []).map(function (id) { return state.players[String(id)]; }).filter(Boolean);
+      const ovrs = ros.map(function (p) { return p.ovr; }).sort(function (a, b) { return b - a; });
+      const n = Math.min(8, ovrs.length);
+      const top8 = n ? ovrs.slice(0, n).reduce(function (s, x) { return s + x; }, 0) / n : 70;
+      const pay = payrollOf(ros.map(function (p) { return p.id; }), state.players);
+      const st = state.standings && state.standings[String(tid)];
+      const gp = st ? (st.gp || 0) : 0;
+      const pct = st && gp >= 20 ? st.w / gp : null;
+      if ((pct != null && pct < 0.42) || top8 < 76.5) return "rebuild";
+      if ((pct != null && pct > 0.55) || (top8 >= 82 && pay > cap - 40) || top8 >= 80.5) return "contend";
+      return "mid";
     }
 
     function teamNeeds(rosterIds, players) {
-      const need = {};
-      const groups = {
-        C: 0, IF: 0, OF: 0, DH: 0, SP: 0, RP: 0
-      };
+      const groups = { C: 0, IF: 0, OF: 0, DH: 0, SP: 0, RP: 0 };
       const best = {};
       for (const id of rosterIds) {
         const p = players[String(id)];
@@ -191,13 +263,12 @@ window.DATA = DATA;
       return false;
     }
 
-    function evaluateTrade(state, fromId, giveIds, getIds) {
-      // fromId is the AI team receiving `giveIds` (player's players) and sending `getIds`
+    function evaluateTrade(state, fromId, giveIds, getIds, opts) {
+      opts = opts || {};
       const players = state.players;
       const aiRoster = state.rosters[String(fromId)].slice();
       const userId = state.userTeam;
       const userRoster = state.rosters[String(userId)].slice();
-      const reasons = [];
 
       function hasAll(ros, ids) {
         return ids.every((id) => ros.indexOf(id) >= 0);
@@ -209,8 +280,11 @@ window.DATA = DATA;
 
       const give = giveIds.map((id) => players[String(id)]);
       const get = getIds.map((id) => players[String(id)]);
-      const giveVal = give.reduce((s, p) => s + playerValue(p), 0);
-      const getVal = get.reduce((s, p) => s + playerValue(p), 0);
+      const posture = aiPosture(state, fromId);
+      const starOut = get.slice().sort((a, b) => b.ovr - a.ovr)[0];
+      const starIn = give.slice().sort((a, b) => b.ovr - a.ovr)[0];
+      let giveVal = packageValue(give, posture, starOut);
+      let getVal = packageValue(get, posture, null);
       const givePay = give.reduce((s, p) => s + (p.aav || 0), 0);
       const getPay = get.reduce((s, p) => s + (p.aav || 0), 0);
 
@@ -222,60 +296,48 @@ window.DATA = DATA;
       const aiPay = payrollOf(aiAfter, players);
       const userPay = payrollOf(userAfter, players);
       const aiNow = payrollOf(aiRoster, players);
-      if (aiPay > cap && aiPay > aiNow + 0.5) {
-        reasons.push("salary");
-      }
-      if (userPay > cap && userPay > payrollOf(userRoster, players) + 0.5) {
-        // user cap is enforced on accept, not AI reject — still note
-      }
+      const salaryBlocked = aiPay > cap && aiPay > aiNow + 0.5 && givePay > getPay + 3;
 
       const needs = teamNeeds(aiRoster, players);
       const incomingNeed = give.filter((p) => fillsNeed(p, needs)).length;
-      const outgoingNeed = get.filter((p) => fillsNeed(p, needs) || p.ovr >= 80).length;
+      const sellingVet = posture === "rebuild" && get.some((p) => (p.age || 27) >= 30 && p.ovr >= 78);
+      const buyingWinNow = posture === "contend" && starIn && starIn.ovr >= 84 && incomingNeed;
 
-      // star protection
-      const star = get.slice().sort((a, b) => b.ovr - a.ovr)[0];
-      if (star && star.ovr >= 86 && giveVal < getVal * 0.95) {
-        return { ok: false, reason: "We're not moving " + star.name + " unless the return is clearly better.", code: "star", giveVal, getVal, counter: counterOffer(state, fromId, giveIds, getIds) };
+      if (sellingVet) getVal *= 0.84;
+      if (buyingWinNow) giveVal *= 1.08;
+      if (posture === "rebuild" && give.every((p) => (p.age || 27) <= 25)) giveVal *= 1.1;
+      if (posture === "contend" && starOut && starOut.ovr >= 86) getVal *= 1.08;
+
+      if (starOut && starOut.ovr >= 86 && giveVal < getVal * 0.98) {
+        return { ok: false, reason: "We're not moving " + starOut.name + " for a pile of lesser pieces. We need a real headliner or a prospect haul.", code: "star", giveVal, getVal, posture, counter: opts.skipCounter ? null : counterOffer(state, fromId, giveIds, getIds) };
       }
 
-      let needBonus = incomingNeed * 3.5;
-      if (outgoingNeed && !incomingNeed) needBonus -= 4;
-      const salaryRelief = (getPay - givePay); // positive if AI sheds salary
-      const aiWantsRelief = aiNow > cap - 15;
-      if (aiWantsRelief && salaryRelief > 5) needBonus += Math.min(8, salaryRelief * 0.3);
+      let threshold = posture === "contend" ? 0.94 : posture === "rebuild" ? 0.9 : 0.95;
+      if (buyingWinNow) threshold -= 0.06;
+      if (sellingVet) threshold -= 0.05;
+      if (incomingNeed) threshold -= 0.03;
+      if (starOut && starOut.ovr >= 82) threshold += 0.03;
 
-      const threshold = 0.92 - (incomingNeed ? 0.05 : 0) + (star && star.ovr >= 82 ? 0.04 : 0);
-      const adjustedGet = getVal;
-      const adjustedGive = giveVal + needBonus * 0.4;
-
-      if (adjustedGive + 0.0001 >= adjustedGet * threshold && !(reasons.indexOf("salary") >= 0 && givePay > getPay + 8 && giveVal < getVal + 6)) {
-        return { ok: true, reason: "You have a deal.", code: "accept", giveVal, getVal, aiPay, userPay };
+      if (!salaryBlocked && giveVal + 0.0001 >= getVal * threshold) {
+        return { ok: true, reason: "You have a deal.", code: "accept", giveVal, getVal, aiPay, userPay, posture };
       }
 
       let reason;
-      if (reasons.indexOf("salary") >= 0 && givePay > getPay + 4) {
-        reason = "We're not taking on that much extra salary.";
-      } else if (getVal > giveVal * 1.25) {
-        const name = star ? star.name : "our players";
-        reason = "That's not enough value coming back for " + name + ".";
-      } else if (outgoingNeed && !incomingNeed) {
-        reason = "That doesn't help what we actually need.";
-      } else {
-        reason = "That's not a fair trade for us.";
-      }
-      return { ok: false, reason, code: "value", giveVal, getVal, counter: counterOffer(state, fromId, giveIds, getIds) };
+      if (salaryBlocked) reason = "We're not taking on that much extra salary — we're up against the cap.";
+      else if (posture === "rebuild" && starOut && give.some((p) => (p.age || 27) >= 32)) reason = "We're rebuilding. We want young players with years of control, not more aging salary.";
+      else if (posture === "contend" && starOut && give.every((p) => isProspect(p) || p.ovr < 75)) reason = "We're trying to win now. Prospects alone aren't enough for " + starOut.name + ".";
+      else if (getVal > giveVal * 1.2) reason = "That's not enough value coming back for " + (starOut ? starOut.name : "our players") + ".";
+      else reason = "That's not a fair trade for us.";
+      return { ok: false, reason, code: salaryBlocked ? "salary" : "value", giveVal, getVal, posture, counter: opts.skipCounter ? null : counterOffer(state, fromId, giveIds, getIds) };
     }
 
     function counterOffer(state, fromId, giveIds, getIds) {
-      // Optional counter: try adding a mid piece from the user, or dropping a piece from the AI, or adding a cheap AI throw-in.
       const players = state.players;
       const aiRoster = state.rosters[String(fromId)];
       const userRoster = state.rosters[String(state.userTeam)];
       const used = new Set(giveIds.concat(getIds).map(String));
       const aiPool = aiRoster.filter((id) => !used.has(String(id))).map((id) => players[String(id)]).filter(Boolean).sort((a, b) => a.ovr - b.ovr);
       const userPool = userRoster.filter((id) => !used.has(String(id))).map((id) => players[String(id)]).filter(Boolean).sort((a, b) => b.ovr - a.ovr);
-      // 1) ask for one more user player
       for (const extra of userPool) {
         if (extra.ovr < 62 || extra.ovr > 84) continue;
         const trial = evaluateTradeSimple(state, fromId, giveIds.concat([extra.id]), getIds);
@@ -283,7 +345,6 @@ window.DATA = DATA;
           return { giveIds: giveIds.concat([extra.id]), getIds: getIds.slice(), note: "We'll do it if you include " + extra.name + "." };
         }
       }
-      // 2) drop the least important AI return if multiple
       if (getIds.length > 1) {
         const sorted = getIds.map((id) => players[String(id)]).sort((a, b) => a.ovr - b.ovr);
         const dropped = sorted[0].id;
@@ -293,7 +354,6 @@ window.DATA = DATA;
           return { giveIds: giveIds.slice(), getIds: next, note: "We'll do it without " + sorted[0].name + "." };
         }
       }
-      // 3) add a low-ovr AI throw-in
       for (const extra of aiPool) {
         if (extra.ovr > 70 || extra.ovr < 58) continue;
         const trial = evaluateTradeSimple(state, fromId, giveIds, getIds.concat([extra.id]));
@@ -304,23 +364,9 @@ window.DATA = DATA;
       return null;
     }
 
-    // evaluate without generating another counter (avoid recursion)
     function evaluateTradeSimple(state, fromId, giveIds, getIds) {
-      const saved = counterOffer;
-      // temporarily short-circuit by inlining accept check
-      const players = state.players;
-      const aiRoster = state.rosters[String(fromId)];
-      const userRoster = state.rosters[String(state.userTeam)];
-      if (!giveIds.every((id) => userRoster.indexOf(id) >= 0)) return { ok: false };
-      if (!getIds.every((id) => aiRoster.indexOf(id) >= 0)) return { ok: false };
-      if (aiRoster.length - getIds.length + giveIds.length > 40) return { ok: false };
-      const giveVal = giveIds.reduce((s, id) => s + playerValue(players[String(id)]), 0);
-      const getVal = getIds.reduce((s, id) => s + playerValue(players[String(id)]), 0);
-      const needs = teamNeeds(aiRoster, players);
-      const incomingNeed = giveIds.filter((id) => fillsNeed(players[String(id)], needs)).length;
-      const threshold = 0.92 - (incomingNeed ? 0.05 : 0);
-      const needBonus = incomingNeed * 3.5;
-      return { ok: giveVal + needBonus * 0.4 >= getVal * threshold };
+      const ev = evaluateTrade(state, fromId, giveIds, getIds, { skipCounter: true });
+      return { ok: !!(ev && ev.ok) };
     }
 
     function applyTrade(state, fromId, giveIds, getIds) {
@@ -341,13 +387,102 @@ window.DATA = DATA;
       return ev;
     }
 
+    function faAsk(p) {
+      const ovr = p.ovr || 70;
+      const age = p.age || 28;
+      let aav, years;
+      if (ovr >= 93) { aav = 40 + (ovr - 93) * 3.5; years = 9; }
+      else if (ovr >= 90) { aav = 32 + (ovr - 90) * 2.7; years = 8; }
+      else if (ovr >= 87) { aav = 24 + (ovr - 87) * 2.5; years = 7; }
+      else if (ovr >= 84) { aav = 16 + (ovr - 84) * 2.4; years = 6; }
+      else if (ovr >= 80) { aav = 10 + (ovr - 80) * 1.5; years = 4; }
+      else if (ovr >= 76) { aav = 6 + (ovr - 76) * 1.0; years = 3; }
+      else if (ovr >= 72) { aav = 2.5 + (ovr - 72) * 0.85; years = 2; }
+      else if (ovr >= 68) { aav = 1.2 + (ovr - 68) * 0.3; years = 1; }
+      else { aav = 1.0; years = 1; }
+      if (age >= 37) { years = Math.min(years, 1); aav *= 0.72; }
+      else if (age >= 35) { years = Math.min(years, 2); aav *= 0.82; }
+      else if (age >= 33) { years = Math.min(years, 3); aav *= 0.9; }
+      else if (age <= 27 && ovr >= 84) { years = Math.min(10, years + 1); aav *= 1.06; }
+      if (p.pos === "RP") { aav *= 0.78; years = Math.min(years, 3); }
+      if (p.pos === "CL") { aav *= 0.9; years = Math.min(years, 3); }
+      if (p.pos === "SP" && ovr >= 84) aav *= 1.06;
+      if (p.pos === "C" && ovr >= 80) aav *= 1.04;
+      aav = Math.round(Math.max(0.9, aav) * 10) / 10;
+      years = Math.max(1, Math.round(years));
+      return { years, aav };
+    }
+
+    function faBids(state, p) {
+      if (!state.faBidMap) state.faBidMap = {};
+      const key = String(p.id);
+      if (state.faBidMap[key]) return state.faBidMap[key];
+      const ask = faAsk(p);
+      const bids = [];
+      if (p.ovr >= 72) {
+        const others = teams.filter((t) => t.id !== state.userTeam);
+        others.forEach((t) => {
+          const ros = state.rosters[String(t.id)] || [];
+          const needs = teamNeeds(ros, state.players);
+          const pay = payrollOf(ros, state.players);
+          const room = cap - pay;
+          const posture = aiPosture(state, t.id);
+          let interest = fillsNeed(p, needs) ? 0.55 : 0.12;
+          if (posture === "contend" && p.ovr >= 80 && (p.age || 28) <= 34) interest += 0.35;
+          if (posture === "rebuild" && p.ovr >= 86 && (p.age || 28) <= 27) interest += 0.2;
+          else if (posture === "rebuild") interest -= 0.2;
+          if (room < ask.aav + 2) interest -= 0.45;
+          const r = Math.abs(Math.sin((p.id * 17 + t.id * 13 + (state.userTeam || 0)) * 12.9898)) % 1;
+          if (r < interest && room > ask.aav * 0.6) {
+            const bump = (posture === "contend" ? 0.04 : 0) + r * 0.1 - 0.03;
+            const aav = Math.round(Math.max(ask.aav * 0.92, ask.aav * (1 + bump)) * 10) / 10;
+            let years = ask.years;
+            if (r > 0.7 && (p.age || 28) < 33) years = Math.min(years + 1, 10);
+            if (aav * years <= cap * 10) bids.push({ teamId: t.id, years, aav, total: years * aav });
+          }
+        });
+        bids.sort((a, b) => b.total - a.total);
+      }
+      state.faBidMap[key] = bids.slice(0, 3);
+      return state.faBidMap[key];
+    }
+
     function signFA(state, pid, years, aav) {
       const p = state.players[String(pid)];
       if (!p || p.teamId != null) return { ok: false, reason: "That player is not a free agent." };
+      years = Math.max(1, Math.round(Number(years) || 0));
+      aav = Math.round((Number(aav) || 0) * 10) / 10;
+      if (aav < 0.8) return { ok: false, reason: "That offer is not a real contract." };
+      const ask = faAsk(p);
+      const bids = faBids(state, p);
+      const bestRival = bids[0] || null;
+      const userTotal = years * aav;
+      const askTotal = ask.years * ask.aav;
+      if (aav < ask.aav * 0.88 || userTotal < askTotal * 0.85) {
+        return { ok: false, reason: p.name + " wants " + ask.years + " years at $" + ask.aav.toFixed(1) + "M AAV and won't take a lowball.", code: "lowball" };
+      }
+      if (years <= ask.years - 2 && aav < ask.aav * 1.15) {
+        return { ok: false, reason: p.name + " wants a longer guarantee unless the AAV comes up.", code: "years" };
+      }
       const ros = state.rosters[String(state.userTeam)];
       if (ros.length >= 40) return { ok: false, reason: "Your 40-man roster is full. Release or trade someone first." };
       const pay = payrollOf(ros, state.players) + aav;
       if (pay > cap) return { ok: false, reason: "That signing would put you over the $" + cap + "M payroll cap." };
+      if (bestRival && bestRival.total > userTotal * 1.02 && bestRival.total >= askTotal * 0.98) {
+        const otherRos = state.rosters[String(bestRival.teamId)];
+        if (otherRos && otherRos.length < 40 && payrollOf(otherRos, state.players) + bestRival.aav <= cap) {
+          p.teamId = bestRival.teamId;
+          p.years = bestRival.years;
+          p.aav = bestRival.aav;
+          p.kind = "vet";
+          otherRos.push(pid);
+          state.freeAgents = state.freeAgents.filter((id) => id !== pid);
+          autoLineup(state, bestRival.teamId);
+          const tname = teamById[bestRival.teamId] ? teamById[bestRival.teamId].name : "another club";
+          log(state, p.name + " signed with the " + tname + " (" + bestRival.years + " yr, $" + bestRival.aav.toFixed(1) + "M AAV).");
+          return { ok: false, reason: "The " + tname + " offered " + bestRival.years + " years at $" + bestRival.aav.toFixed(1) + "M AAV, and " + p.name + " took it.", code: "outbid" };
+        }
+      }
       p.teamId = state.userTeam;
       p.years = years;
       p.aav = aav;
@@ -355,26 +490,10 @@ window.DATA = DATA;
       ros.push(pid);
       state.freeAgents = state.freeAgents.filter((id) => id !== pid);
       autoLineup(state, state.userTeam);
-      log(state, "Signed " + p.name + " for " + years + " year" + (years === 1 ? "" : "s") + " at $" + aav.toFixed(2) + "M AAV.");
+      log(state, "Signed " + p.name + " for " + years + " year" + (years === 1 ? "" : "s") + " at $" + aav.toFixed(1) + "M AAV.");
       return { ok: true };
     }
 
-    function faAsk(p) {
-      // asking years/aav
-      const ovr = p.ovr;
-      let aav;
-      if (ovr >= 90) aav = 30 + (ovr - 90) * 3;
-      else if (ovr >= 85) aav = 18 + (ovr - 85) * 2.4;
-      else if (ovr >= 80) aav = 9 + (ovr - 80) * 1.8;
-      else if (ovr >= 75) aav = 4 + (ovr - 75) * 1.0;
-      else if (ovr >= 70) aav = 1.5 + (ovr - 70) * 0.5;
-      else aav = 0.9;
-      if (p.age >= 35) aav *= 0.75;
-      if (p.age <= 27) aav *= 1.05;
-      if (p.pos === "RP") aav *= 0.75;
-      const years = p.age >= 36 ? 1 : p.age >= 33 ? 2 : ovr >= 86 ? 4 : ovr >= 78 ? 3 : 2;
-      return { years, aav: Math.round(Math.max(0.8, aav) * 100) / 100 };
-    }
 
     function release(state, pid) {
       const p = state.players[String(pid)];
@@ -975,11 +1094,15 @@ window.DATA = DATA;
       teamById,
       cap,
       playerValue,
+      packageValue,
       teamNeeds,
+      aiPosture,
       evaluateTrade,
       applyTrade,
       signFA,
       faAsk,
+      faBids,
+      estWar,
       release,
       autoLineup,
       newGame,
@@ -1036,6 +1159,33 @@ window.DATA = DATA;
         const ev = E.evaluateTrade(state, ai.id, [best[0].id], [best[1].id]);
         fairOk = ev.ok || (ev.counter && ev.counter.giveIds);
         if (!ev.ok && !ev.counter) fails.push("near-even trade had no accept or counter: " + best[0].name + " for " + best[1].name + " (" + ev.reason + ")");
+      }
+    }
+    // junk-for-star: a pile of low-ovr pieces cannot buy their ace
+    const junk = state.rosters[String(tid)].map((id) => state.players[String(id)]).filter((p) => p.ovr < 70).sort((a, b) => a.ovr - a.ovr).slice(0, 8);
+    if (junk.length >= 5 && aiBest && aiBest.ovr >= 80) {
+      const pile = E.evaluateTrade(state, ai.id, junk.slice(0, 6).map((p) => p.id), [aiBest.id]);
+      if (pile.ok) fails.push("junk-for-star was accepted: 6 low pieces for " + aiBest.name);
+    }
+    // FA asks: stars, mid-tier, role, older
+    function checkAsk(label, p, pred) {
+      const a = E.faAsk(p);
+      if (!pred(a)) fails.push(label + " ask was " + a.years + " yr / $" + a.aav + "M AAV");
+    }
+    checkAsk("star", { ovr: 91, age: 28, pos: "RF", pot: 91 }, (a) => a.aav >= 25 && a.aav <= 48 && a.years >= 6 && a.years <= 10);
+    checkAsk("mid", { ovr: 81, age: 29, pos: "2B", pot: 81 }, (a) => a.aav >= 8 && a.aav <= 20 && a.years >= 3 && a.years <= 6);
+    checkAsk("role", { ovr: 73, age: 30, pos: "LF", pot: 73 }, (a) => a.aav >= 1 && a.aav <= 5.5 && a.years >= 1 && a.years <= 3);
+    checkAsk("older star", { ovr: 88, age: 36, pos: "DH", pot: 88 }, (a) => a.years <= 3 && a.aav >= 12);
+    const faId = (state.freeAgents || []).find((id) => state.players[String(id)] && state.players[String(id)].ovr >= 70);
+    if (faId) {
+      const fa = state.players[String(faId)];
+      const ask = E.faAsk(fa);
+      const low = E.signFA(state, faId, ask.years, Math.max(0.9, ask.aav * 0.6));
+      if (low.ok) fails.push("lowball FA offer was accepted for " + fa.name);
+      if (low.code && low.code !== "lowball" && low.code !== "years" && !low.ok && /cap|roster/.test(low.reason || "")) {
+        /* cap can block first — still a reject */
+      } else if (low.ok) {
+        /* already flagged */
       }
     }
     // apply a trade of two cheap pieces if possible
@@ -1223,11 +1373,21 @@ window.DATA = DATA;
     const list = state.freeAgents.map((id) => state.players[String(id)]).filter(Boolean).sort((a, b) => b.ovr - a.ovr);
     const rows = list.slice(0, 220).map((p) => {
       const ask = E.faAsk(p);
-      return playerRow(p, { extra: "<td>" + ask.years + " yr / " + money(ask.aav) + '</td><td><button class="btn primary" data-sign="' + p.id + '">Sign</button></td>' });
+      const bids = E.faBids(state, p);
+      const rival = bids.length
+        ? bids.map((b) => {
+            const t = E.teamById[b.teamId];
+            return (t ? t.abv : "???") + " " + b.years + " yr / " + money(b.aav);
+          }).join("; ")
+        : "None yet";
+      return playerRow(p, { extra: "<td>" + ask.years + " yr / " + money(ask.aav) + '</td><td class="fine">' + rival + "</td><td>"
+        + '<input class="yr" data-years="' + p.id + '" type="number" min="1" max="12" value="' + ask.years + '" style="width:3.2em"> '
+        + '<input class="av" data-aav="' + p.id + '" type="number" min="0.9" step="0.1" value="' + ask.aav + '" style="width:4.6em"> '
+        + '<button class="btn primary" data-sign="' + p.id + '">Offer</button></td>' });
     }).join("");
     const msg = faMsg ? '<div class="toast ' + (faMsg.ok ? "good" : "bad") + '">' + faMsg.text + "</div>" : "";
-    return msg + '<div class="panel"><p class="fine">Asking prices are unofficial estimates. You must have 40-man space and cap room. ' + list.length + " free agents, current as of " + DATA.asOf + ".</p><table>"
-      + head("<th>Ask</th><th></th>") + "<tbody>" + rows + "</tbody></table></div>";
+    return msg + '<div class="panel"><p class="fine">Asks track the real 2025–26 market: stars want long, $25–40M+ deals; mid-tier $8–20M; role players $1–5M; older players take shorter guarantees. Lowballs are rejected, and other clubs bid. You need 40-man space and cap room. ' + list.length + " free agents, current as of " + DATA.asOf + ".</p><table>"
+      + head("<th>Ask</th><th>Other offers</th><th>Your offer (yrs / AAV)</th>") + "<tbody>" + rows + "</tbody></table></div>";
   }
 
   function viewStand() {
@@ -1345,9 +1505,12 @@ window.DATA = DATA;
       b.onclick = () => {
         const id = +b.getAttribute("data-sign");
         const p = state.players[String(id)];
-        const ask = E.faAsk(p);
-        const r = E.signFA(state, id, ask.years, ask.aav);
-        faMsg = { ok: r.ok, text: r.ok ? ("Signed " + p.name + " (" + ask.years + " yr, " + money(ask.aav) + ").") : r.reason };
+        const yrEl = document.querySelector('[data-years="'+id+'"]');
+        const avEl = document.querySelector('[data-aav="'+id+'"]');
+        const years = yrEl ? +yrEl.value : E.faAsk(p).years;
+        const aav = avEl ? +avEl.value : E.faAsk(p).aav;
+        const r = E.signFA(state, id, years, aav);
+        faMsg = { ok: r.ok, text: r.ok ? ("Signed " + p.name + " (" + years + " yr, " + money(aav) + ").") : r.reason };
         tab = "fa";
         render();
       };
