@@ -217,7 +217,7 @@ td.l,th.l{text-align:left}
 <div id="ldr" style="position:fixed;inset:0;z-index:9999;background:#0b1014;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;color:#e8eef2;font:700 28px/1 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:.18em;transition:opacity .6s ease"><div>LOADING</div><div style="width:min(420px,70vw)"><div style="height:10px;background:#1a2430;border-radius:999px;overflow:hidden;border:1px solid #2a3a44"><div id="ldrBar" style="height:100%;width:0%;background:linear-gradient(90deg,#3fe0b0,#7cf0d0);border-radius:999px;box-sizing:border-box;transition:none"></div></div><div id="ldrPct" style="margin-top:8px;text-align:center;font:800 14px/1.2 system-ui,sans-serif;letter-spacing:.12em;opacity:.85">0%</div></div></div><div id="fps"></div><div id="gimme"><div class="gb"><b>GIMME</b><span id="gimmeS"></span></div></div>
 <script type="text/x-tour" id="gsrc">
 'use strict';
-const VERSION='v1.12.2';
+const VERSION='v1.12.3';
 const TAU=Math.PI*2,DEG=Math.PI/180;
 const clamp=(v,a,b)=>v<a?a:v>b?b:v,lerp=(a,b,t)=>a+(b-a)*t,smooth=t=>t*t*(3-2*t);
 const pad=n=>String(n).padStart(2,'0');
@@ -247,6 +247,10 @@ const YD=1.0936133, MPS=0.44704, RPM=Math.PI/30, GRAV=9.81;
 const BALL={m:0.04593,r:0.021335,A:Math.PI*0.021335*0.021335,rho:1.2};
 const AERO={cd0:0.200,cd1:0.230,cl0:0.04,cl1:1.0,clMax:0.32,tau:22};
 // club table: full-swing numbers for a strong amateur (club mph, smash, launch deg, spin rpm, loft)
+/* v1.12.3: all club speeds share this scale so a well-struck stock driver totals ~260 yd on flat ground, and bag gaps stay in proportion. */
+const CS_SCALE=0.91217;
+/* career power points (capped at 10): each point scales swing power so a fully loaded bag totals ~330 yd with the driver. */
+const GEAR_POW=0.084;
 const CLUBS=[
  {id:'DR',name:'Driver',  cs:108,sm:1.48,la:12.5,sp:2600,loft:10.5,wood:1},
  {id:'3W',name:'3 Wood',  cs:100,sm:1.46,la:11.2,sp:3500,loft:15,wood:1},
@@ -278,7 +282,7 @@ function windAt(w,z){ // log wind profile, w = {x,y} m/s at 10 m
 function launchFrom(ci,inp,surf){
   const C=CLUBS[ci];const o={};
   let p=inp.power;const over=Math.max(0,p-1);p=Math.min(p,1.12);
-  let cs=C.cs*(p<1?Math.pow(Math.max(p,.02),.6):1+over*.35);
+  let cs=C.cs*CS_SCALE*(p<1?Math.pow(Math.max(p,.02),.6):1+over*.35);
   const q=inp.tempoQ===undefined?1:inp.tempoQ;
   const sx=inp.sx||0,sy=inp.sy||0;            // strike point on face: +x toe, +y high
   let sm=C.sm*(1-.10*sx*sx-.07*sy*sy-.03*(1-q));
@@ -3015,7 +3019,7 @@ function crStats(C,ci){const a=crEq(C,crSlotFor(ci)),b=crEq(C,'b');const z={pow:
 {const _x=executeShot;executeShot=function(inp){const r=G.round;if(((r&&r.car)||G.crCh)&&inp){const C=crLoad();if(C){crGear(C);const z=crStats(C,G.club);G.crLast=z;
    if(G.club===PUTTER||Number.isFinite(inp.ft)){if(Number.isFinite(inp.err))inp.err*=1-.07*z.acc-.04*z.con}
    else{const sh=SHAPES[G.shape]||SHAPES[0];const ka=1-.06*Math.min(10,Math.max(0,z.acc||0)),kc=1-.08*Math.min(10,Math.max(0,z.con||0));if(Number.isFinite(inp.face))inp.face=sh.f+(inp.face-sh.f)*ka;if(Number.isFinite(inp.path))inp.path=sh.p+(inp.path-sh.p)*ka;
-     if(Number.isFinite(inp.sx))inp.sx*=kc;if(Number.isFinite(inp.sy))inp.sy*=kc;if(Number.isFinite(inp.power))inp.power*=1+.025*Math.min(10,Math.max(0,z.pow||0))}}}return _x.apply(this,arguments)}}
+     if(Number.isFinite(inp.sx))inp.sx*=kc;if(Number.isFinite(inp.sy))inp.sy*=kc;if(Number.isFinite(inp.power))inp.power*=1+GEAR_POW*Math.min(10,Math.max(0,z.pow||0))}}}return _x.apply(this,arguments)}}
 {const _t=custTrailRGB;custTrailRGB=function(){const r=G.round;if((r&&r.car)||G.crCh){const C=crLoad();const t=C&&crGear(C)&&crEq(C,'t');if(t)return t.rgb}return _t()}}
 {const _o=custTrailOn;custTrailOn=function(){const r=G.round;if((r&&r.car)||G.crCh){const C=crLoad();return !!(C&&crGear(C)&&crEq(C,'t'))}return _o()}}/* v3.6: career trail = only the pro-shop trail */
 function crBuy(id){const C=crLoad();const it=SHOPI[id];if(!C||!it)return false;crGear(C);if(C.own.includes(id))return false;if(C.cash<it.p)return false;C.cash-=it.p;C.own.push(id);C.eq[it.s]=id;crSave(C);return true}
@@ -3027,7 +3031,7 @@ function showShop(slot){const C=crLoad();if(!C){showCareer();return}crGear(C);sl
     const btn=on?'<b style="color:#3fe0b0">EQUIPPED</b>':own?`<button class="btn alt" data-eq="${x?x.id:''}" style="padding:6px 10px;margin:0;width:auto">Equip</button>`:`<button class="btn" data-buy="${x.id}" style="padding:6px 10px;margin:0;width:auto;${C.cash<x.p?'opacity:.45':''}">${crMoney(x.p)}</button>`;
     return`<div style="background:#121a20;border-radius:12px;padding:9px 10px;${on?'outline:2px solid #3fe0b0':''}"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:800;font-size:14px">${nm}</div>${btn}</div><div style="margin-top:6px;display:grid;gap:3px">${stats}</div></div>`};
   const s=show('scSetup',`<div class="pn" id="shopScr"><div class="hdr"><button class="ib" id="shB">‹</button><h2>Pro shop</h2></div>
-  <div class="gnote">Prize money: <b style="color:#3fe0b0">${crMoney(C.cash)}</b>. Gear works in career rounds. Stats go to 10 (combined gear is capped there). Each point is clearer on the ball: +1 power ≈ +2.5% carry, +1 accuracy ≈ 6% less miss off your aim line, +1 consistency ≈ 8% less strike variance. Luxury and Legend clubs also add spin, launch, and forgiveness. Your club and your ball add together. Your swing still matters most. Cart colors stay free in Cart Part Only.</div>
+  <div class="gnote">Prize money: <b style="color:#3fe0b0">${crMoney(C.cash)}</b>. Gear works in career rounds. Stats go to 10 (combined gear is capped there). A well-struck stock driver totals about 260 yd; a fully loaded bag is about 330 yd. Each power point in between is a real step up. +1 accuracy ≈ 6% less miss off your aim line, +1 consistency ≈ 8% less strike variance. Luxury and Legend clubs also add spin, launch, and forgiveness. Your club and your ball add together. Your swing still matters most. Cart colors stay free in Cart Part Only.</div>
   <div class="seg" id="shT" style="flex-wrap:wrap;margin-top:8px">${SHOP_SLOTS.map(([k,n])=>`<button style="flex:1 1 30%" data-s="${k}" class="${k===slot?'sel':''}">${n}</button>`).join('')}</div>
   <div style="display:grid;gap:8px;margin-top:10px">${card(null)}${items.map(card).join('')}</div><div id="shMsg" class="gnote" style="min-height:18px"></div></div>`);
   $('shB').onclick=showCareer;$('shT').onclick=e=>{const b=e.target.closest('button');if(b)showShop(b.dataset.s)};

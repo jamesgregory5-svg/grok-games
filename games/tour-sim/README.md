@@ -1,8 +1,12 @@
 # Tour Sim (Grok Games hub copy)
 
-Tour Sim v1.12.2, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
+Tour Sim v1.12.3, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
 
 This folder is part of [grok-games](https://github.com/jamesgregory5-svg/grok-games). It uses the hub password gate (`../../auth.js`) and does not have a separate password of its own.
+
+## v1.12.3
+
+- Retuned distances so a well-struck stock driver totals about 260 yd on flat ground with no wind, and a fully maxed career bag (combined cap 10) totals about 330 yd. Mid-level power upgrades step up smoothly between those. Other clubs were scaled with the driver so bag gapping still makes sense.
 
 ## v1.12.2
 
