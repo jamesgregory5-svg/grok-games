@@ -1,0 +1,3677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="../../auth.js"></script>
+<script>GrokAuth.requireSession();</script>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="color-scheme" content="light"/>
+<title>Grok Tycoon — Grok Games</title>
+<style>
+:root{
+  --ink:#161410; --muted:#6c665e; --line:#e4ddd2; --bg:#f4f0ea; --paper:#fffcf7;
+  --soft:#efe9df; --good:#1f6b46; --bad:#9b2c2c; --gold:#b0863c; --navy:#1b2a38;
+  --shadow:0 10px 30px rgba(40,30,16,.08);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Segoe UI","Inter Tight",system-ui,-apple-system,sans-serif;
+  -webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit}
+.mono{font-variant-numeric:tabular-nums}
+.good{color:var(--good)} .bad{color:var(--bad)} .muted{color:var(--muted)} .gold{color:var(--gold)}
+.hidden{display:none!important}
+
+.topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--paper);position:sticky;top:0;z-index:8}
+.brand{font-weight:750;letter-spacing:.14em;text-transform:uppercase;font-size:13px;text-decoration:none}
+.brand:hover{opacity:.7}
+.topbar h1{margin:0;font-size:16px;letter-spacing:.04em}
+.kpis{display:flex;flex-wrap:wrap;gap:8px 16px;margin-left:auto;font-size:13px}
+.kpis b{font-weight:750}
+.top-actions{display:flex;gap:6px}
+
+.btn{appearance:none;border:1px solid var(--ink);background:#fff;color:var(--ink);padding:7px 12px;border-radius:8px;font-size:13px;letter-spacing:.02em}
+.btn:hover{background:#111;color:#fff}
+.btn.primary{background:var(--ink);color:#fff}
+.btn.primary:hover{background:#000}
+.btn.gold{background:var(--ink);color:#fff}
+.btn.danger{border-color:var(--bad);color:var(--bad);background:#fff}
+.btn.danger:hover{background:var(--bad);color:#fff}
+.btn.good{border-color:var(--good);color:var(--good)}
+.btn.good:hover{background:var(--good);color:#fff}
+.btn:disabled{opacity:.4;cursor:default;background:#fff;color:var(--ink)}
+.btn.wide{width:100%;padding:11px 14px;font-weight:700}
+.btn.sm{padding:5px 9px;font-size:12px;border-radius:7px}
+
+/* Title */
+.hero-wrap{min-height:100%;display:flex;flex-direction:column;max-width:1080px;margin:0 auto;padding:22px 18px 50px}
+.hero-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.word{margin:0;letter-spacing:.18em;text-transform:uppercase;font-size:13px;font-weight:750}
+.hero{margin-top:28px;background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:28px 28px 24px;box-shadow:var(--shadow)}
+.hero h1{margin:0 0 8px;font-size:36px;letter-spacing:-.03em;line-height:1.1}
+.hero .lede{margin:0 0 22px;color:var(--muted);max-width:40em;line-height:1.5}
+.hero-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:22px}
+@media(max-width:800px){.hero-grid{grid-template-columns:1fr}.hero h1{font-size:28px}}
+.menu-col{display:flex;flex-direction:column;gap:8px}
+.scorebox{background:var(--soft);border-radius:12px;padding:14px 16px;font-size:14px}
+.scorebox h3{margin:0 0 6px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.saves{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.save-row{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 10px;font-size:13px}
+.save-row .meta{color:var(--muted);font-size:12px}
+.ach-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ach{border:1px solid var(--line);background:#fff;border-radius:999px;padding:3px 8px;font-size:11px;color:var(--muted)}
+.ach.on{border-color:var(--ink);color:var(--ink);font-weight:650}
+
+/* Wizard */
+.wizard{max-width:980px;margin:0 auto;padding:18px 16px 60px}
+.steps{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 16px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.steps span.on{color:var(--ink);font-weight:750}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.pick{border:1px solid var(--line);background:var(--paper);border-radius:14px;padding:12px;text-align:left;cursor:pointer}
+.pick:hover{border-color:#111}
+.pick.on{border-color:#111;box-shadow:inset 0 0 0 1px #111}
+.pick h3{margin:0 0 4px;font-size:15px}
+.pick p{margin:0;color:var(--muted);font-size:12px;line-height:1.4}
+.pick .stat{margin-top:8px;font-size:12px}
+.field{margin:10px 0}
+.field label{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.field input,.field select{width:100%;border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 10px}
+
+/* Play layout */
+.play{display:grid;grid-template-columns:200px 1fr;min-height:100%}
+@media(max-width:820px){.play{grid-template-columns:1fr}.sidenav{flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)}}
+.sidenav{background:var(--paper);border-right:1px solid var(--line);padding:10px 8px 24px;display:flex;flex-direction:column;gap:4px}
+.sidenav button{appearance:none;border:0;background:none;text-align:left;padding:8px 10px;border-radius:8px;color:var(--muted);font-size:13px}
+.sidenav button.on,.sidenav button:hover{background:var(--soft);color:var(--ink);font-weight:700}
+.main{padding:16px 18px 48px;max-width:1100px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.kpi .lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.kpi .val{font-size:20px;font-weight:750;margin-top:2px;font-variant-numeric:tabular-nums}
+.kpi .sub{font-size:12px;color:var(--muted);margin-top:2px}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.panel h2{margin:0 0 10px;font-size:15px;letter-spacing:.02em}
+.panel h3{margin:0 0 8px;font-size:13px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:650}
+.news li{margin:0 0 8px;padding:0 0 8px;border-bottom:1px solid var(--line);list-style:none;font-size:13px;line-height:1.4}
+.news{margin:0;padding:0}
+.news .wk{color:var(--muted);font-size:11px;margin-right:6px}
+
+/* Modals */
+.modal{position:fixed;inset:0;background:rgba(20,16,12,.45);z-index:30;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal[hidden]{display:none!important}
+.sheet{background:var(--paper);border-radius:16px;max-width:560px;width:100%;max-height:min(86vh,780px);overflow:auto;padding:20px 20px 16px;box-shadow:0 20px 50px rgba(0,0,0,.18)}
+.sheet h2{margin:0 0 8px;font-size:20px}
+.sheet p{line-height:1.5}
+.choices{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.choice{text-align:left;border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px 12px}
+.choice:hover{border-color:#111}
+.choice b{display:block;margin-bottom:2px}
+.choice span{display:block;color:var(--muted);font-size:12px}
+
+.tip{position:fixed;z-index:50;max-width:260px;background:#161410;color:#fff;font-size:12px;line-height:1.4;padding:8px 10px;border-radius:8px;pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .12s}
+.tip.on{opacity:1;transform:none}
+
+.tut{position:fixed;inset:0;background:rgba(20,16,12,.55);z-index:40;display:flex;align-items:flex-end;justify-content:center;padding:18px}
+.tut .sheet{margin-bottom:20px}
+
+.bar{height:8px;background:var(--soft);border-radius:99px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--ink);width:0}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:700px){.charts{grid-template-columns:1fr}}
+canvas.chart{width:100%;height:140px;background:#fff;border:1px solid var(--line);border-radius:10px}
+
+.footer-note{margin-top:22px;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+  <div id="screen-title" class="hero-wrap"></div>
+  <div id="screen-new" class="wizard hidden"></div>
+  <div id="screen-play" class="hidden"></div>
+
+  <div id="modal" class="modal" hidden><div class="sheet" id="modal-sheet"></div></div>
+  <div id="tip" class="tip"></div>
+  <script>
+"use strict";
+/* Grok Tycoon — simulation engine (browser + node) */
+var GT = (typeof GT === "object" && GT) || {};
+
+GT.VERSION = "1.11";
+GT.WEEKS_PER_YEAR = 52;
+GT.MAX_SLOTS = 5;
+GT.SAVE_KEY = "grokTycoon.saves.v1";
+GT.META_KEY = "grokTycoon.meta.v1";
+GT.TUT_KEY = "grokTycoon.tutorial.v1";
+
+function clamp(n, a, b) {
+  n = Number(n);
+  if (!Number.isFinite(n)) return a;
+  return n < a ? a : n > b ? b : n;
+}
+function lerp(a, b, t) { return a + (b - a) * t; }
+function roundc(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+function fin(n, fallback) {
+  n = Number(n);
+  return Number.isFinite(n) ? n : (fallback == null ? 0 : fallback);
+}
+function pick(rng, arr) {
+  if (!arr || !arr.length) return null;
+  return arr[Math.floor(rng() * arr.length) % arr.length];
+}
+function pickN(rng, arr, n) {
+  var copy = arr.slice();
+  var out = [];
+  while (copy.length && out.length < n) {
+    out.push(copy.splice(Math.floor(rng() * copy.length), 1)[0]);
+  }
+  return out;
+}
+function uid(rng) {
+  return "id" + Math.floor(rng() * 1e9).toString(36) + Math.floor(rng() * 1e9).toString(36);
+}
+function mulberry32(a) {
+  a = a >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    var t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hashSeed(s) {
+  if (typeof s === "number" && Number.isFinite(s)) return s >>> 0;
+  s = String(s == null ? "tycoon" : s);
+  var h = 2166136261;
+  for (var i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+function chance(rng, p) { return rng() < p; }
+function randRange(rng, a, b) { return a + (b - a) * rng(); }
+function randInt(rng, a, b) { return a + Math.floor(rng() * (b - a + 1)); }
+function deepCopy(o) { return JSON.parse(JSON.stringify(o)); }
+
+GT.clamp = clamp;
+GT.fin = fin;
+GT.roundc = roundc;
+GT.hashSeed = hashSeed;
+GT.mulberry32 = mulberry32;
+GT.deepCopy = deepCopy;
+
+GT.money = function (n) {
+  n = fin(n, 0);
+  var neg = n < 0;
+  var v = Math.abs(Math.round(n));
+  var s = v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return (neg ? "-$" : "$") + s;
+};
+GT.moneyDec = function (n) {
+  n = fin(n, 0);
+  var neg = n < 0;
+  var v = Math.abs(n);
+  var whole = Math.floor(v);
+  var dec = Math.round((v - whole) * 100);
+  if (dec === 100) { whole += 1; dec = 0; }
+  var s = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return (neg ? "-$" : "$") + s + "." + (dec < 10 ? "0" : "") + dec;
+};
+GT.fmtWeek = function (week) {
+  week = Math.max(0, fin(week, 0) | 0);
+  var year = Math.floor(week / 52) + 1;
+  var w = week % 52;
+  var month = Math.floor(w / 4);
+  if (month > 11) month = 11;
+  var names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return "Year " + year + " · " + names[month] + ", week " + ((w % 4) + 1);
+};
+GT.monthIndex = function (week) {
+  var w = ((fin(week, 0) | 0) % 52);
+  var m = Math.floor(w / 4);
+  return m > 11 ? 11 : m;
+};
+GT.seasonOf = function (week) {
+  var m = GT.monthIndex(week);
+  if (m === 11 || m <= 1) return "winter";
+  if (m <= 4) return "spring";
+  if (m <= 7) return "summer";
+  return "fall";
+};
+GT.yearOf = function (week) { return Math.floor(Math.max(0, fin(week, 0)) / 52) + 1; };
+/* ---------- names, city, founders, businesses, events ---------- */
+GT.FIRST = ["Ava","Miles","Priya","Jonah","Elena","Chris","Nia","Owen","Sofia","Kai","Ruth","Leo","Maya","Andre","Hana","Cole","Iris","Mateo","Quinn","Jade","Theo","Nora","Samir","Blair","Diego","Willa","Kenji","Pia","Marcus","Ellis","Yara","Felix","June","Omar","Sable","Ravi","Cora","Hank","Leila","Tess","Nico","Aisha","Brooks","Gita","Paul","Eden","Luca","Min"];
+GT.LAST = ["Hale","Okoye","Vance","Paredes","Cho","Barrett","Ibarra","Nilsen","Kapoor","Duffy","Salvador","Beck","Quan","Foster","Rahman","Ellison","Varga","Brooks","Shah","Keene","Morita","Phelps","Diaz","Okafor","Lang","Singh","Priest","Morrow","Costa","Nguyen","Hart","Abebe","Little","Yates","Khan","Brewer","Solis","Pope","Farrell","Zimmerman"];
+
+GT.NEIGHBORHOODS = [
+  {id:"downtown", name:"Downtown", rentMult:1.55, traffic:1.45, spend:1.15, competition:1.35, vibe:"Office lunches, nightlife, and expensive rent."},
+  {id:"oldport", name:"Old Port", rentMult:1.3, traffic:1.3, spend:1.2, competition:1.2, vibe:"Tourists, weekend crowds, and brick storefronts."},
+  {id:"midtown", name:"Midtown", rentMult:1.15, traffic:1.2, spend:1.05, competition:1.15, vibe:"Steady all-week foot traffic and a mixed crowd."},
+  {id:"riverside", name:"Riverside", rentMult:1.05, traffic:1.05, spend:1.0, competition:0.9, vibe:"Families, evening strolls, and loyal regulars."},
+  {id:"westhills", name:"West Hills", rentMult:1.4, traffic:0.88, spend:1.45, competition:0.8, vibe:"Affluent and quieter — lower volume, higher spend."},
+  {id:"campus", name:"Campus District", rentMult:0.85, traffic:1.28, spend:0.75, competition:1.15, vibe:"Students, late hours, and tight wallets."},
+  {id:"mills", name:"The Mills", rentMult:0.65, traffic:0.72, spend:0.8, competition:0.55, vibe:"Cheap industrial space. Weak walk-in, good for shops and warehouses."},
+  {id:"lakeside", name:"Lakeside", rentMult:1.1, traffic:0.98, spend:1.08, competition:0.85, vibe:"Residential streets and neighborhood regulars."},
+  {id:"airport", name:"Airport Strip", rentMult:1.38, traffic:1.42, spend:1.1, competition:1.28, vibe:"Travelers and peak-day spikes. Rent is not shy."}
+];
+
+GT.CHANNELS = [
+  {id:"flyers", name:"Flyers & street", weeklyMax:800, fit:["food-truck","coffee","bakery","barbershop","car-wash","landscaping"], delay:0, sticky:0.35},
+  {id:"social", name:"Social posts", weeklyMax:2500, fit:["coffee","clothing","ecom","sneakers","bakery","gym","sports","app-studio"], delay:0, sticky:0.45},
+  {id:"ads", name:"Paid ads", weeklyMax:12000, fit:["ecom","clothing","app-studio","tech","gym","realestate","sneakers","game-studio"], delay:0, sticky:0.25},
+  {id:"influencer", name:"Creators", weeklyMax:8000, fit:["clothing","sneakers","ecom","food-truck","app-studio","gym","coffee"], delay:1, sticky:0.55},
+  {id:"local", name:"Local radio / print", weeklyMax:3000, fit:["restaurant","car-wash","gym","barbershop","realestate","sports","bakery"], delay:1, sticky:0.5},
+  {id:"pr", name:"PR & events", weeklyMax:6000, fit:["restaurant","tech","game-studio","clothing","realestate"], delay:2, sticky:0.6},
+  {id:"seo", name:"Search & listings", weeklyMax:4000, fit:["ecom","app-studio","realestate","landscaping","barbershop","gym","car-wash"], delay:3, sticky:0.7},
+  {id:"sales", name:"Outbound sales", weeklyMax:5000, fit:["tech","landscaping","realestate","sports","clothing"], delay:1, sticky:0.4}
+];
+
+GT.BACKGROUNDS = [
+  {id:"saver", name:"Saved Every Paycheck", cash:48000, credit:725, debt:0,
+    skills:{ops:6, craft:5, sales:5, finance:7, people:5, tech:4},
+    blurb:"Years of leftovers and automatic transfers. You start with a real cushion and careful habits."},
+  {id:"culinary", name:"Culinary School", cash:18000, credit:680, debt:9000,
+    skills:{ops:5, craft:9, sales:4, finance:3, people:6, tech:3},
+    blurb:"You can cook under pressure. The student loan reminder arrives monthly. Food businesses trust you faster."},
+  {id:"mba", name:"Night MBA", cash:22000, credit:710, debt:24000,
+    skills:{ops:7, craft:3, sales:6, finance:9, people:7, tech:5},
+    blurb:"Spreadsheets at midnight. You raise money and read a P&L in your sleep, but you owe the program."},
+  {id:"coder", name:"Garage Coder", cash:16000, credit:660, debt:0,
+    skills:{ops:4, craft:7, sales:3, finance:4, people:3, tech:9},
+    blurb:"Shipped side projects from a borrowed laptop. Product comes easy; talking to customers does not."},
+  {id:"shopkid", name:"Shop Kid", cash:28000, credit:700, debt:0,
+    skills:{ops:8, craft:7, sales:6, finance:5, people:7, tech:3},
+    blurb:"You grew up behind a counter. Suppliers take your calls, and you know when a line is too long."},
+  {id:"athlete", name:"College Athlete", cash:14000, credit:670, debt:4000,
+    skills:{ops:6, craft:5, sales:7, finance:3, people:8, tech:3},
+    blurb:"Early mornings and a loud voice. Gyms, training gyms, and anything with a roster fit you."},
+  {id:"hustle", name:"Side-Hustle Pro", cash:12000, credit:640, debt:2000,
+    skills:{ops:5, craft:4, sales:9, finance:4, people:6, tech:5},
+    blurb:"You have sold just about anything online. Marketing instinct is sharp; bookkeeping is a mess."},
+  {id:"family", name:"Family Help", cash:80000, credit:690, debt:0,
+    skills:{ops:3, craft:3, sales:4, finance:4, people:4, tech:3},
+    blurb:"A relative wired the seed money. You have capital, not reps — and they will ask how it is going."},
+  {id:"vet", name:"Service Veteran", cash:32000, credit:760, debt:0,
+    skills:{ops:9, craft:6, sales:5, finance:6, people:8, tech:4},
+    blurb:"Checklists, calm under stress, and a clean credit file. Teams hold together when you are in the room."},
+  {id:"newtown", name:"New in Town", cash:20000, credit:680, debt:0,
+    skills:{ops:6, craft:6, sales:6, finance:5, people:6, tech:5},
+    blurb:"You moved to Harborline with a duffel and a plan. No special edge — just even skills and grit in a pinch."}
+];
+
+function P(id, name, cost, price, extra) {
+  var o = {id:id, name:name, baseCost:cost, basePrice:price, perish:0};
+  if (extra) for (var k in extra) o[k] = extra[k];
+  return o;
+}
+function R(id, name, wage, skill) { return {id:id, name:name, baseWage:wage, skill:skill || "ops"}; }
+function E(id, name, cost, levels) { return {id:id, name:name, cost:cost, levels:levels || 4}; }
+
+GT.BUSINESSES = [
+  {id:"food-truck", name:"Food Truck", group:"food", startup:24500, rent:0, baseRev:4200,
+    skills:{craft:1.25, ops:1.1, sales:1.1}, mobile:true, perishable:true, inspect:true,
+    blurb:"A kitchen on wheels. Pick weekly spots, watch the weather, and don't let the specials sit.",
+    products:[P("taco","Signature plate",3.1,9.5,{perish:1}), P("side","Sides & drinks",0.9,3.25,{perish:1}), P("cater","Weekend catering tray",22,65,{perish:1})],
+    roles:[R("cook","Cook",620,"craft"), R("window","Window lead",540,"sales")],
+    equipment:[E("truck","Truck & wrap",14000,4), E("grill","Grill & prep",4500,4)],
+    season:{winter:0.72, spring:1.02, summer:1.28, fall:1.05},
+    hooks:["routes","weather","permits","festivals"]},
+  {id:"coffee", name:"Coffee Shop", group:"food", startup:42000, rent:1650, baseRev:5600,
+    skills:{craft:1.2, ops:1.15, people:1.05}, perishable:true, inspect:true,
+    blurb:"Morning rush is the whole business. Beans, baristas, and a line that moves.",
+    products:[P("drip","Drip & espresso",1.1,4.75,{perish:2}), P("pastry","Pastry case",1.4,3.8,{perish:1}), P("bag","Retail beans",6.5,16)],
+    roles:[R("barista","Barista",520,"craft"), R("lead","Shift lead",680,"ops"), R("counter","Counter",480,"sales")],
+    equipment:[E("bar","Espresso bar",9000,4), E("seating","Seating & brew bar",3500,3)],
+    season:{winter:1.1, spring:1.0, summer:0.92, fall:1.06},
+    hooks:["rush","loyalty","beans"]},
+  {id:"restaurant", name:"Restaurant", group:"food", startup:88000, rent:2800, baseRev:9800,
+    skills:{craft:1.25, ops:1.2, people:1.15}, perishable:true, inspect:true,
+    blurb:"Covers, reviews, and a health grade on the door. Get the ticket times down.",
+    products:[P("prix","Prix-fixe / mains",7.5,22,{perish:1}), P("bar","Drinks & starters",2.4,9,{perish:1}), P("priv","Private dining",80,240)],
+    roles:[R("chef","Line cook",640,"craft"), R("server","Server",420,"people"), R("host","Host",400,"people"), R("mgr","Floor manager",820,"ops")],
+    equipment:[E("kitchen","Kitchen line",16000,4), E("room","Dining room",8000,3)],
+    season:{winter:1.08, spring:1.0, summer:0.95, fall:1.1},
+    hooks:["covers","healthgrade","reservations"]},
+  {id:"bakery", name:"Bakery", group:"food", startup:36000, rent:1400, baseRev:4800,
+    skills:{craft:1.3, ops:1.15}, perishable:true, inspect:true,
+    blurb:"Ovens before dawn, wholesale accounts, and nothing sells yesterday's loaf.",
+    products:[P("loaf","Daily bread & pastries",1.2,4.5,{perish:1}), P("cake","Celebration cakes",8,28,{perish:2}), P("whole","Wholesale trays",18,42,{perish:1})],
+    roles:[R("baker","Baker",600,"craft"), R("counter","Counter",460,"sales"), R("deliv","Delivery",500,"ops")],
+    equipment:[E("ovens","Ovens & deck",11000,4), E("cases","Cases & mixers",4000,3)],
+    season:{winter:1.12, spring:1.0, summer:0.9, fall:1.08},
+    hooks:["spoilage","wholesale","ovens"]},
+  {id:"barbershop", name:"Barbershop", group:"service", startup:26000, rent:1200, baseRev:4400,
+    skills:{craft:1.2, people:1.25, ops:1.05},
+    blurb:"Chairs, appointment books, and a reputation that walks down the block.",
+    products:[P("cut","Cuts & shaves",3,28), P("color","Color / extra services",8,55), P("retail","Retail product",6,18)],
+    roles:[R("barber","Barber",700,"craft"), R("desk","Front desk",440,"people")],
+    equipment:[E("chairs","Chairs & stations",7000,5), E("shop","Shop fit-out",3500,3)],
+    season:{winter:0.95, spring:1.05, summer:1.08, fall:1.0},
+    hooks:["chairs","appointments"]},
+  {id:"gym", name:"Gym", group:"service", startup:74000, rent:2400, baseRev:7200,
+    skills:{people:1.2, ops:1.15, sales:1.15},
+    blurb:"Memberships, churn, and whether the floor looks like someone cares.",
+    products:[P("mem","Memberships",0,45), P("pt","Personal training",15,70), P("class","Classes & day passes",4,18)],
+    roles:[R("train","Trainer",640,"craft"), R("desk","Front desk",460,"sales"), R("clean","Attendant",400,"ops")],
+    equipment:[E("floor","Floor equipment",22000,5), E("locker","Lockers & studio",8000,3)],
+    season:{winter:1.15, spring:1.12, summer:0.88, fall:1.0},
+    hooks:["memberships","churn"]},
+  {id:"car-wash", name:"Car Wash", group:"service", startup:62000, rent:2000, baseRev:6400,
+    skills:{ops:1.25, sales:1.05},
+    blurb:"Throughput and weather. Rainy weeks hurt; a membership club smooths them out.",
+    products:[P("wash","Washes",2.2,14), P("club","Wash club",0,22), P("add","Wax & add-ons",3.5,18)],
+    roles:[R("att","Attendant",440,"ops"), R("tech","Equipment tech",620,"craft"), R("cash","Cashier",400,"sales")],
+    equipment:[E("tunnel","Tunnel / bays",24000,5), E("chem","Chem & dryers",6000,3)],
+    season:{winter:0.85, spring:1.1, summer:1.15, fall:1.0},
+    hooks:["weather","memberships","throughput"]},
+  {id:"landscaping", name:"Landscaping", group:"service", startup:22000, rent:700, baseRev:5200,
+    skills:{ops:1.25, people:1.05, sales:1.15},
+    blurb:"Crews, routes, and seasonal work. Winter is lean unless you add snow contracts.",
+    products:[P("maint","Weekly maintenance",18,85), P("install","Install / design jobs",120,640), P("snow","Snow & specials",40,180)],
+    roles:[R("crew","Crew",520,"ops"), R("lead","Crew lead",700,"ops"), R("est","Estimator",640,"sales")],
+    equipment:[E("trailers","Trucks & trailers",12000,4), E("mowers","Mowers & tools",6000,4)],
+    season:{winter:0.45, spring:1.25, summer:1.3, fall:1.1},
+    hooks:["contracts","season","crews"]},
+  {id:"sports", name:"Sports Training", group:"service", startup:28000, rent:1500, baseRev:5000,
+    skills:{craft:1.2, people:1.25, sales:1.1},
+    blurb:"Youth seasons, private lessons, and trainers who actually show up.",
+    products:[P("priv","Private sessions",10,55), P("group","Group clinics",6,22), P("camp","Camps & programs",40,180)],
+    roles:[R("coach","Trainer",660,"craft"), R("desk","Front desk",440,"sales")],
+    equipment:[E("court","Court / turf",9000,4), E("gear","Training gear",3500,3)],
+    season:{winter:1.15, spring:1.2, summer:0.95, fall:1.15},
+    hooks:["clients","seasons"]},
+  {id:"clothing", name:"Clothing Brand", group:"retail", startup:32000, rent:1100, baseRev:5800,
+    skills:{craft:1.2, sales:1.2, ops:1.05},
+    blurb:"Design a drop, wait on the factory, and pray the leftover size run is not you.",
+    products:[P("core","Core line",8,32), P("drop","Seasonal drop",12,48), P("whole","Wholesale packs",80,180)],
+    roles:[R("design","Designer",720,"craft"), R("prod","Production",560,"ops"), R("retail","Retail / CS",480,"sales"), R("mkt","Marketer",640,"sales")],
+    equipment:[E("studio","Studio & samples",6000,3), E("store","Shop / warehouse",5000,3)],
+    season:{winter:1.15, spring:1.05, summer:0.9, fall:1.15},
+    hooks:["drops","trends","markdowns"]},
+  {id:"ecom", name:"E-commerce Shop", group:"retail", startup:16000, rent:500, baseRev:5400,
+    skills:{sales:1.25, ops:1.15, tech:1.1},
+    blurb:"Ads, conversion, shipping times, and the return box by the door.",
+    products:[P("hero","Hero SKU",9,29), P("bundle","Bundles",16,49), P("add","Add-on items",4,14)],
+    roles:[R("ops","Warehouse",480,"ops"), R("cs","Customer service",500,"people"), R("ads","Ads manager",700,"sales")],
+    equipment:[E("wh","Warehouse setup",4000,3), E("site","Site & tools",2500,4)],
+    season:{winter:1.25, spring:0.95, summer:0.9, fall:1.1},
+    hooks:["ads","cac","returns","shipping"]},
+  {id:"sneakers", name:"Sneaker Resale", group:"retail", startup:20000, rent:600, baseRev:7400,
+    skills:{sales:1.2, finance:1.15, ops:1.05},
+    blurb:"Hunt the drop, authenticate, and don't get stuck with last season's hype.",
+    products:[P("heat","Heat pairs",95,175), P("core","Core pairs",48,95), P("acc","Accessories",8,24)],
+    roles:[R("buyer","Buyer",640,"sales"), R("auth","Authenticator",600,"craft"), R("ops","Ops",480,"ops")],
+    equipment:[E("auth","Auth tools & storage",3500,3), E("site","Storefront",2000,3)],
+    season:{winter:1.05, spring:1.1, summer:0.95, fall:1.15},
+    hooks:["drops","hype","deadstock"]},
+  {id:"tech", name:"Tech Startup", group:"digital", startup:18000, rent:900, baseRev:1200,
+    skills:{tech:1.3, craft:1.1, sales:1.1, finance:1.1},
+    blurb:"A product, a burn rate, and a clock. Users first, revenue later — if the runway holds.",
+    products:[P("seat","Subscriptions",2,16), P("setup","Setup / annual plans",40,240)],
+    roles:[R("eng","Engineer",980,"tech"), R("des","Designer",820,"craft"), R("sales","Sales",740,"sales"), R("cs","Support",560,"people")],
+    equipment:[E("stack","Software stack",3000,4), E("office","Office / lab",4000,3)],
+    season:{winter:1.0, spring:1.05, summer:0.95, fall:1.05},
+    hooks:["users","burn","roadmap","raise"]},
+  {id:"app-studio", name:"App Studio", group:"digital", startup:14000, rent:700, baseRev:2600,
+    skills:{tech:1.25, craft:1.2, sales:1.1},
+    blurb:"A small portfolio of apps. Ship, get featured or forgotten, and start the next one.",
+    products:[P("iap","In-app purchases",0.4,4), P("prem","Premium unlocks",0,9), P("adsrev","Ad revenue",0,1.2)],
+    roles:[R("eng","Engineer",920,"tech"), R("des","Designer",780,"craft"), R("ua","Growth",700,"sales")],
+    equipment:[E("tools","Dev tools & seats",2500,4), E("office","Studio",3000,3)],
+    season:{winter:1.1, spring:1.0, summer:1.05, fall:1.0},
+    hooks:["portfolio","aso","featured"]},
+  {id:"game-studio", name:"Game Studio", group:"digital", startup:22000, rent:1000, baseRev:800,
+    skills:{craft:1.25, tech:1.2, ops:1.05},
+    blurb:"A project in production, a launch window, and a long tail if reviews are kind.",
+    products:[P("game","Game sales",4,18), P("dlc","DLC & extras",2,8)],
+    roles:[R("prog","Programmer",980,"tech"), R("art","Artist",820,"craft"), R("des","Designer",800,"craft"), R("prod","Producer",860,"ops")],
+    equipment:[E("tools","Engine & tools",4000,4), E("office","Office",4500,3)],
+    season:{winter:1.2, spring:0.95, summer:0.9, fall:1.15},
+    hooks:["project","launch","reviews","crunch"]},
+  {id:"realestate", name:"Real Estate", group:"property", startup:52000, rent:400, baseRev:3600,
+    skills:{finance:1.3, ops:1.15, sales:1.1},
+    blurb:"Buy, rent, repair, and ride the Harborline market. Leverage cuts both ways.",
+    products:[P("rent","Rents collected",0,0), P("flip","Flip proceeds",0,0)],
+    roles:[R("pm","Property manager",720,"ops"), R("hand","Handyperson",560,"craft"), R("agent","Agent",500,"sales")],
+    equipment:[E("office","Office & software",2500,3), E("van","Van & tools",4000,3)],
+    season:{winter:0.95, spring:1.1, summer:1.1, fall:1.0},
+    hooks:["properties","rates","vacancy","repairs"]}
+];
+GT.BIZ = {};
+GT.BUSINESSES.forEach(function (b) { GT.BIZ[b.id] = b; });
+GT.BG = {};
+GT.BACKGROUNDS.forEach(function (b) { GT.BG[b.id] = b; });
+GT.HOOD = {};
+GT.NEIGHBORHOODS.forEach(function (b) { GT.HOOD[b.id] = b; });
+
+GT.SUPPLIERS = [
+  {id:"budget", name:"Budget Supply Co.", costMult:0.82, quality:-8, lead:2, reliability:0.86},
+  {id:"standard", name:"Harbor Wholesale", costMult:1.0, quality:0, lead:1, reliability:0.95},
+  {id:"premium", name:"Northline Premium", costMult:1.28, quality:10, lead:0, reliability:0.99},
+  {id:"specialty", name:"Specialty Importers", costMult:1.45, quality:16, lead:3, reliability:0.9}
+];
+
+GT.LOAN_PRODUCTS = [
+  {id:"starter", name:"Starter bank loan", minCredit:640, maxAmount:40000, rate:0.11, weeks:104, fee:0.02},
+  {id:"term", name:"Term loan", minCredit:700, maxAmount:150000, rate:0.085, weeks:156, fee:0.015},
+  {id:"equip", name:"Equipment loan", minCredit:660, maxAmount:80000, rate:0.09, weeks:130, fee:0.02},
+  {id:"loc", name:"Line of credit", minCredit:680, maxAmount:50000, rate:0.135, weeks:0, fee:0.01, revolving:true},
+  {id:"mca", name:"Merchant advance", minCredit:560, maxAmount:25000, rate:0.32, weeks:26, fee:0.08, predatory:true}
+];
+
+GT.ACHIEVEMENTS = [
+  {id:"first-profit", name:"In the Black", desc:"Post a profitable week."},
+  {id:"first-hire", name:"You're Hired", desc:"Hire your first employee."},
+  {id:"staff5", name:"Small Team", desc:"Have 5 staff at once."},
+  {id:"staff20", name:"Payroll Day", desc:"Have 20 staff at once."},
+  {id:"five-star", name:"Five Stars", desc:"Reach a 4.8+ average review."},
+  {id:"million", name:"Millionaire", desc:"Reach $1,000,000 net worth."},
+  {id:"billion", name:"Billionaire", desc:"Reach $1,000,000,000 net worth."},
+  {id:"ipo", name:"Ring the Bell", desc:"Take the company public."},
+  {id:"sold", name:"Sold the Shop", desc:"Sell the company."},
+  {id:"decade", name:"Decade Club", desc:"Survive 10 years."},
+  {id:"locs3", name:"Tripled Up", desc:"Operate 3 locations."},
+  {id:"franchise5", name:"Franchise Kit", desc:"Have 5 franchise units."},
+  {id:"acquire", name:"Buy the Rival", desc:"Acquire a competitor."},
+  {id:"debtfree", name:"Debt-Free", desc:"Pay off all loans after having debt."},
+  {id:"credit800", name:"Golden File", desc:"Reach an 800 credit score."},
+  {id:"recession", name:"Still Standing", desc:"Survive a recession week."},
+  {id:"inspect-a", name:"Grade A", desc:"Pass an inspection with a high score."},
+  {id:"online", name:"Open 24/7", desc:"Launch an online channel."},
+  {id:"pivot", name:"New Direction", desc:"Pivot the business."},
+  {id:"series-a", name:"Series A", desc:"Close a priced equity round."},
+  {id:"net10m", name:"Ten Million", desc:"Reach $10,000,000 net worth."},
+  {id:"perfect-week", name:"Clean Week", desc:"A week with profit and 90+ satisfaction."},
+  {id:"bankrupt", name:"Lesson Paid For", desc:"Go bankrupt. It happens."}
+];
+GT.EVENTS = [
+  {id:"viral", name:"The clip goes everywhere",
+    w:1.1, minWeek:6,
+    text:"A customer posts a clip of your business and it takes off overnight. The phone will not stop. What do you do with the spike?",
+    choices:[
+      {id:"lean", label:"Lean into it", rec:"Spend extra on product and staff this week to convert the hype.",
+        fn:function(s,r){ s.marketingHeat = clamp(s.marketingHeat + 28, 0, 100); s.satisfaction = clamp(s.satisfaction + 4, 0, 100); addNews(s, "The viral clip keeps sending people your way."); }},
+      {id:"ads", label:"Buy ads on the back of it", rec:"Spend 8% of cash (min $800) on a follow-up burst.",
+        fn:function(s,r){ var c = clamp(Math.max(800, s.cash * 0.08), 0, s.cash * 0.4); spendCash(s, c); s.marketingHeat += 40; s.flags.viralBoost = 6; addNews(s, "You spent " + GT.money(c) + " riding the viral wave."); }},
+      {id:"ignore", label:"Keep the same hours", rec:"Safe, but the moment fades faster.",
+        fn:function(s,r){ s.marketingHeat += 10; addNews(s, "You stayed the course. The clip still helped a little."); }}
+    ]},
+  {id:"shortage", name:"Supplier comes up short",
+    w:1.0, minWeek:4, requires:function(s){ return s.inventoryValue > 0 || hasHook(s, "perishable") || true; },
+    text:"Your usual supplier is late and short. Shelves (or the prep table) will feel it.",
+    choices:[
+      {id:"prem", label:"Pay a rush premium", rec:"Spend cash to keep quality intact.",
+        fn:function(s,r){ var c = clamp(s.weeklyCost * 0.7 + 400, 400, s.cash * 0.5); if (s.cash < c) { s.quality = clamp(s.quality - 6, 5, 100); addNews(s, "You could not afford the rush order. Quality slipped."); return; } spendCash(s, c); bumpInv(s, 0.5); s.quality = clamp(s.quality + 1, 5, 100); addNews(s, "Rush order landed for " + GT.money(c) + "."); }},
+      {id:"sub", label:"Use a cheaper substitute", rec:"Protects cash, ding to quality.",
+        fn:function(s,r){ s.quality = clamp(s.quality - 7, 5, 100); s.satisfaction = clamp(s.satisfaction - 4, 0, 100); bumpInv(s, 0.35); addNews(s, "Substitutes kept you open, but people noticed."); }},
+      {id:"limit", label:"Limit the menu / SKUs", rec:"Fewer sales, no quality hit.",
+        fn:function(s,r){ s.flags.capacityHit = 2; s.flags.capacityMult = 0.7; addNews(s, "You trimmed the offer until stock recovers."); }}
+    ]},
+  {id:"recession", name:"Harborline cools off",
+    w:0.45, minWeek:20, once:false,
+    text:"Spending across the city tightens. Rivals start discounting. This can last a few months.",
+    choices:[
+      {id:"cut", label:"Cut prices and costs", rec:"Protect volume. Margins get thinner.",
+        fn:function(s,r){ s.flags.recession = randInt(r, 8, 16); s.flags.recessionCut = true; s.products.forEach(function(p){ p.price = roundc(p.price * 0.92); }); addNews(s, "You discounted into the downturn. A recession has started."); }},
+      {id:"hold", label:"Hold quality, ride it out", rec:"Volume drops more, brand holds.",
+        fn:function(s,r){ s.flags.recession = randInt(r, 8, 16); s.reputation = clamp(s.reputation + 2, 0, 100); addNews(s, "You refused to cheapen the brand. Demand will dip."); }},
+      {id:"expand", label:"Expand while rents soften", rec:"Spend to grow — brilliant or reckless.",
+        fn:function(s,r){ s.flags.recession = randInt(r, 8, 16); s.flags.buyDiscount = 0.85; s.marketingHeat += 8; addNews(s, "You are shopping for deals during the slump."); }}
+    ]},
+  {id:"boom", name:"The city is busy",
+    w:0.4, minWeek:16,
+    text:"A good stretch: events in town, hiring is up, and wallets are looser for a while.",
+    choices:[
+      {id:"staff", label:"Staff up for the rush", rec:"Higher payroll, higher capacity.",
+        fn:function(s,r){ s.flags.boom = randInt(r, 6, 12); s.flags.wagePress = 1.08; addNews(s, "You prepped the floor for a busy month."); }},
+      {id:"save", label:"Bank the extra", rec:"No extra cost. A solid, quiet choice.",
+        fn:function(s,r){ s.flags.boom = randInt(r, 6, 12); addNews(s, "You let the good weeks pad the account."); }},
+      {id:"mkt", label:"Push marketing harder", rec:"Spend to amplify the boom.",
+        fn:function(s,r){ s.flags.boom = randInt(r, 6, 12); var c = clamp(s.cash * 0.06, 500, 8000); spendCash(s, Math.min(c, s.cash * 0.3)); s.marketingHeat += 18; addNews(s, "You amplified a busy season."); }}
+    ]},
+  {id:"lawsuit", name:"A complaint turns legal",
+    w:0.5, minWeek:12,
+    text:"Someone is threatening a suit — a slip, a product claim, or a contract spat. It is not huge yet, but it is real.",
+    choices:[
+      {id:"settle", label:"Settle quietly", rec:"Pay now, no lingering drag.",
+        fn:function(s,r){ var c = clamp(2000 + s.revenueRunRate * 0.15, 2000, Math.max(2000, s.cash * 0.35)); if (s.cash < c) { s.debtSpecial = (s.debtSpecial || 0) + c; s.creditScore = clamp(s.creditScore - 8, 300, 850); } spendCash(s, Math.min(c, s.cash)); s.reputation = clamp(s.reputation - 2, 0, 100); addNews(s, "You settled for " + GT.money(c) + "."); }},
+      {id:"fight", label:"Fight it", rec:"Cheaper today, risk later.",
+        fn:function(s,r){ s.flags.lawsuit = randInt(r, 4, 10); s.flags.lawsuitRisk = 0.4; spendCash(s, Math.min(800, s.cash * 0.1)); addNews(s, "You hired a lawyer and will fight the claim."); }},
+      {id:"fix", label:"Fix the problem in public", rec:"Spend on process + a goodwill gesture.",
+        fn:function(s,r){ var c = clamp(1200 + s.weeklyCost * 0.3, 1200, s.cash * 0.25); spendCash(s, Math.min(c, s.cash * 0.4)); s.satisfaction = clamp(s.satisfaction + 5, 0, 100); s.reputation = clamp(s.reputation + 3, 0, 100); addNews(s, "You spent to fix the issue and said so publicly."); }}
+    ]},
+  {id:"staff-raise", name:"A key person wants a raise",
+    w:1.0, minWeek:8, requires:function(s){ return s.staff.length > 0; },
+    text:function(s){ var p = bestStaff(s); return (p ? p.name : "A lead employee") + " is your most reliable person and knows it. They want more money, or they will look around."; },
+    choices:[
+      {id:"yes", label:"Give the raise", rec:"Wage goes up, morale and loyalty jump.",
+        fn:function(s,r){ var p = bestStaff(s); if (!p) return; p.wage = roundc(p.wage * 1.18); p.morale = clamp(p.morale + 18, 0, 100); p.loyal = (p.loyal || 0) + 20; addNews(s, p.name + " stays, at " + GT.money(p.wage) + "/wk."); }},
+      {id:"part", label:"Split the difference", rec:"A smaller bump. They may still wander later.",
+        fn:function(s,r){ var p = bestStaff(s); if (!p) return; p.wage = roundc(p.wage * 1.08); p.morale = clamp(p.morale + 6, 0, 100); addNews(s, "You met " + p.name + " in the middle."); }},
+      {id:"no", label:"Hold the line", rec:"Saves payroll. Risk they walk.",
+        fn:function(s,r){ var p = bestStaff(s); if (!p) return; p.morale = clamp(p.morale - 22, 0, 100); p.flight = 0.45; addNews(s, p.name + " did not get the raise."); }}
+    ]},
+  {id:"walkout", name:"The shift is shaky",
+    w:0.7, minWeek:10, requires:function(s){ return s.staff.length >= 2; },
+    text:"Morale has been soft. A couple of people are talking about walking if nothing changes.",
+    choices:[
+      {id:"bonus", label:"Pay a retention bonus", rec:"Cash today, calmer floor.",
+        fn:function(s,r){ var c = s.staff.length * 180; spendCash(s, Math.min(c, s.cash * 0.4)); s.staff.forEach(function(p){ p.morale = clamp(p.morale + 12, 0, 100); }); addNews(s, "Retention bonuses went out."); }},
+      {id:"talk", label:"Hold a hard conversation", rec:"Depends on your people skill.",
+        fn:function(s,r){ var ok = s.skills.people + (s.flags.vetBonus ? 2 : 0); if (ok >= 6) { s.staff.forEach(function(p){ p.morale = clamp(p.morale + 6, 0, 100); }); addNews(s, "The talk landed. The crew is steadier."); } else { s.staff.forEach(function(p){ p.morale = clamp(p.morale - 6, 0, 100); }); s.flags.capacityHit = 1; s.flags.capacityMult = 0.85; addNews(s, "The meeting went badly. The week will be short-handed."); } }},
+      {id:"replace", label:"Let them go and rehire", rec:"Severance plus a rough week.",
+        fn:function(s,r){ var gone = s.staff.splice(0, Math.min(2, s.staff.length)); var sev = 0; gone.forEach(function(p){ sev += p.wage; }); spendCash(s, sev); s.flags.capacityHit = 2; s.flags.capacityMult = 0.75; addNews(s, "You let " + gone.map(function(p){return p.name;}).join(" and ") + " go."); }}
+    ]},
+  {id:"partnership", name:"A partnership offer",
+    w:0.7, minWeek:14,
+    text:"A local operator wants to bundle services or carry your product. They want a cut, and they have an audience you do not.",
+    choices:[
+      {id:"yes", label:"Take the deal", rec:"Revenue share for extra demand.",
+        fn:function(s,r){ s.flags.partner = randInt(r, 16, 36); s.flags.partnerCut = 0.12; s.flags.partnerDemand = 1.16; addNews(s, "You signed a partnership. They take 12% of related sales."); }},
+      {id:"trial", label:"Trial month only", rec:"Smaller upside, easy out.",
+        fn:function(s,r){ s.flags.partner = 5; s.flags.partnerCut = 0.1; s.flags.partnerDemand = 1.1; addNews(s, "A four-week trial partnership is on."); }},
+      {id:"no", label:"Pass", rec:"Keep control.",
+        fn:function(s,r){ addNews(s, "You passed on the partnership."); }}
+    ]},
+  {id:"buyout", name:"Someone wants to buy you",
+    w:0.55, minWeek:30, requires:function(s){ return companyValue(s) > 80000; },
+    text:function(s){ var v = Math.round(companyValue(s) * (0.85 + (s._rng?0:0))); return "A group is circling with a buyout offer. It will land near what you are worth — maybe a little less, maybe a little more."; },
+    choices:[
+      {id:"take", label:"Take the offer", rec:"This can end the game as a sale.",
+        fn:function(s,r){ var mult = 0.88 + r() * 0.28; var v = Math.max(1000, companyValue(s) * mult); s.flags.pendingBuyout = v; s.flags.autoSell = true; addNews(s, "You accepted an offer of " + GT.money(v) + "."); }},
+      {id:"counter", label:"Counter higher", rec:"They may walk.",
+        fn:function(s,r){ if (r() < 0.45 + s.skills.finance * 0.03) { var v = companyValue(s) * (1.05 + r() * 0.15); s.flags.pendingBuyout = v; s.flags.autoSell = true; addNews(s, "They agreed to " + GT.money(v) + "."); } else { addNews(s, "They walked after the counter."); } }},
+      {id:"no", label:"Not for sale", rec:"Stay independent. They may not be back.",
+        fn:function(s,r){ s.reputation = clamp(s.reputation + 1, 0, 100); addNews(s, "You told them the company is not for sale."); }}
+    ]},
+  {id:"rent-hike", name:"The landlord wants more",
+    w:0.8, minWeek:16, requires:function(s){ return weeklyRent(s) > 0; },
+    text:"Rent is going up at renewal. Not a shock in Harborline, but it will pinch.",
+    choices:[
+      {id:"pay", label:"Sign and pay", rec:"Keep the location, higher rent.",
+        fn:function(s,r){ s.locations.forEach(function(l){ if (!l.franchise) l.rent = roundc(l.rent * 1.14); }); addNews(s, "You signed the hike. Rent is up 14%."); }},
+      {id:"negotiate", label:"Negotiate a smaller hike", rec:"Depends on finance/people skill.",
+        fn:function(s,r){ var ok = s.skills.finance + s.skills.people; var m = ok >= 12 ? 1.05 : ok >= 8 ? 1.08 : 1.12; s.locations.forEach(function(l){ if (!l.franchise) l.rent = roundc(l.rent * m); }); addNews(s, "Rent rises by " + Math.round((m-1)*100) + "%."); }},
+      {id:"move", label:"Plan a move", rec:"One disrupted month, then cheaper space.",
+        fn:function(s,r){ s.flags.moving = 3; s.flags.capacityMult = 0.8; var hood = GT.HOOD.mills; if (s.locations[0]) { s.locations[0].rent = roundc(s.locations[0].rent * 0.75); s.locations[0].hoodId = "mills"; s.locations[0].name = "The Mills"; } addNews(s, "You prepped a move toward cheaper space."); }}
+    ]},
+  {id:"breakdown", name:"Equipment gives out",
+    w:0.9, minWeek:6, requires:function(s){ return s.equipment.length > 0; },
+    text:"Something important is down — a machine, an oven, a van, a server. The week will hurt until it is fixed.",
+    choices:[
+      {id:"fix", label:"Repair it properly", rec:"Pay the bill, restore capacity.",
+        fn:function(s,r){ var c = clamp(900 + r() * 2400, 900, 4000); spendCash(s, Math.min(c, s.cash)); s.equipment.forEach(function(e){ e.cond = clamp(e.cond + 20, 0, 100); }); addNews(s, "Repairs cost " + GT.money(c) + "."); }},
+      {id:"tape", label:"Jury-rig it", rec:"Cheap, and it may fail again.",
+        fn:function(s,r){ spendCash(s, Math.min(250, s.cash)); s.flags.capacityHit = 2; s.flags.capacityMult = 0.82; s.flags.breakRisk = 0.25; addNews(s, "You taped it together. Capacity is down a bit."); }},
+      {id:"upgrade", label:"Replace and upgrade", rec:"Big spend, better equipment.",
+        fn:function(s,r){ var e = s.equipment[0]; var c = (e ? e.cost : 3000) * 0.7; spendCash(s, Math.min(c, s.cash)); if (e) { e.level = Math.min((e.level || 1) + 1, e.levels || 4); e.cond = 100; } addNews(s, "You replaced it with a better unit."); }}
+    ]},
+  {id:"inspect", name:"Inspection day",
+    w:0.85, minWeek:5, requires:function(s){ return !!(GT.BIZ[s.businessId] || {}).inspect; },
+    text:"An inspector is at the door with a clipboard. Preparation and cleanliness decide this.",
+    choices:[
+      {id:"open", label:"Open the books and the kitchen", rec:"Your quality and ops skill do the talking.",
+        fn:function(s,r){ runInspection(s, r, 0); }},
+      {id:"prep", label:"Pay for a same-day deep clean", rec:"Spend to improve the odds.",
+        fn:function(s,r){ spendCash(s, Math.min(400, s.cash)); runInspection(s, r, 12); }},
+      {id:"delay", label:"Ask to reschedule", rec:"Sometimes works. Sometimes they frown.",
+        fn:function(s,r){ if (r() < 0.4) { addNews(s, "They agreed to come back in two weeks."); s.flags.nextInspect = s.week + 2; } else { runInspection(s, r, -8); } }}
+    ]},
+  {id:"audit", name:"A tax letter arrives",
+    w:0.4, minWeek:24,
+    text:"The state wants a closer look at last year's filings. If you have been setting money aside, this is mostly paperwork.",
+    choices:[
+      {id:"pay", label:"File and pay what is owed", rec:"Clears it. Uses tax reserve first.",
+        fn:function(s,r){ var due = Math.max(s.taxReserve * 0.2, s.taxOwed || 0); var pay = Math.min(due + 200, s.cash + s.taxReserve); payTax(s, pay); s.creditScore = clamp(s.creditScore + 4, 300, 850); addNews(s, "You settled the tax letter."); }},
+      {id:"plan", label:"Set up a payment plan", rec:"Penalties, but cash is spared.",
+        fn:function(s,r){ s.taxOwed = (s.taxOwed || 0) * 1.08 + 150; s.creditScore = clamp(s.creditScore - 6, 300, 850); addNews(s, "You entered a tax payment plan."); }},
+      {id:"ignore", label:"Stall", rec:"A bad idea that gets worse.",
+        fn:function(s,r){ s.taxOwed = (s.taxOwed || 0) * 1.15 + 400; s.creditScore = clamp(s.creditScore - 16, 300, 850); s.flags.taxLienRisk = true; addNews(s, "You stalled. Interest is running, and your credit felt it."); }}
+    ]},
+  {id:"festival", name:"City festival weekend",
+    w:0.7, minWeek:3,
+    text:"Harborline's waterfront festival is this week. Food, retail, and anything with a booth can have a huge weekend — if you show up.",
+    choices:[
+      {id:"booth", label:"Get a booth", rec:"Pay a fee, bring stock, take the sales.",
+        fn:function(s,r){ var c = 450; spendCash(s, Math.min(c, s.cash)); s.flags.festival = 1; s.flags.festivalMult = 1.55; bumpInv(s, 0.2); addNews(s, "You booked a festival booth."); }},
+      {id:"extend", label:"Extend hours instead", rec:"Cheaper, smaller lift.",
+        fn:function(s,r){ s.flags.festival = 1; s.flags.festivalMult = 1.18; addNews(s, "You extended hours for festival traffic."); }},
+      {id:"skip", label:"Skip it", rec:"A quiet regular week.",
+        fn:function(s,r){ addNews(s, "You skipped the festival."); }}
+    ]},
+  {id:"influencer-ask", name:"A creator wants a deal",
+    w:0.65, minWeek:7,
+    text:"A mid-size creator offers a post in exchange for product, a fee, or both. It might be a burst of sales — or just a free lunch.",
+    choices:[
+      {id:"pay", label:"Pay the fee", rec:"Real spend, real reach.",
+        fn:function(s,r){ var c = clamp(600 + r() * 1800, 600, 2500); spendCash(s, Math.min(c, s.cash)); s.marketingHeat += 16 + r() * 16; addNews(s, "You paid " + GT.money(c) + " for a creator post."); }},
+      {id:"trade", label:"Trade product only", rec:"Cheap. Weaker, sometimes great.",
+        fn:function(s,r){ bumpInv(s, -0.08); s.marketingHeat += 6 + r() * 10; addNews(s, "You comped product for a mention."); }},
+      {id:"no", label:"Decline", rec:"Keep the margin.",
+        fn:function(s,r){ addNews(s, "You declined the creator deal."); }}
+    ]},
+  {id:"theft", name:"Cash or stock is missing",
+    w:0.45, minWeek:8, requires:function(s){ return s.staff.length > 0; },
+    text:"The counts are off. Someone may be stealing, or the process is sloppy. Either way, you have to deal with it.",
+    choices:[
+      {id:"cam", label:"Tighten systems", rec:"Spend on process, reduce losses.",
+        fn:function(s,r){ spendCash(s, Math.min(350, s.cash)); s.flags.shrink = Math.max(0, (s.flags.shrink || 0.02) - 0.015); s.staff.forEach(function(p){ p.morale = clamp(p.morale - 2, 0, 100); }); addNews(s, "You tightened inventory and till counts."); }},
+      {id:"accuse", label:"Confront the likely person", rec:"Risky for morale, may be right.",
+        fn:function(s,r){ var p = s.staff[Math.floor(r() * s.staff.length)]; if (r() < 0.45) { s.staff = s.staff.filter(function(x){ return x.id !== p.id; }); addNews(s, "You let " + p.name + " go after the counts."); } else { p.morale = clamp(p.morale - 30, 0, 100); s.staff.forEach(function(x){ x.morale = clamp(x.morale - 6, 0, 100); }); addNews(s, "The confrontation landed badly. Morale dipped."); } }},
+      {id:"eat", label:"Eat the loss and watch", rec:"Small cash hit, no drama.",
+        fn:function(s,r){ var loss = clamp(s.cash * 0.03, 80, 2000); spendCash(s, loss); addNews(s, "You wrote off " + GT.money(loss) + " and started watching closer."); }}
+    ]},
+  {id:"mentor", name:"An old operator offers advice",
+    w:0.4, minWeek:5,
+    text:"Someone who ran a shop on this block for twenty years offers to look at your numbers. They will be blunt.",
+    choices:[
+      {id:"yes", label:"Take the advice", rec:"A lasting ops bonus. They may also be right about prices.",
+        fn:function(s,r){ s.flags.mentor = true; s.quality = clamp(s.quality + 3, 5, 100); addNews(s, "A mentor is in your corner. Quality and process ticked up."); }},
+      {id:"hire", label:"Hire them part-time", rec:"A wage, and a skilled veteran on the team.",
+        fn:function(s,r){ var p = makeStaff(s, r, {roleId: (GT.BIZ[s.businessId].roles[0] || {}).id, name:"Reed Calder", skill:86, wage:720, morale:80}); p.roleName = "Advisor"; s.staff.push(p); s.flags.mentor = true; addNews(s, "You brought Reed Calder on part-time."); }},
+      {id:"no", label:"You've got it", rec:"Fine. No change.",
+        fn:function(s,r){ addNews(s, "You thanked them and kept your own counsel."); }}
+    ]},
+  {id:"review-bomb", name:"A rough review lands",
+    w:0.7, minWeek:4,
+    text:"A detailed, public, unhappy review is getting passed around. Some of it is fair.",
+    choices:[
+      {id:"reply", label:"Reply in public and make it right", rec:"A small cost, often recovers the rating.",
+        fn:function(s,r){ spendCash(s, Math.min(120, s.cash)); s.satisfaction = clamp(s.satisfaction + 3, 0, 100); addReview(s, clamp(3.2 + r() * 1.2, 1, 5), "They made it right after a rough visit."); addNews(s, "You answered the review and made it right."); }},
+      {id:"train", label:"Call a training hour", rec:"Staff time, process improves.",
+        fn:function(s,r){ s.staff.forEach(function(p){ p.skill = clamp(p.skill + 2, 1, 99); p.morale = clamp(p.morale + 2, 0, 100); }); s.quality = clamp(s.quality + 2, 5, 100); addNews(s, "You turned a bad review into a training hour."); }},
+      {id:"ignore", label:"Ignore it", rec:"It lingers in the average.",
+        fn:function(s,r){ addReview(s, 1.5 + r(), "Not what I hoped. Slow and inconsistent."); s.satisfaction = clamp(s.satisfaction - 5, 0, 100); addNews(s, "The bad review sits there unanswered."); }}
+    ]},
+  {id:"critic", name:"A glowing write-up",
+    w:0.45, minWeek:10, requires:function(s){ return s.quality >= 62 && s.satisfaction >= 60; },
+    text:"A local writer had a genuinely good time and said so in print. This is the kind of press you cannot buy cleanly.",
+    choices:[
+      {id:"frame", label:"Frame it and stay the course", rec:"Reputation bump.",
+        fn:function(s,r){ s.reputation = clamp(s.reputation + 8, 0, 100); s.marketingHeat += 12; addReview(s, 5, "As good as the write-up said."); addNews(s, "The write-up lifted your reputation."); }},
+      {id:"raise", label:"Raise prices a little", rec:"You can, if quality holds.",
+        fn:function(s,r){ s.products.forEach(function(p){ p.price = roundc(p.price * 1.07); }); s.reputation = clamp(s.reputation + 5, 0, 100); addNews(s, "You took a modest price increase after the praise."); }},
+      {id:"ads", label:"Quote it in ads", rec:"Spend to amplify.",
+        fn:function(s,r){ spendCash(s, Math.min(700, s.cash * 0.1)); s.reputation += 6; s.marketingHeat += 22; addNews(s, "You put the quote in front of more people."); }}
+    ]},
+  {id:"interest", name:"Rates move",
+    w:0.5, minWeek:12,
+    text:"The Harborline lenders are adjusting rates. New loans, and some variable debt, will feel it.",
+    choices:[
+      {id:"refi", label:"Refinance what you can", rec:"A fee today, maybe a better rate.",
+        fn:function(s,r){ var fee = 250; spendCash(s, Math.min(fee, s.cash)); var dir = r() < 0.5 ? -0.01 : 0.012; s.rateEnv = clamp((s.rateEnv || 0.09) + dir, 0.05, 0.18); s.loans.forEach(function(l){ if (!l.predatory) l.rate = clamp(l.rate + dir * 0.5, 0.05, 0.28); }); addNews(s, "You refinanced what you could. The rate environment is now " + Math.round(s.rateEnv * 1000)/10 + "%."); }},
+      {id:"pay", label:"Pay down variable debt", rec:"Use cash to shrink risk.",
+        fn:function(s,r){ s.rateEnv = clamp((s.rateEnv || 0.09) + (r() < 0.5 ? -0.008 : 0.012), 0.05, 0.18); var pay = Math.min(s.cash * 0.2, totalDebt(s)); if (pay > 0) payLoans(s, pay); addNews(s, "You paid down " + GT.money(pay) + " as rates moved."); }},
+      {id:"wait", label:"Wait it out", rec:"Rates still move.",
+        fn:function(s,r){ s.rateEnv = clamp((s.rateEnv || 0.09) + (r() < 0.45 ? -0.01 : 0.015), 0.05, 0.18); addNews(s, "Rates moved. You waited."); }}
+    ]},
+  {id:"poach", name:"A rival is hiring your people",
+    w:0.7, minWeek:12, requires:function(s){ return s.staff.length > 0; },
+    text:"A competitor is waving better pay at your better people.",
+    choices:[
+      {id:"match", label:"Match the market", rec:"Payroll up across the board.",
+        fn:function(s,r){ s.staff.forEach(function(p){ p.wage = roundc(p.wage * 1.1); p.morale = clamp(p.morale + 6, 0, 100); }); addNews(s, "You matched the market to keep the team."); }},
+      {id:"one", label:"Counter only your star", rec:"Cheaper, some risk to the rest.",
+        fn:function(s,r){ var p = bestStaff(s); if (p) { p.wage = roundc(p.wage * 1.16); p.morale = clamp(p.morale + 10, 0, 100); } addNews(s, "You paid to keep your best person."); }},
+      {id:"let", label:"Let the market work", rec:"Someone may leave.",
+        fn:function(s,r){ var p = bestStaff(s); if (p && r() < 0.5) { s.staff = s.staff.filter(function(x){ return x.id !== p.id; }); addNews(s, p.name + " left for a rival."); } else { addNews(s, "Nobody left — this week."); } }}
+    ]},
+  {id:"permit", name:"A permit is up",
+    w:0.6, minWeek:8,
+    text:"A city permit is due — health, signage, use, or a food-truck zone. Letting it lapse will close you, at least for a bit.",
+    choices:[
+      {id:"pay", label:"Renew on time", rec:"A standard fee.",
+        fn:function(s,r){ var c = 180 + (GT.BIZ[s.businessId].inspect ? 220 : 0); spendCash(s, Math.min(c, s.cash)); s.permitsOk = true; s.flags.permitWeeks = 52; addNews(s, "Permits renewed for " + GT.money(c) + "."); }},
+      {id:"rush", label:"File late with a rush fee", rec:"More expensive, still open.",
+        fn:function(s,r){ spendCash(s, Math.min(520, s.cash)); s.permitsOk = true; s.flags.permitWeeks = 40; s.creditScore = clamp(s.creditScore - 2, 300, 850); addNews(s, "You renewed late, with a rush fee."); }},
+      {id:"lapse", label:"Let it slide a week", rec:"Risky.",
+        fn:function(s,r){ s.permitsOk = false; s.flags.permitWeeks = 0; s.flags.capacityHit = 2; s.flags.capacityMult = 0.4; addNews(s, "You are operating on a lapsed permit. The city may notice."); }}
+    ]},
+  {id:"storm", name:"A hard weather week",
+    w:0.7, minWeek:2,
+    text:"A storm week in Harborline. Walk-in traffic falls. Delivery, online, and some service work can still move.",
+    choices:[
+      {id:"close", label:"Close the worst days", rec:"Protect staff, lose sales.",
+        fn:function(s,r){ s.flags.weather = "storm"; s.flags.weatherMult = 0.55; s.staff.forEach(function(p){ p.morale = clamp(p.morale + 4, 0, 100); }); addNews(s, "You closed the worst days of the storm."); }},
+      {id:"open", label:"Stay open", rec:"Some sales, overtime, some risk.",
+        fn:function(s,r){ s.flags.weather = "storm"; s.flags.weatherMult = 0.78; spendCash(s, Math.min(180, s.cash)); addNews(s, "You stayed open through the weather."); }},
+      {id:"online", label:"Push delivery / remote", rec:"Works better if you already have a channel.",
+        fn:function(s,r){ s.flags.weather = "storm"; s.flags.weatherMult = s.flags.online ? 1.05 : 0.7; if (!s.flags.online) addNews(s, "Without an online channel, the push only helped a little."); else addNews(s, "Online orders carried the storm week."); }}
+    ]},
+  {id:"family-call", name:"A family call",
+    w:0.35, minWeek:10, requires:function(s){ return s.backgroundId === "family" || s.cash > 0; },
+    text:"Someone close to you wants an update — and, if they helped you start, they have opinions about risk.",
+    choices:[
+      {id:"div", label:"Send a small dividend home", rec:"Cash out of the company, warmer ties.",
+        fn:function(s,r){ var c = clamp(s.cash * 0.05, 200, 4000); spendCash(s, c); s.personalCash = (s.personalCash || 0) + c * 0.5; addNews(s, "You sent money home and kept a little for yourself."); }},
+      {id:"show", label:"Walk them through the books", rec:"No cash cost. Slight reputation for being straight.",
+        fn:function(s,r){ s.reputation = clamp(s.reputation + 1, 0, 100); addNews(s, "You walked the family through the real numbers."); }},
+      {id:"defer", label:"Defer the conversation", rec:"Fine, maybe awkward later.",
+        fn:function(s,r){ addNews(s, "You put the family conversation off."); }}
+    ]},
+  {id:"ip", name:"A rights spat",
+    w:0.35, minWeek:16, requires:function(s){ return /clothing|tech|app|game|ecom/.test(s.businessId); },
+    text:"Someone claims your name, code, or design steps on theirs. It may be noise. It may not.",
+    choices:[
+      {id:"rename", label:"Tweak the name or design", rec:"A rebrand cost, dispute goes away.",
+        fn:function(s,r){ spendCash(s, Math.min(1400, s.cash * 0.15)); s.marketingHeat = Math.max(0, s.marketingHeat - 8); addNews(s, "You adjusted the work and the claim was dropped."); }},
+      {id:"license", label:"License it", rec:"A modest ongoing fee.",
+        fn:function(s,r){ s.flags.licenseFee = 80; addNews(s, "You licensed the rights for a weekly fee."); }},
+      {id:"fight", label:"Hold your ground", rec:"Often works. Sometimes expensive.",
+        fn:function(s,r){ if (r() < 0.65) addNews(s, "They backed off."); else { var c = 3000 + r() * 5000; spendCash(s, Math.min(c, s.cash * 0.4)); s.debtSpecial = (s.cash < c ? (s.debtSpecial || 0) + (c - s.cash) : s.debtSpecial); addNews(s, "The dispute cost you " + GT.money(c) + "."); } }}
+    ]},
+  {id:"acquire-chance", name:"A rival is stumbling",
+    w:0.4, minWeek:26, requires:function(s){ return s.competitors.some(function(c){ return c.alive; }); },
+    text:"One of your competitors is tired. They would take a buyout if the number is real.",
+    choices:[
+      {id:"buy", label:"Make a fair offer", rec:"Costs cash or a loan, you gain share.",
+        fn:function(s,r){ var c = s.competitors.find(function(x){ return x.alive; }); if (!c) return; var price = Math.max(8000, Math.round(c.strength * 400 + companyValue(s) * 0.08)); if (s.cash < price * 0.3) { addNews(s, "You could not fund a serious offer."); return; } acquireRival(s, c, price, r); }},
+      {id:"low", label:"Lowball them", rec:"Usually a no. Sometimes a steal.",
+        fn:function(s,r){ var c = s.competitors.find(function(x){ return x.alive; }); if (!c) return; if (r() < 0.22) { var price = Math.round((c.strength * 400 + 8000) * 0.55); acquireRival(s, c, price, r); } else addNews(s, "They rejected the lowball."); }},
+      {id:"no", label:"Let them limp", rec:"Maybe they fail on their own.",
+        fn:function(s,r){ addNews(s, "You left the rival alone."); }}
+    ]}
+,
+,{id:"unicorn", name:"The category tilts your way",
+    w:0.22, minWeek:240, requires:function(s){ return biz(s).group === "digital" && (s.flags.national || s.users > 20000 || (s.apps||[]).some(function(a){return a.users>20000;})) && s.quality >= 58 && !s.flags.unicorn; },
+    text:"Trade press starts calling your product the default. This is the kind of wave that can make or break a decade.",
+    choices:[
+      {id:"ride", label:"Ride it and reinvest", rec:"A real shot at outsized scale. Costs cash now.",
+        fn:function(s,r){ s.flags.unicorn = true; s.flags.breakout = 16; spendCash(s, Math.min(s.cash * 0.12, 80000)); s.marketingHeat += 20; if (s.users) s.users = Math.round(s.users * 1.35); addNews(s, "You reinvested to ride a category wave."); }},
+      {id:"raise", label:"Raise a growth round on the hype", rec:"Cash in the bank, more dilution.",
+        fn:function(s,r){ s.flags.unicorn = true; var check = Math.min(companyValue(s) * 0.2, 25000000); var eq = 0.12; if (founderEquity(s) - eq < 0.15) eq = 0.08; s.founderEquity = founderEquity(s) - eq; s.investors.push({name:"Summit Row", stage:"growth", equity:eq, check:check, week:s.week}); earnCash(s, check); addNews(s, "A growth round added " + GT.money(check) + "."); }},
+      {id:"steady", label:"Stay the course", rec:"Safer. The moment may pass.",
+        fn:function(s,r){ s.reputation = clamp(s.reputation + 4, 0, 100); addNews(s, "You stayed steady while the press moved on."); }}
+    ]}
+];
+/* ---------- helpers used by events and the tick ---------- */
+function biz(s) { return GT.BIZ[s.businessId]; }
+function hood(id) { return GT.HOOD[id] || GT.HOOD.midtown; }
+function hasHook(s, h) {
+  var b = biz(s);
+  if (h === "perishable") return !!(b && b.perishable);
+  return !!(b && b.hooks && b.hooks.indexOf(h) >= 0);
+}
+function addNews(s, text, kind) {
+  s.news = s.news || [];
+  s.news.unshift({week: s.week, text: String(text), kind: kind || "info"});
+  if (s.news.length > 80) s.news.length = 80;
+}
+function spendCash(s, n) {
+  n = fin(n, 0);
+  if (n <= 0) return 0;
+  s.cash = roundc(fin(s.cash) - n);
+  return n;
+}
+function earnCash(s, n) {
+  n = fin(n, 0);
+  if (n <= 0) return 0;
+  s.cash = roundc(fin(s.cash) + n);
+  return n;
+}
+function bumpInv(s, frac) {
+  s.products.forEach(function (p) {
+    var add = Math.round(Math.max(0, p.stock) * frac);
+    if (frac < 0) p.stock = Math.max(0, Math.round(p.stock * (1 + frac)));
+    else p.stock += add;
+  });
+}
+function bestStaff(s) {
+  if (!s.staff || !s.staff.length) return null;
+  return s.staff.slice().sort(function (a, b) { return (b.skill * (b.morale + 10)) - (a.skill * (a.morale + 10)); })[0];
+}
+function weeklyRent(s) {
+  var t = 0;
+  (s.locations || []).forEach(function (l) { t += fin(l.rent); });
+  return t;
+}
+function totalDebt(s) {
+  var t = fin(s.debtSpecial);
+  (s.loans || []).forEach(function (l) { t += fin(l.balance); });
+  return roundc(t);
+}
+function payLoans(s, amount) {
+  amount = Math.min(fin(amount), fin(s.cash));
+  if (amount <= 0) return 0;
+  var left = amount;
+  s.loans.sort(function (a, b) { return (b.rate || 0) - (a.rate || 0); });
+  s.loans.forEach(function (l) {
+    if (left <= 0) return;
+    var p = Math.min(l.balance, left);
+    l.balance = roundc(l.balance - p);
+    left = roundc(left - p);
+  });
+  s.loans = s.loans.filter(function (l) { return l.balance > 0.5; });
+  var paid = roundc(amount - left);
+  spendCash(s, paid);
+  if (s.hadDebt && totalDebt(s) < 1) GT.grant(s, "debtfree");
+  return paid;
+}
+function payTax(s, amount) {
+  amount = fin(amount);
+  var fromReserve = Math.min(fin(s.taxReserve), amount);
+  s.taxReserve = roundc(fin(s.taxReserve) - fromReserve);
+  var rest = amount - fromReserve;
+  if (rest > 0) spendCash(s, rest);
+  s.taxOwed = Math.max(0, roundc(fin(s.taxOwed) - amount));
+}
+function addReview(s, stars, text) {
+  stars = clamp(fin(stars, 3), 1, 5);
+  s.reviews = s.reviews || [];
+  s.reviews.unshift({week: s.week, stars: Math.round(stars * 10) / 10, text: text || ""});
+  if (s.reviews.length > 40) s.reviews.length = 40;
+  var sum = 0;
+  s.reviews.forEach(function (r) { sum += r.stars; });
+  s.avgReview = Math.round((sum / s.reviews.length) * 10) / 10;
+  if (s.avgReview >= 4.8 && s.reviews.length >= 8) GT.grant(s, "five-star");
+}
+function avgReview(s) {
+  if (s.avgReview) return s.avgReview;
+  if (!s.reviews || !s.reviews.length) return 3.6;
+  var sum = 0;
+  s.reviews.forEach(function (r) { sum += r.stars; });
+  return sum / s.reviews.length;
+}
+function inventoryValue(s) {
+  var v = 0;
+  (s.products || []).forEach(function (p) { v += fin(p.stock) * fin(p.unitCost, p.baseCost); });
+  return v;
+}
+function staffPayroll(s) {
+  var t = 0;
+  (s.staff || []).forEach(function (p) { t += fin(p.wage); });
+  return t;
+}
+function staffQuality(s) {
+  if (!s.staff.length) return 42 + s.skills.ops * 2 + s.skills.craft * 2;
+  var t = 0, w = 0;
+  s.staff.forEach(function (p) {
+    var m = 0.6 + 0.4 * (p.morale / 100);
+    t += p.skill * m;
+    w += 1;
+  });
+  return clamp(t / w, 1, 99);
+}
+function equipFactor(s) {
+  if (!s.equipment.length) return 0.85;
+  var t = 0;
+  s.equipment.forEach(function (e) {
+    var lv = (e.level || 1) / (e.levels || 4);
+    t += (0.7 + 0.3 * lv) * (0.5 + 0.5 * fin(e.cond, 80) / 100);
+  });
+  return clamp(t / s.equipment.length, 0.4, 1.35);
+}
+function marketingFactor(s) {
+  return clamp(0.75 + fin(s.marketingHeat) / 140, 0.6, 1.8);
+}
+function seasonFactor(s) {
+  var b = biz(s);
+  var se = GT.seasonOf(s.week);
+  var m = (b.season && b.season[se]) || 1;
+  if (s.flags.recession) m *= 0.78;
+  if (s.flags.boom) m *= 1.16;
+  if (s.flags.festival) m *= fin(s.flags.festivalMult, 1);
+  if (s.flags.weatherMult) m *= s.flags.weatherMult;
+  if (s.flags.partnerDemand) m *= s.flags.partnerDemand;
+  return m;
+}
+function priceAttract(price, fair) {
+  fair = Math.max(0.5, fin(fair, 1));
+  var ratio = fin(price, fair) / fair;
+  // 1.0 is fair. Below 1 increases volume, above decreases sharply.
+  if (ratio <= 0.7) return 1.25;
+  if (ratio >= 1.8) return 0.15;
+  if (ratio < 1) return lerp(1.25, 1, (ratio - 0.7) / 0.3);
+  return lerp(1, 0.15, Math.pow((ratio - 1) / 0.8, 1.2));
+}
+function fairPrice(p, s) {
+  var q = clamp(fin(p.quality, s.quality), 5, 100);
+  return roundc(p.basePrice * (0.7 + 0.6 * (q / 70)));
+}
+
+function companyAssets(s) {
+  var v = fin(s.cash) + inventoryValue(s) + fin(s.taxReserve) + fin(s.personalCash);
+  s.equipment.forEach(function (e) {
+    v += (e.cost || 0) * (e.level || 1) * 0.45 * (fin(e.cond, 80) / 100);
+  });
+  s.locations.forEach(function (l) {
+    if (l.owned) v += fin(l.propertyValue);
+  });
+  (s.properties || []).forEach(function (p) { v += fin(p.value) - fin(p.mortgage); });
+  (s.apps || []).forEach(function (a) { v += fin(a.users) * 2.5; });
+  if (s.users) v += fin(s.users) * 8;
+  (s.liveGames || []).forEach(function (g) { v += fin(g.weeklyPeak) * 12; });
+  return Math.max(0, v);
+}
+function trailingAnnual(s, field) {
+  var rows = s.pnl || [];
+  var n = Math.min(rows.length, 13);
+  if (!n) return 0;
+  var sum = 0;
+  for (var i = rows.length - n; i < rows.length; i++) sum += fin(rows[i][field]);
+  return (sum / n) * 52;
+}
+function companyValue(s) {
+  var assets = companyAssets(s);
+  var profit = trailingAnnual(s, "profit");
+  var rev = trailingAnnual(s, "rev");
+  if (!profit && !rev) {
+    profit = fin(s.annualProfit);
+    rev = fin(s.annualRevenue);
+  }
+  var growth = clamp(1 + fin(s.growthRate), 0.4, 2.5);
+  var rep = 0.8 + fin(s.reputation) / 250;
+  var confidence = clamp((s.week || 0) / 90, 0.1, 1);
+  var multiple;
+  var g = (biz(s) || {}).group;
+  if (g === "digital") {
+    multiple = (profit > 0 ? 6.5 : 2.4) * growth * rep;
+    var userVal = fin(s.users) * (s.flags.saas || s.stage === "scale" ? 12 : 4) * confidence;
+    var inc = (profit > 0 ? profit * multiple : rev * 1.1 * growth) * confidence;
+    var digital = Math.max(2000, assets * 0.6 + inc + userVal);
+    if (s.flags.public) digital *= 1.45;
+    if (s.flags.unicorn) digital *= 2.3;
+    return digital;
+  }
+  if (g === "property") {
+    return Math.max(2000, assets * 1.05 + profit * 6 * rep * confidence);
+  }
+  multiple = (profit > 0 ? 2.8 : 0.8) * growth * rep;
+  if (s.franchiseUnits > 0) multiple += Math.min(2.2, s.franchiseUnits * 0.12);
+  var earn = (profit > 0 ? profit * multiple : Math.max(0, rev * 0.28)) * confidence;
+  var v = Math.max(2000, assets * 0.75 + earn - totalDebt(s) * 0.55);
+  if (s.flags.public) v *= 1.25;
+  return v;
+}
+function founderEquity(s) {
+  var e = fin(s.founderEquity, 1);
+  return clamp(e, 0, 1);
+}
+function netWorth(s) {
+  var eq = founderEquity(s);
+  var firm = companyValue(s);
+  var personal = fin(s.personalCash) + fin(s.personalInvestments);
+  // If already sold or IPOed, cash was converted
+  if (s.ended && (s.ending === "sold" || s.ending === "ipo")) {
+    return fin(s.endingValue);
+  }
+  return Math.max(0, eq * firm + personal - fin(s.bgDebt));
+}
+GT.companyValue = companyValue;
+GT.netWorth = netWorth;
+GT.totalDebt = totalDebt;
+GT.inventoryValue = inventoryValue;
+GT.avgReview = avgReview;
+
+function runInspection(s, r, bonus) {
+  var score = s.quality * 0.5 + s.skills.ops * 4 + staffQuality(s) * 0.25 + fin(bonus);
+  score += (s.flags.mentor ? 6 : 0);
+  score += randRange(r, -8, 8);
+  score = clamp(score, 0, 100);
+  s.lastInspect = score;
+  if (score >= 80) {
+    s.healthGrade = "A";
+    s.reputation = clamp(s.reputation + 4, 0, 100);
+    GT.grant(s, "inspect-a");
+    addNews(s, "Inspection score " + Math.round(score) + " — Grade A.");
+  } else if (score >= 65) {
+    s.healthGrade = "B";
+    addNews(s, "Inspection score " + Math.round(score) + " — Grade B. Fine, not famous.");
+  } else if (score >= 50) {
+    s.healthGrade = "C";
+    s.satisfaction = clamp(s.satisfaction - 8, 0, 100);
+    s.reputation = clamp(s.reputation - 6, 0, 100);
+    addNews(s, "Grade C. Demand will feel that sign in the window.", "alert");
+  } else {
+    s.healthGrade = "F";
+    s.flags.capacityHit = 3;
+    s.flags.capacityMult = 0.35;
+    s.reputation = clamp(s.reputation - 14, 0, 100);
+    spendCash(s, Math.min(750, s.cash));
+    addNews(s, "You failed the inspection. A fine, and a short closure.", "alert");
+  }
+}
+
+function makeStaff(s, r, opts) {
+  opts = opts || {};
+  var b = biz(s);
+  var role = null;
+  (b.roles || []).forEach(function (x) { if (x.id === opts.roleId) role = x; });
+  if (!role) role = pick(r, b.roles) || {id:"hand", name:"Helper", baseWage:480, skill:"ops"};
+  var name = opts.name || (pick(r, GT.FIRST) + " " + pick(r, GT.LAST));
+  var skill = opts.skill != null ? opts.skill : randInt(r, 38, 78) + Math.round((s.skills.people - 5) * 1.2);
+  return {
+    id: uid(r),
+    name: name,
+    roleId: role.id,
+    roleName: opts.roleName || role.name,
+    skill: clamp(skill, 15, 96),
+    potential: clamp(skill + randInt(r, 4, 22), 20, 99),
+    wage: opts.wage != null ? opts.wage : roundc(role.baseWage * randRange(r, 0.9, 1.18)),
+    morale: opts.morale != null ? opts.morale : randInt(r, 58, 82),
+    weeks: 0,
+    training: 0
+  };
+}
+
+function acquireRival(s, comp, price, r) {
+  price = Math.max(1000, fin(price));
+  if (s.cash + locAvailable(s) < price) {
+    addNews(s, "The acquisition needed " + GT.money(price) + " and you could not fund it.");
+    return false;
+  }
+  var draw = Math.max(0, price - s.cash);
+  if (draw > 0) {
+    // auto tap LOC if any
+    drawCredit(s, draw);
+  }
+  spendCash(s, Math.min(price, s.cash));
+  comp.alive = false;
+  comp.ownedByPlayer = true;
+  s.reputation = clamp(s.reputation + 3, 0, 100);
+  s.marketingHeat += 8;
+  s.flags.acquired = (s.flags.acquired || 0) + 1;
+  // absorb a little demand
+  s.flags.acquireBoost = 12;
+  GT.grant(s, "acquire");
+  addNews(s, "You acquired " + comp.name + " for " + GT.money(price) + ".");
+  return true;
+}
+function locAvailable(s) {
+  var t = 0;
+  (s.loans || []).forEach(function (l) {
+    if (l.revolving) t += Math.max(0, l.limit - l.balance);
+  });
+  return t;
+}
+function drawCredit(s, amount) {
+  amount = fin(amount);
+  var got = 0;
+  (s.loans || []).forEach(function (l) {
+    if (amount <= 0 || !l.revolving) return;
+    var room = Math.max(0, l.limit - l.balance);
+    var d = Math.min(room, amount);
+    l.balance = roundc(l.balance + d);
+    earnCash(s, d);
+    amount -= d;
+    got += d;
+  });
+  return got;
+}
+
+GT.grant = function (s, id) {
+  s.achievements = s.achievements || {};
+  if (s.achievements[id]) return;
+  s.achievements[id] = s.week;
+  s.freshAchievements = s.freshAchievements || [];
+  var def = null;
+  GT.ACHIEVEMENTS.forEach(function (a) { if (a.id === id) def = a; });
+  s.freshAchievements.push(def || {id:id, name:id, desc:""});
+  addNews(s, "Achievement: " + ((def && def.name) || id), "ach");
+};
+
+/* ---------- create / seed ---------- */
+function defaultLocation(b, hoodId, r) {
+  var h = hood(hoodId || "midtown");
+  var base = fin(b.rent, 0) / 4.333; // data rent is monthly
+  var rent = b.mobile ? 0 : roundc(base * h.rentMult * randRange(r, 0.95, 1.08));
+  return {
+    id: "loc0",
+    name: h.name,
+    hoodId: h.id,
+    rent: rent,
+    size: 1,
+    quality: 55,
+    owned: false,
+    weeks: 0
+  };
+}
+
+GT.createGame = function (opts) {
+  opts = opts || {};
+  var seed = hashSeed(opts.seed != null ? opts.seed : (Date.now() + Math.random()));
+  var r = mulberry32(seed);
+  var bg = GT.BG[opts.backgroundId] || GT.BACKGROUNDS[0];
+  var b = GT.BIZ[opts.businessId] || GT.BUSINESSES[0];
+  var hoodId = opts.hoodId || pick(r, suggestedHoods(b.id)).id;
+  var skills = {};
+  ["ops","craft","sales","finance","people","tech"].forEach(function (k) {
+    skills[k] = clamp(fin(bg.skills[k], 5) + fin((opts.skillBoost || {})[k]), 1, 10);
+  });
+  var loc = defaultLocation(b, hoodId, r);
+  var products = b.products.map(function (p) {
+    return {
+      id: p.id,
+      name: p.name,
+      baseCost: p.baseCost,
+      basePrice: p.basePrice,
+      unitCost: p.baseCost,
+      price: p.basePrice,
+      quality: 55 + skills.craft * 2,
+      stock: p.baseCost > 0 ? randInt(r, 40, 90) : 0,
+      perish: p.perish || 0,
+      sold: 0,
+      disabled: false
+    };
+  });
+  var equipment = (b.equipment || []).map(function (e) {
+    return {id: e.id, name: e.name, cost: e.cost, level: 1, levels: e.levels || 4, cond: 86};
+  });
+  var marketing = {};
+  GT.CHANNELS.forEach(function (c) { marketing[c.id] = 0; });
+
+  var startCash = bg.cash;
+  var spent = 0;
+  var startCost = b.startup * randRange(r, 0.92, 1.05);
+  // skill discounts
+  startCost *= 1 - (skills.ops - 5) * 0.015;
+  if (bg.id === "culinary" && b.group === "food") startCost *= 0.9;
+  if (bg.id === "athlete" && (b.id === "gym" || b.id === "sports")) startCost *= 0.9;
+  if (bg.id === "coder" && b.group === "digital") startCost *= 0.88;
+  if (bg.id === "shopkid") startCost *= 0.94;
+  startCost = Math.round(startCost);
+
+  var s = {
+    version: GT.VERSION,
+    seed: seed,
+    rngState: null,
+    _seed0: seed,
+    week: 0,
+    name: String(opts.companyName || ("Harbor " + b.name)).slice(0, 40),
+    founderName: String(opts.founderName || "You").slice(0, 28),
+    backgroundId: bg.id,
+    businessId: b.id,
+    skills: skills,
+    cash: startCash,
+    personalCash: 0,
+    personalInvestments: 0,
+    bgDebt: bg.debt || 0,
+    creditScore: bg.credit,
+    loans: [],
+    debtSpecial: 0,
+    taxReserve: 0,
+    taxOwed: 0,
+    ytdProfit: 0,
+    ytdRevenue: 0,
+    ytdOpex: 0,
+    annualProfit: 0,
+    annualRevenue: 0,
+    growthRate: 0,
+    founderEquity: 1,
+    investors: [],
+    locations: [loc],
+    products: products,
+    staff: [],
+    equipment: equipment,
+    marketing: marketing,
+    marketingHeat: 8,
+    supplierId: "standard",
+    shipments: [],
+    quality: 55 + skills.craft * 2.2 + skills.ops,
+    satisfaction: 62,
+    reputation: 48 + (bg.id === "shopkid" || bg.id === "vet" ? 6 : 0),
+    reviews: [],
+    avgReview: 3.7,
+    competitors: [],
+    news: [],
+    history: {cash: [], rev: [], profit: [], sat: [], worth: []},
+    pnl: [],
+    flags: {permitWeeks: 52, permitsOk: true},
+    permitsOk: true,
+    healthGrade: b.inspect ? "A" : null,
+    rateEnv: 0.09,
+    users: b.id === "tech" ? randInt(r, 40, 160) : 0,
+    stage: b.id === "tech" || b.id === "game-studio" || b.id === "app-studio" ? "build" : "open",
+    devPoints: 0,
+    project: null,
+    liveGames: [],
+    apps: [],
+    properties: [],
+    members: 0,
+    contracts: 0,
+    franchiseUnits: 0,
+    routeId: b.mobile ? "downtown" : null,
+    achievements: {},
+    freshAchievements: [],
+    candidates: [],
+    pendingEvent: null,
+    ended: false,
+    ending: null,
+    endingText: null,
+    endingValue: 0,
+    hadDebt: false,
+    revenueRunRate: 0,
+    weeklyCost: 800,
+    lastReport: null,
+    tutorialStep: 0,
+    trend: 50,
+    hype: 50,
+    collections: 0
+  };
+
+  // Pay startup cost, loan the gap if needed
+  if (startCash >= startCost) {
+    s.cash = roundc(startCash - startCost);
+  } else {
+    var gap = startCost - startCash + 1500;
+    s.cash = 1500;
+    s.loans.push(makeLoan("starter", gap, s, 1.05));
+    s.hadDebt = true;
+    addNews(s, "You financed the opening with a " + GT.money(gap) + " starter loan.");
+  }
+  s.products.forEach(function (p) {
+    if (p.baseCost > 0) {
+      var weeklyUnits = (b.baseRev / Math.max(1, b.products.length)) / Math.max(0.5, p.basePrice);
+      p.stock = Math.max(40, Math.round(weeklyUnits * 3 * randRange(r, 0.85, 1.1)));
+    }
+  });
+  // Keep a real operating cushion so opening week is not an instant fail
+  var cushion = b.group === "digital" ? 18000 : Math.max(8000, Math.round(fin(b.rent, 0) / 4.333 * 4 + 4000));
+  if (s.cash < cushion) {
+    var gap = roundc(cushion - s.cash);
+    var existing = s.loans[0];
+    if (existing && !existing.revolving) {
+      existing.balance = roundc(existing.balance + gap);
+      existing.payment = roundc(amortize(existing.balance, existing.rate, existing.weeks || 104));
+    } else {
+      s.loans.push(makeLoan("starter", gap, s, 1.05));
+      s.hadDebt = true;
+    }
+    s.cash = cushion;
+    addNews(s, "A " + GT.money(gap) + " working-capital loan covers the first months of rent and stock.");
+  }
+
+  // starting staff: 1-2 depending on size
+  var startN = b.startup > 60000 ? 2 : 1;
+  if (b.id === "tech" || b.id === "game-studio" || b.id === "app-studio") startN = 0;
+  if (b.id === "realestate") startN = 1;
+  for (var i = 0; i < startN; i++) s.staff.push(makeStaff(s, r, {roleId: b.roles[Math.min(i, b.roles.length - 1)].id}));
+
+  seedCompetitors(s, r);
+  if (b.id === "realestate") seedStarterProperty(s, r);
+  if (b.id === "game-studio") s.project = newProject(s, r, "debut");
+  if (b.id === "app-studio") s.apps = [newApp(s, r, true)];
+  if (b.id === "tech") { s.stage = "build"; s.devPoints = 8 + skills.tech * 2; }
+  if (b.id === "gym" || b.id === "car-wash") s.members = randInt(r, 20, 60);
+  if (b.id === "landscaping") s.contracts = randInt(r, 2, 6);
+
+  refreshCandidates(s, r);
+  addNews(s, s.name + " opens in " + loc.name + " as a " + b.name + ".");
+  addNews(s, "Opening costs were " + GT.money(startCost) + ". Cash on hand: " + GT.money(s.cash) + ".");
+  pushHistory(s, 0, 0);
+  s._r = r;
+  return s;
+};
+
+function suggestedHoods(bizId) {
+  var map = {
+    "food-truck": ["downtown","oldport","campus","airport"],
+    "coffee": ["downtown","midtown","campus","lakeside"],
+    "restaurant": ["oldport","downtown","westhills","riverside"],
+    "bakery": ["midtown","lakeside","oldport","campus"],
+    "barbershop": ["midtown","lakeside","campus","mills"],
+    "gym": ["midtown","westhills","downtown","lakeside"],
+    "car-wash": ["airport","mills","midtown","riverside"],
+    "landscaping": ["lakeside","westhills","riverside","mills"],
+    "sports": ["midtown","campus","westhills","lakeside"],
+    "clothing": ["oldport","downtown","westhills","midtown"],
+    "ecom": ["mills","midtown","lakeside"],
+    "sneakers": ["downtown","oldport","campus","midtown"],
+    "tech": ["downtown","midtown","mills"],
+    "app-studio": ["downtown","campus","midtown"],
+    "game-studio": ["downtown","campus","mills"],
+    "realestate": ["midtown","lakeside","oldport","riverside"]
+  };
+  return (map[bizId] || ["midtown"]).map(function (id) { return hood(id); });
+}
+GT.suggestedHoods = suggestedHoods;
+
+function makeLoan(typeId, amount, s, rateMult) {
+  var p = null;
+  GT.LOAN_PRODUCTS.forEach(function (x) { if (x.id === typeId) p = x; });
+  p = p || GT.LOAN_PRODUCTS[0];
+  amount = Math.max(500, fin(amount));
+  var rate = p.rate * (rateMult || 1) * (s && s.creditScore < 680 ? 1.15 : 1);
+  var weeks = p.weeks || 0;
+  var payment = weeks ? roundc(amortize(amount, rate, weeks)) : 0;
+  return {
+    id: typeId + "_" + Math.floor(Math.random() * 1e6),
+    typeId: typeId,
+    name: p.name,
+    balance: roundc(amount),
+    rate: rate,
+    weeks: weeks,
+    payment: payment,
+    revolving: !!p.revolving,
+    limit: p.revolving ? amount : 0,
+    predatory: !!p.predatory,
+    missed: 0
+  };
+}
+function amortize(principal, apr, weeks) {
+  // weekly payment for APR
+  var i = apr / 52;
+  if (i <= 0) return principal / weeks;
+  var pow = Math.pow(1 + i, weeks);
+  return principal * (i * pow) / (pow - 1);
+}
+
+function seedCompetitors(s, r) {
+  var names = {
+    "food-truck":["Silver Cart","Plaza Tacos","Night Window"],
+    "coffee":["Second Cup Board","Northbrew","The Steep"],
+    "restaurant":["Cedar Room","Port & Pine","Little Harbor"],
+    "bakery":["Ovenway","Flour Street","Dawn Loaf"],
+    "barbershop":["Union Cuts","Corner Chair","Fable Barber"],
+    "gym":["Iron Row","Harbor Fit","West Hills Athletic"],
+    "car-wash":["Jet Wash","Bright Bay","Suds Lane"],
+    "landscaping":["Green Mile Co.","Yard & Line","North Lawn"],
+    "sports":["Peak Cage","Harbor Training","Inside Edge"],
+    "clothing":["Thread North","Plain Goods","After Hours Co."],
+    "ecom":["Cart & Keep","North Shelf","Harbor Home Goods"],
+    "sneakers":["Pair Room","Heat Locker","Kicks Annex"],
+    "tech":["Lineal Labs","Port Cloud","Nimble Ledger"],
+    "app-studio":["Pocket Mill","Quiet Apps","Third Build"],
+    "game-studio":["Low Tide Games","Copper Lantern","Odd Harbor"],
+    "realestate":["Keyline Realty","Dock Street Holdings","Westhill Partners"]
+  };
+  var list = (names[s.businessId] || ["Rival A","Rival B","Rival C"]).slice();
+  s.competitors = pickN(r, list, 2 + (r() < 0.5 ? 1 : 0)).map(function (name) {
+    return {
+      name: name,
+      alive: true,
+      strength: randInt(r, 40, 75),
+      priceBias: randRange(r, 0.88, 1.18),
+      style: pick(r, ["cheap","balanced","premium"]),
+      heat: randInt(r, 10, 40)
+    };
+  });
+}
+function seedStarterProperty(s, r) {
+  // First building is part of the opening plan — sized so a reserve remains.
+  var reserve = 9000;
+  var down = Math.max(6000, Math.min(s.cash - reserve, 28000));
+  if (s.cash < reserve + 6000) down = Math.max(4000, s.cash * 0.35);
+  var val = Math.round(down / 0.22);
+  var mort = val - down;
+  spendCash(s, down);
+  s.properties.push({
+    id: uid(r),
+    name: pick(r, ["12 Dock St","88 Willow","4 Harborview","901 Mills Loft"]),
+    value: val,
+    mortgage: mort,
+    rate: s.rateEnv + 0.01,
+    rent: roundc(val * 0.0009 * randRange(r, 0.95, 1.15)),
+    cond: randInt(r, 60, 88),
+    vacant: false,
+    weeksVacant: 0
+  });
+  addNews(s, "You closed on a first property (" + GT.money(val) + ") with " + GT.money(down) + " down.");
+}
+function newProject(s, r, title) {
+  var debut = title === "debut";
+  return {
+    name: debut ? pick(r, ["Docklight","Quiet Shift","Harbor Oddity","Second Tide"]) : pick(r, ["Winter Rule","Low Orbit","Copper City","Night Errand"]),
+    phase: "concept",
+    weeksIn: 0,
+    quality: 30 + s.skills.craft * 3,
+    budget: 0,
+    needed: {concept: debut ? 2 : 3, production: debut ? randInt(r, 8, 12) : randInt(r, 12, 22), polish: debut ? 3 : randInt(r, 4, 7)},
+    spent: 0,
+    crunch: false
+  };
+}
+function newApp(s, r, started) {
+  return {
+    id: uid(r),
+    name: pick(r, ["Idle Ledger","Pocket Route","Tiny Forecast","Shift Log","Quiet Timer","Harbor List"]),
+    stage: started ? "live" : "build",
+    users: started ? randInt(r, 1600, 4200) : 0,
+    quality: 40 + s.skills.craft * 3 + s.skills.tech * 2,
+    rating: 3.8,
+    weeklyRev: 0,
+    weeks: 0,
+    dev: started ? 40 : 0
+  };
+}
+
+function refreshCandidates(s, r) {
+  var n = 3 + (s.skills.people >= 7 ? 1 : 0);
+  s.candidates = [];
+  for (var i = 0; i < n; i++) s.candidates.push(makeStaff(s, r));
+}
+
+function pushHistory(s, rev, profit) {
+  s.history.cash.push(roundc(s.cash));
+  s.history.rev.push(roundc(rev));
+  s.history.profit.push(roundc(profit));
+  s.history.sat.push(roundc(s.satisfaction));
+  s.history.worth.push(roundc(netWorth(s)));
+  if (s.history.cash.length > 520) {
+    ["cash","rev","profit","sat","worth"].forEach(function (k) { s.history[k].shift(); });
+  }
+}
+
+function rngOf(s) {
+  if (s._r) return s._r;
+  // reseed from seed + week for stability if _r lost (saves)
+  s._r = mulberry32(hashSeed(s.seed + ":" + s.week + ":" + Math.round(fin(s.cash))));
+  return s._r;
+}
+
+/* ---------- weekly tick ---------- */
+function competitorPressure(s) {
+  var p = 1;
+  s.competitors.forEach(function (c) {
+    if (!c.alive) return;
+    p += (c.strength / 400) * (c.style === "cheap" ? 0.12 : 0.07);
+  });
+  if (s.flags.acquireBoost) p *= 0.86;
+  return p;
+}
+
+function tickCompetitors(s, r) {
+  s.competitors.forEach(function (c) {
+    if (!c.alive) return;
+    c.heat = clamp(c.heat + randInt(r, -6, 6), 0, 100);
+    if (s.flags.recession) c.strength = clamp(c.strength + randInt(r, -3, 1), 20, 95);
+    else if (s.flags.boom) c.strength = clamp(c.strength + randInt(r, -1, 3), 20, 95);
+    else c.strength = clamp(c.strength + randInt(r, -2, 2), 20, 95);
+    // react to player prices: if player is expensive, cheap rivals gain; if player undercuts, they may discount
+    var avgBias = 0, n = 0;
+    s.products.forEach(function (p) {
+      avgBias += p.price / Math.max(0.5, fairPrice(p, s));
+      n++;
+    });
+    var pb = n ? avgBias / n : 1;
+    if (pb > 1.2 && c.style === "cheap") c.strength = clamp(c.strength + 1, 20, 95);
+    if (pb < 0.9 && r() < 0.2) { c.priceBias = Math.max(0.8, c.priceBias - 0.03); c.strength = clamp(c.strength - 1, 20, 95); }
+    if (c.strength < 22 && r() < 0.08) {
+      c.alive = false;
+      addNews(s, c.name + " closed their doors.");
+    }
+  });
+}
+
+function tickStaff(s, r) {
+  var fire = [];
+  s.staff.forEach(function (p) {
+    p.weeks = (p.weeks || 0) + 1;
+    if (p.training > 0) {
+      p.training--;
+      p.skill = clamp(p.skill + 1.4, 1, p.potential || 99);
+      p.morale = clamp(p.morale + 1, 0, 100);
+    }
+    // wage fairness
+    var fair = 480 + p.skill * 4.2;
+    if (p.wage < fair * 0.85) p.morale = clamp(p.morale - 2.2, 0, 100);
+    else if (p.wage > fair * 1.1) p.morale = clamp(p.morale + 0.6, 0, 100);
+    else p.morale = clamp(p.morale - 0.2 + (s.skills.people - 5) * 0.08, 0, 100);
+    if (s.flags.recession) p.morale = clamp(p.morale - 0.4, 0, 100);
+    if (s.backgroundId === "vet") p.morale = clamp(p.morale + 0.25, 0, 100);
+    if (p.flight && r() < p.flight) fire.push(p.id);
+    else if (p.morale < 28 && r() < 0.12) fire.push(p.id);
+    p.flight = p.flight ? p.flight * 0.85 : 0;
+  });
+  if (fire.length) {
+    s.staff = s.staff.filter(function (p) {
+      if (fire.indexOf(p.id) >= 0) {
+        addNews(s, p.name + " quit.", "alert");
+        return false;
+      }
+      return true;
+    });
+  }
+}
+
+function tickEquipment(s, r) {
+  s.equipment.forEach(function (e) {
+    e.cond = clamp(fin(e.cond, 80) - randRange(r, 0.15, 0.7), 0, 100);
+    if (e.cond < 20 && r() < 0.15) {
+      e.cond = clamp(e.cond - 10, 0, 100);
+      addNews(s, e.name + " is failing. Repair or replace it.", "alert");
+    }
+  });
+}
+
+function tickMarketing(s) {
+  var spend = 0;
+  GT.CHANNELS.forEach(function (c) {
+    spend += fin(s.marketing[c.id]);
+  });
+  // heat approaches spend-driven target
+  var target = Math.min(90, Math.sqrt(Math.max(0, spend)) * 1.1);
+  // fit bonus
+  var b = biz(s);
+  GT.CHANNELS.forEach(function (c) {
+    var w = fin(s.marketing[c.id]);
+    if (w <= 0) return;
+    var fit = !c.fit.length || c.fit.indexOf(s.businessId) >= 0 || c.fit.indexOf(b.group) >= 0;
+    target += fit ? w / 800 : w / 1600;
+  });
+  s.marketingHeat = clamp(s.marketingHeat * 0.82 + target * 0.28, 0, 100);
+  if (s.flags.viralBoost) {
+    s.marketingHeat = clamp(s.marketingHeat + 8, 0, 100);
+    s.flags.viralBoost--;
+    if (s.flags.viralBoost <= 0) delete s.flags.viralBoost;
+  }
+  return spend;
+}
+
+function perishStock(s) {
+  var lost = 0;
+  if (!biz(s).perishable) return 0;
+  s.products.forEach(function (p) {
+    if (!p.perish) return;
+    var spoil = Math.ceil(p.stock * (0.02 + 0.015 * p.perish));
+    if (p.sold > 0 && p.stock > p.sold * 2.6) spoil += Math.ceil((p.stock - p.sold * 2.6) * 0.06);
+    spoil = Math.min(p.stock, spoil);
+    p.stock -= spoil;
+    lost += spoil * fin(p.unitCost, p.baseCost);
+  });
+  return lost;
+}
+
+function receiveShipments(s) {
+  var arrived = [];
+  var pending = [];
+  (s.shipments || []).forEach(function (sh) {
+    sh.weeksLeft--;
+    if (sh.weeksLeft <= 0) arrived.push(sh);
+    else pending.push(sh);
+  });
+  arrived.forEach(function (sh) {
+    var p = s.products.filter(function (x) { return x.id === sh.productId; })[0];
+    if (p) {
+      p.stock += sh.qty;
+      p.unitCost = roundc((p.unitCost * 0.3 + sh.unitCost * 0.7));
+      p.quality = clamp(p.quality * 0.7 + sh.quality * 0.3, 5, 100);
+    }
+  });
+  s.shipments = pending;
+  return arrived;
+}
+
+function applyFlagTimers(s) {
+  ["capacityHit","festival","moving","acquireBoost"].forEach(function (k) {
+    if (s.flags[k] > 0) {
+      s.flags[k]--;
+      if (s.flags[k] <= 0) {
+        delete s.flags[k];
+        if (k === "capacityHit") delete s.flags.capacityMult;
+        if (k === "festival") delete s.flags.festivalMult;
+      }
+    }
+  });
+  if (s.flags.recession) {
+    s.flags.recession--;
+    if (s.flags.recession <= 0) {
+      delete s.flags.recession;
+      delete s.flags.recessionCut;
+      delete s.flags.buyDiscount;
+      addNews(s, "The downturn eases. Harborline spends a little more freely.");
+    }
+  }
+  if (s.flags.boom) {
+    s.flags.boom--;
+    if (s.flags.boom <= 0) {
+      delete s.flags.boom;
+      delete s.flags.wagePress;
+    }
+  }
+  if (s.flags.partner) {
+    s.flags.partner--;
+    if (s.flags.partner <= 0) {
+      delete s.flags.partner;
+      delete s.flags.partnerCut;
+      delete s.flags.partnerDemand;
+      addNews(s, "The partnership run ends.");
+    }
+  }
+  if (s.flags.lawsuit) {
+    s.flags.lawsuit--;
+    if (s.flags.lawsuit <= 0) {
+      var r = rngOf(s);
+      if (r() < (s.flags.lawsuitRisk || 0.4)) {
+        var c = 2500 + r() * 7000;
+        spendCash(s, Math.min(c, s.cash));
+        s.reputation = clamp(s.reputation - 5, 0, 100);
+        addNews(s, "The lawsuit landed against you for " + GT.money(c) + ".", "alert");
+      } else {
+        addNews(s, "The lawsuit was dropped.");
+      }
+      delete s.flags.lawsuit;
+      delete s.flags.lawsuitRisk;
+    }
+  }
+  if (s.flags.permitWeeks != null) {
+    s.flags.permitWeeks--;
+    if (s.flags.permitWeeks <= 0) {
+      s.permitsOk = false;
+      addNews(s, "A permit has lapsed. Renew it in the Finance desk.", "alert");
+    }
+  }
+  if (s.flags.licenseFee) spendCash(s, s.flags.licenseFee);
+}
+
+function demandModifiers(s) {
+  var qF = 0.6 + 0.7 * (clamp(s.quality, 5, 100) / 100);
+  var sat = 0.75 + 0.4 * (s.satisfaction / 100);
+  var rep = 0.8 + 0.4 * (s.reputation / 100);
+  var revw = 0.85 + 0.07 * (avgReview(s) - 3.5);
+  var locF = 0;
+  s.locations.forEach(function (l) {
+    var h = hood(l.hoodId);
+    locF += 0.9 + (h.traffic - 1) * 0.55 + (h.spend - 1) * 0.3;
+  });
+  locF = locF / Math.max(1, s.locations.length);
+  if (biz(s).mobile && s.routeId) {
+    var h = hood(s.routeId);
+    locF = 0.9 + (h.traffic - 1) * 0.6 + (h.spend - 1) * 0.3;
+  }
+  var mkt = marketingFactor(s);
+  var season = seasonFactor(s);
+  var comp = 1 / competitorPressure(s);
+  var locCount = Math.sqrt(Math.max(1, s.locations.length + fin(s.franchiseUnits) * 0.4));
+  var online = s.flags.online ? 1.14 : 1;
+  var sk = 1 + (s.skills.sales - 5) * 0.035 + (s.skills.ops - 5) * 0.02;
+  return clamp(qF * sat * rep * revw * locF * mkt * season * comp * locCount * online * sk, 0.2, 2.8);
+}
+
+function demandForProduct(s, p, share) {
+  var fair = fairPrice(p, s);
+  var attr = priceAttract(p.price, fair);
+  var dollars = biz(s).baseRev * demandModifiers(s) * share * attr;
+  var units = dollars / Math.max(0.5, p.price);
+  if (p.disabled) units = 0;
+  return Math.max(0, units);
+}
+
+function capacityUnits(s) {
+  var need = biz(s).startup > 60000 ? 3 : 2;
+  if (biz(s).group === "digital") need = 2;
+  var founder = 0.45 + s.skills.ops * 0.04 + s.skills.craft * 0.03;
+  var staffF = founder + (s.staff.length / need) * 0.7;
+  staffF *= 0.75 + staffQuality(s) / 220;
+  staffF *= equipFactor(s);
+  if (s.flags.capacityMult) staffF *= s.flags.capacityMult;
+  if (!s.permitsOk) staffF *= 0.35;
+  if (s.healthGrade === "C") staffF *= 0.85;
+  if (s.healthGrade === "F") staffF *= 0.4;
+  staffF *= 1 + (s.locations.length - 1) * 0.4;
+  staffF *= 1 + (s.skills.ops - 5) * 0.03;
+  return clamp(staffF, 0.28, 1.65);
+}
+
+function specialTick(s, r, report) {
+  var b = biz(s);
+  var extraRev = 0, extraCost = 0;
+  if (b.id === "tech") {
+    var eng = s.staff.filter(function (p) { return p.roleId === "eng" || p.roleId === "des"; });
+    var pts = eng.reduce(function (a, p) { return a + p.skill / 18; }, s.skills.tech * 0.4);
+    s.devPoints = fin(s.devPoints) + pts;
+    if (s.stage === "build") {
+      extraRev += 520 + s.skills.tech * 35 + s.skills.sales * 20; // contracting while you build
+    }
+    if (s.stage === "build" && s.devPoints >= 36) {
+      s.stage = "launched";
+      s.users = Math.max(s.users, 180);
+      s.quality = clamp(s.quality + 8, 5, 100);
+      addNews(s, "The product is live. Now it has to earn users.");
+      report.lines.push("Product launched.");
+    }
+    if (s.stage === "launched" || s.stage === "scale") {
+      extraRev += 350 + s.skills.sales * 15; // setup and services
+      var churn = clamp(0.06 - (s.quality - 50) / 800 - s.skills.people * 0.001, 0.015, 0.12);
+      var growth = (marketingFactor(s) - 0.75) * 0.035 + s.devPoints / 14000 + (s.quality - 50) / 1600;
+      if (s.flags.recession) growth *= 0.5;
+      if (s.flags.breakout) growth += 0.025;
+      if (s.flags.online || s.flags.national) growth += 0.005;
+      growth = clamp(growth, -0.03, 0.035);
+      var capU = (s.flags.national ? 400000 : s.flags.online ? 90000 : 35000) * (s.flags.unicorn ? 2.4 : 1);
+      var damp = Math.max(0.08, 1 - s.users / capU);
+      s.users = Math.max(0, Math.min(capU, Math.round(s.users * (1 - churn + growth * damp))));
+      var arpu = s.products[0] ? s.products[0].price / 4.3 : 8; // weekly
+      extraRev += s.users * arpu * clamp(s.quality / 70, 0.4, 1.3);
+      if (s.users > 4000) s.stage = "scale";
+    }
+    s.weeklyCost = s.weeklyCost; // burn is mostly payroll
+  }
+  if (b.id === "app-studio") {
+    s.apps.forEach(function (app) {
+      if (app.stage === "build") {
+        app.dev += 4 + s.skills.tech + staffQuality(s) / 20;
+        if (app.dev >= 36) {
+          app.stage = "live";
+          app.users = randInt(r, 200, 900);
+          addNews(s, app.name + " is live in the store.");
+        }
+      } else {
+        var g = (app.quality / 90) * (marketingFactor(s) / 1.2) * randRange(r, 0.85, 1.15);
+        if (r() < 0.02 + s.marketingHeat / 1200) {
+          g *= 1.5;
+          addNews(s, app.name + " got a featured slot this week.");
+        }
+        var capA = (s.flags.national ? 160000 : s.flags.online ? 70000 : 28000) * (s.flags.unicorn ? 2.2 : 1);
+        var damp = Math.max(0.1, 1 - app.users / capA);
+        var net = clamp((0.03 + g * 0.03) * damp, -0.04, 0.03);
+        app.users = Math.max(0, Math.min(capA, Math.round(app.users * (1 + net))));
+        app.weeklyRev = app.users * 0.32 * clamp(app.quality / 80, 0.4, 1.25) * clamp(app.rating / 4, 0.4, 1.2);
+        extraRev += app.weeklyRev;
+      }
+    });
+  }
+  if (b.id === "game-studio" && s.project) {
+    extraRev += 700 + staffQuality(s) * 6 + s.skills.craft * 18; // contract / work-for-hire while in production
+    var prod = s.project;
+    var labor = staffQuality(s) / 18 + s.staff.length * 0.35 + s.skills.craft * 0.15 + s.skills.tech * 0.15;
+    if (prod.crunch) { labor *= 1.35; s.staff.forEach(function (p) { p.morale = clamp(p.morale - 3.5, 0, 100); }); }
+    prod.weeksIn++;
+    prod.quality = clamp(prod.quality + labor * 0.45 + randRange(r, -0.4, 0.8), 10, 99);
+    prod.budget += staffPayroll(s) * 0.2;
+    var need = prod.needed[prod.phase] || 4;
+    if (prod.weeksIn >= need) {
+      if (prod.phase === "concept") { prod.phase = "production"; prod.weeksIn = 0; addNews(s, s.project.name + " enters production."); }
+      else if (prod.phase === "production") { prod.phase = "polish"; prod.weeksIn = 0; addNews(s, s.project.name + " is in polish."); }
+      else if (prod.phase === "polish") {
+        // launch
+        var rating = clamp(2.5 + prod.quality / 28 + randRange(r, -0.4, 0.4), 1, 5);
+        var open = Math.round(260 + prod.quality * 22 * marketingFactor(s) * randRange(r, 0.8, 1.15));
+        s.liveGames.push({name: prod.name, rating: rating, weekly: open, weeklyPeak: open, weeks: 0, quality: prod.quality});
+        addNews(s, prod.name + " launched to " + rating.toFixed(1) + " reviews. Opening week interest is solid.");
+        addReview(s, rating, "Launch week for " + prod.name + ".");
+        s.project = null;
+      }
+    }
+  }
+  if (b.id === "game-studio") {
+    s.liveGames.forEach(function (g) {
+      g.weeks++;
+      var decay = g.weeks < 3 ? 0.8 : g.weeks < 10 ? 0.9 : 0.955;
+      decay *= 0.94 + clamp(g.rating, 1, 5) / 100;
+      g.weekly = Math.max(10, Math.round(g.weekly * Math.min(0.975, decay)));
+      extraRev += g.weekly * (s.products[0] ? s.products[0].price : 16) * 0.32;
+    });
+  }
+  if (b.id === "gym" || b.id === "car-wash") {
+    var price = s.products[0] ? s.products[0].price : 30;
+    var cap = 28 + s.locations.length * 46 + equipFactor(s) * 40 + s.staff.length * 10;
+    var join = Math.round((marketingFactor(s) * s.reputation / 55) * (5 + s.skills.sales * 0.7) * seasonFactor(s) / (0.85 + price / 38));
+    var stretch = s.members > cap * 0.85 ? 0.03 : 0;
+    var churn = clamp(0.045 + stretch + (price / 180) - (s.satisfaction - 50) / 900 - (equipFactor(s) - 0.8) / 12, 0.015, 0.16);
+    s.members = clamp(Math.round(s.members * (1 - churn) + join), 0, cap);
+    var weeklyDues = price / (b.id === "gym" ? 4.3 : 4.3);
+    extraRev += s.members * weeklyDues;
+    report.lines.push(s.members + " members (" + Math.round(churn * 1000) / 10 + "% churn).");
+  }
+  if (b.id === "landscaping") {
+    if (GT.seasonOf(s.week) !== "winter" && r() < 0.35) s.contracts += 1;
+    if (GT.seasonOf(s.week) === "winter") {
+      // contracts drop unless snow product priced
+      if (r() < 0.15) s.contracts = Math.max(0, s.contracts - 1);
+    }
+    var capC = s.staff.length * 4 + equipFactor(s) * 4;
+    s.contracts = Math.min(s.contracts, Math.round(capC) + 2);
+    extraRev += s.contracts * 180 * (0.8 + staffQuality(s) / 200);
+  }
+  if (b.id === "realestate") {
+    extraRev += biz(s).baseRev * demandModifiers(s) * 0.7 + s.skills.sales * 30;
+    var rates = s.rateEnv;
+    s.properties.forEach(function (p) {
+      p.value = Math.max(20000, p.value * (1 + randRange(r, -0.004, 0.006) + (s.flags.recession ? -0.006 : 0) + (s.flags.boom ? 0.004 : 0)));
+      if (p.vacant) {
+        p.weeksVacant++;
+        extraCost += 40;
+        if (r() < 0.2 + s.skills.sales * 0.03) { p.vacant = false; p.weeksVacant = 0; addNews(s, p.name + " is leased again."); }
+      } else {
+        extraRev += p.rent;
+        if (r() < 0.03) { p.vacant = true; addNews(s, "A tenant left " + p.name + "."); }
+        if (r() < 0.08) {
+          var rep = 200 + r() * 900;
+          extraCost += rep;
+          p.cond = clamp(p.cond - 4, 10, 100);
+        } else p.cond = clamp(p.cond - 0.15, 10, 100);
+      }
+      var interest = p.mortgage * (p.rate || rates) / 52;
+      var prin = Math.min(p.mortgage, p.rent * 0.25);
+      extraCost += interest + prin;
+      p.mortgage = Math.max(0, p.mortgage - prin);
+    });
+  }
+  if (b.id === "sneakers") {
+    s.hype = clamp(s.hype + randInt(r, -6, 6) + (s.marketingHeat - 30) / 12 + (s.skills.sales - 5) * 0.3, 10, 100);
+    var priceF = 1;
+    if (s.products[0]) {
+      var fair = fairPrice(s.products[0], s);
+      priceF = priceAttract(s.products[0].price, fair);
+    }
+    var vol = biz(s).baseRev * demandModifiers(s) * capacityUnits(s) * (0.75 + s.hype / 200) * priceF;
+    var margin = clamp(0.28 + (s.hype - 50) / 400 + (s.quality - 50) / 500, 0.16, 0.42);
+    extraRev += vol;
+    extraCost += vol * (1 - margin);
+    // keep product stocks moving for the UI
+    s.products.forEach(function (p, i) {
+      p.sold = Math.max(1, Math.round(vol / Math.max(1, p.price) * (i === 0 ? 0.45 : 0.27)));
+      p.stock = Math.max(8, Math.round((p.stock || 20) * 0.7 + p.sold * 1.4));
+    });
+    if (r() < 0.3) report.lines.push("Drop week. Hype is " + Math.round(s.hype) + ", take is " + GT.money(vol) + ".");
+  }
+  if (b.id === "clothing") {
+    s.trend = clamp(s.trend + randInt(r, -5, 5), 10, 100);
+    if (s.week > 0 && s.week % 13 === 12) {
+      // markdown leftovers
+      s.products.forEach(function (p) {
+        if (p.id === "drop" && p.stock > 20) {
+          var dump = Math.round(p.stock * 0.4);
+          extraRev += dump * p.price * 0.5;
+          p.stock -= dump;
+          report.lines.push("Seasonal markdown on leftover drop stock.");
+        }
+      });
+    }
+  }
+  if (b.id === "food-truck") {
+    // fuel
+    extraCost += 90 + (s.routeId === "airport" ? 40 : 0);
+  }
+  if (b.id === "ecom") {
+    // returns
+    extraCost += fin(report._gross || 0) * 0.04;
+  }
+  return {rev: extraRev, cost: extraCost};
+}
+
+function loanTick(s, report) {
+  var paid = 0, interest = 0, missed = false;
+  // student / bg debt: small weekly
+  if (s.bgDebt > 0) {
+    var bgPay = Math.min(s.bgDebt, 85);
+    if (s.cash >= bgPay) {
+      spendCash(s, bgPay);
+      s.bgDebt = roundc(s.bgDebt - bgPay * 0.7);
+      paid += bgPay;
+    }
+  }
+  s.loans.forEach(function (l) {
+    var int = l.balance * (l.rate / 52);
+    interest += int;
+    l.balance = roundc(l.balance + int);
+    var due = l.revolving ? int + Math.min(l.balance * 0.02, l.balance) : l.payment;
+    due = Math.min(due, l.balance);
+    if (s.cash >= due && due > 0) {
+      spendCash(s, due);
+      l.balance = roundc(Math.max(0, l.balance - due));
+      paid += due;
+      l.missed = 0;
+      s.creditScore = clamp(s.creditScore + 0.08, 300, 850);
+    } else if (due > 0) {
+      l.missed = (l.missed || 0) + 1;
+      missed = true;
+      s.creditScore = clamp(s.creditScore - (l.predatory ? 8 : 5), 300, 850);
+      report.alerts.push("Missed a payment on " + l.name + ".");
+    }
+  });
+  s.loans = s.loans.filter(function (l) { return l.balance > 0.5 || l.revolving; });
+  if (s.hadDebt && totalDebt(s) < 1 && s.bgDebt < 1) GT.grant(s, "debtfree");
+  if (s.creditScore >= 800) GT.grant(s, "credit800");
+  report.expenses.debt = roundc(paid);
+  report.expenses.interest = roundc(interest);
+  return {paid: paid, missed: missed};
+}
+
+function taxTick(s, profit, report) {
+  // accrue 21% of weekly profit (if positive)
+  if (profit > 0) {
+    var acc = profit * 0.21;
+    s.taxOwed = roundc(fin(s.taxOwed) + acc);
+    // auto-set-aside 15% if finance skill high and cash allows
+  }
+  // quarterly payment weeks: 12, 25, 38, 51
+  var w = s.week % 52;
+  if (w === 12 || w === 25 || w === 38 || w === 51) {
+    var due = fin(s.taxOwed);
+    if (due > 10) {
+      var reserve = fin(s.taxReserve);
+      var pay = Math.min(due, reserve + Math.max(0, s.cash * 0.8));
+      if (pay >= due * 0.95) {
+        payTax(s, due);
+        s.creditScore = clamp(s.creditScore + 1, 300, 850);
+        report.lines.push("Quarterly taxes paid: " + GT.money(due) + ".");
+        report.expenses.tax = due;
+      } else {
+        payTax(s, pay);
+        s.taxOwed = roundc(s.taxOwed * 1.04 + 50);
+        s.creditScore = clamp(s.creditScore - 4, 300, 850);
+        report.alerts.push("Short on taxes. Penalty applied.");
+      }
+    }
+  }
+  // year roll
+  if (w === 51) {
+    s.annualProfit = s.ytdProfit;
+    s.annualRevenue = s.ytdRevenue;
+    var prev = fin(s._prevAnnual, s.annualRevenue);
+    s.growthRate = prev > 0 ? (s.annualRevenue - prev) / prev : 0;
+    s._prevAnnual = s.annualRevenue;
+    s.ytdProfit = 0;
+    s.ytdRevenue = 0;
+    s.ytdOpex = 0;
+  }
+}
+
+function maybeEvent(s, r) {
+  if (s.pendingEvent) return;
+  if (s.week < 2) return;
+  var p = 0.18 + (s.flags.recession ? 0.04 : 0);
+  if (r() > p) return;
+  var pool = GT.EVENTS.filter(function (e) {
+    if (e.minWeek && s.week < e.minWeek) return false;
+    if (e.requires && !e.requires(s)) return false;
+    return true;
+  });
+  if (!pool.length) return;
+  // weighted
+  var tot = 0;
+  pool.forEach(function (e) { tot += e.w || 1; });
+  var x = r() * tot, acc = 0, pickE = pool[0];
+  for (var i = 0; i < pool.length; i++) {
+    acc += pool[i].w || 1;
+    if (x <= acc) { pickE = pool[i]; break; }
+  }
+  var text = typeof pickE.text === "function" ? pickE.text(s) : pickE.text;
+  s.pendingEvent = {
+    id: pickE.id,
+    name: pickE.name,
+    text: text,
+    choices: pickE.choices.map(function (c) { return {id: c.id, label: c.label, rec: c.rec}; })
+  };
+}
+
+GT.resolveEvent = function (s, choiceId) {
+  if (!s.pendingEvent) return s;
+  var def = null;
+  GT.EVENTS.forEach(function (e) { if (e.id === s.pendingEvent.id) def = e; });
+  var ch = def && def.choices.filter(function (c) { return c.id === choiceId; })[0];
+  if (!ch) ch = def && def.choices[0];
+  var r = rngOf(s);
+  if (ch && ch.fn) ch.fn(s, r);
+  if (s.pendingEvent.id === "recession") GT.grant(s, "recession");
+  s.pendingEvent = null;
+  if (s.flags.autoSell && s.flags.pendingBuyout) GT.sellCompany(s, s.flags.pendingBuyout);
+  return s;
+};
+
+function checkSoftGoals(s) {
+  var nw = netWorth(s);
+  if (nw >= 1e6) GT.grant(s, "million");
+  if (nw >= 1e7) GT.grant(s, "net10m");
+  if (nw >= 1e9) GT.grant(s, "billion");
+  if (s.locations.length >= 3) GT.grant(s, "locs3");
+  if (s.franchiseUnits >= 5) GT.grant(s, "franchise5");
+  if (s.staff.length >= 5) GT.grant(s, "staff5");
+  if (s.staff.length >= 20) GT.grant(s, "staff20");
+  if (s.week >= 520) GT.grant(s, "decade");
+}
+
+function maybeBankrupt(s, report) {
+  if (s.ended) return;
+  // If cash negative, try LOC, then emergency MCA if credit allows
+  if (s.cash >= 0) return;
+  var need = Math.ceil(-s.cash + 200);
+  var got = drawCredit(s, need);
+  if (s.cash >= 0) {
+    report.alerts.push("Drew " + GT.money(got) + " on your credit line.");
+    return;
+  }
+  // one-time emergency loan, never stack predatory advances
+  var hasPred = s.loans.some(function (l) { return l.predatory; });
+  if (!hasPred && s.creditScore >= 620 && totalDebt(s) < companyValue(s) * 0.7 && !s.flags.usedEmergency) {
+    var amt = Math.min(8000, Math.max(need, 2000));
+    s.loans.push(makeLoan("starter", amt, s, 1.2));
+    earnCash(s, amt);
+    s.hadDebt = true;
+    s.flags.usedEmergency = true;
+    s.creditScore = clamp(s.creditScore - 4, 300, 850);
+    report.alerts.push("Emergency loan of " + GT.money(amt) + " to cover the shortfall.");
+    if (s.cash >= 0) return;
+  }
+  // still negative
+  s.cash = roundc(s.cash);
+  if (s.cash < 0) GT.endGame(s, "bankrupt");
+}
+
+GT.endGame = function (s, kind, detail) {
+  if (s.ended) return s;
+  s.ended = true;
+  s.ending = kind;
+  var nw = netWorth(s);
+  if (kind === "bankrupt") {
+    s.endingValue = 0;
+    s.endingTitle = "Bankruptcy";
+    s.endingText = "The cash ran out, and no lender would extend another dollar. " + s.name + " closes in " + GT.fmtWeek(s.week) + ". You leave with the lesson, and a clean-but-painful credit file.";
+    GT.grant(s, "bankrupt");
+  } else if (kind === "sold") {
+    var gross = fin(detail, companyValue(s));
+    var afterDebt = Math.max(0, gross - totalDebt(s) - fin(s.taxOwed) * 0.2);
+    var take = afterDebt * founderEquity(s);
+    s.cash = 0;
+    s.personalCash = fin(s.personalCash) + take;
+    s.endingValue = s.personalCash;
+    s.endingTitle = "Sold";
+    s.endingText = "You sold " + s.name + " for " + GT.money(gross) + ". After debt and your ownership share, you walk away with " + GT.money(take) + " in " + GT.fmtWeek(s.week) + ".";
+    GT.grant(s, "sold");
+  } else if (kind === "ipo") {
+    var val = companyValue(s);
+    var soldFrac = 0.25;
+    var proceeds = val * soldFrac * founderEquity(s); // founder sells a slice, company also raises — founder personal
+    // Dilute slightly, cash to personal + company
+    var companyRaise = val * 0.2;
+    s.founderEquity = founderEquity(s) * (1 - 0.2);
+    earnCash(s, companyRaise);
+    s.personalCash = fin(s.personalCash) + proceeds;
+    s.flags.public = true;
+    s.endingValue = netWorth(s);
+    s.endingTitle = "Initial Public Offering";
+    s.endingText = s.name + " goes public at a " + GT.money(val) + " valuation in " + GT.fmtWeek(s.week) + ". You sold a slice for " + GT.money(proceeds) + " and still own " + Math.round(s.founderEquity * 100) + "%.";
+    GT.grant(s, "ipo");
+  } else if (kind === "decade") {
+    s.endingValue = nw;
+    s.endingTitle = "Ten Years";
+    s.endingText = "Ten years in. " + s.name + " is still standing. Net worth: " + GT.money(nw) + ". You can keep going, or call it a career.";
+    GT.grant(s, "decade");
+    s.ended = false; // allow continue; mark offered
+    s.flags.decadeOffered = true;
+    s.ended = false;
+    return s;
+  } else if (kind === "millionaire") {
+    s.endingValue = nw;
+    s.endingTitle = "Millionaire";
+    s.endingText = "Your stake is worth " + GT.money(nw) + ". You made it over a million. Keep building or cash out when you like.";
+    GT.grant(s, "million");
+    s.ended = false;
+    s.flags.millionOffered = true;
+    return s;
+  } else if (kind === "billionaire") {
+    s.endingValue = nw;
+    s.endingTitle = "Billionaire";
+    s.endingText = "The number has nine zeroes. " + s.name + " is a Harborline legend — and then some. Net worth: " + GT.money(nw) + ".";
+    GT.grant(s, "billion");
+    s.ended = false;
+    s.flags.billionOffered = true;
+    return s;
+  }
+  return s;
+};
+
+GT.sellCompany = function (s, price) {
+  return GT.endGame(s, "sold", price);
+};
+
+GT.canIPO = function (s) {
+  var val = companyValue(s);
+  return !s.ended && !s.flags.public && s.week >= 156 && val >= 8000000 && (s.annualRevenue >= 1500000 || fin(s.ytdRevenue) > 400000 && s.week % 52 > 30) && s.reputation >= 55 && avgReview(s) >= 3.6;
+};
+
+GT.goPublic = function (s) {
+  if (!GT.canIPO(s)) return {ok: false, why: "The market is not ready. You need year 4+, a serious valuation, and real revenue."};
+  GT.endGame(s, "ipo");
+  s.ended = false; // IPO is a milestone; company continues as public
+  s.flags.public = true;
+  return {ok: true};
+};
+
+GT.advanceWeek = function (s) {
+  if (s.ended) return {state: s, report: null};
+  if (s.pendingEvent) return {state: s, report: null, blocked: true, event: s.pendingEvent};
+  var r = rngOf(s);
+  // bump week at start of operations after planning of "this coming week"
+  var report = {week: s.week, lines: [], alerts: [], revenue: 0, cogs: 0, expenses: {}, profit: 0, sold: 0};
+
+  receiveShipments(s);
+  var mktSpend = tickMarketing(s);
+  report.expenses.marketing = mktSpend;
+  spendCash(s, mktSpend);
+
+  tickStaff(s, r);
+  tickEquipment(s, r);
+  tickCompetitors(s, r);
+
+  var spoilage = perishStock(s);
+  report.expenses.spoilage = roundc(spoilage);
+
+  var cap = capacityUnits(s);
+  var gross = 0, cogs = 0, unitsSold = 0;
+  var satAcc = 0, satW = 0;
+
+  // Standard product sales (some types add extraRev and may skip physical units)
+  var skipStd = false;
+  if (s.businessId === "tech" || s.businessId === "app-studio" || s.businessId === "game-studio" || s.businessId === "realestate" || s.businessId === "sneakers") skipStd = true;
+
+  if (!skipStd) {
+    var weights = s.products.map(function (p, idx) {
+      if (p.disabled) return 0;
+      if ((s.businessId === "gym" || s.businessId === "car-wash") && (p.id === "mem" || p.id === "club")) return 0;
+      return idx === 0 ? 0.5 : 0.5 / Math.max(1, s.products.length - 1);
+    });
+    var wsum = weights.reduce(function (a, b) { return a + b; }, 0) || 1;
+    s.products.forEach(function (p, idx) {
+      var share = (weights[idx] / wsum) * Math.min(1.35, cap);
+      var demand = demandForProduct(s, p, share);
+      var units = demand;
+      var rushUnits = 0;
+      var rushCost = 0;
+      if (p.baseCost > 0.05) {
+        units = Math.min(units, Math.max(0, p.stock));
+        var unmet = Math.floor(Math.max(0, demand - units));
+        if (s.businessId === "sneakers" && unmet > 0) {
+          var rc = fin(p.unitCost, p.baseCost) * 1.2;
+          var can = Math.floor(Math.max(0, s.cash - staffPayroll(s) - weeklyRent(s)) / Math.max(0.01, rc));
+          rushUnits = Math.min(unmet, Math.max(0, can));
+          rushCost = rushUnits * rc;
+        }
+      }
+      units = Math.max(0, Math.floor(units));
+      p.sold = units + rushUnits;
+      p.stock = Math.max(0, p.stock - units);
+      var rev = p.sold * p.price;
+      var cost = units * fin(p.unitCost, p.baseCost) + rushCost;
+      if (s.flags.partnerCut) rev *= (1 - s.flags.partnerCut);
+      if (s.flags.shrink) cost += rev * s.flags.shrink;
+      gross += rev;
+      cogs += cost;
+      unitsSold += units;
+      var fair = fairPrice(p, s);
+      var valueFeel = clamp(70 + (p.quality - 50) * 0.6 - (p.price / fair - 1) * 40, 10, 100);
+      satAcc += valueFeel * units;
+      satW += units;
+    });
+  }
+
+  report._gross = gross;
+  var special = specialTick(s, r, report);
+  gross += fin(special.rev);
+  report.expenses.special = roundc(fin(special.cost));
+  spendCash(s, fin(special.cost));
+
+  // online channel fee
+  if (s.flags.online) {
+    var fee = gross * 0.04 + 35;
+    report.expenses.onlineFee = roundc(fee);
+    spendCash(s, fee);
+  }
+  // franchise royalty income
+  if (s.franchiseUnits > 0) {
+    var roy = s.franchiseUnits * (120 + s.reputation * 2) * (s.flags.recession ? 0.8 : 1);
+    gross += roy;
+    report.lines.push(s.franchiseUnits + " franchise units paid " + GT.money(roy) + " in royalties.");
+  }
+
+  earnCash(s, gross);
+  spendCash(s, cogs);
+  report.revenue = roundc(gross);
+  report.cogs = roundc(cogs);
+  report.sold = unitsSold;
+
+  var wages = staffPayroll(s);
+  if (s.flags.wagePress) wages *= s.flags.wagePress;
+  report.expenses.wages = roundc(wages);
+  spendCash(s, wages);
+
+  var rent = weeklyRent(s);
+  report.expenses.rent = rent;
+  spendCash(s, rent);
+
+  var util = (biz(s).mobile ? 40 : 90) * s.locations.length + s.staff.length * 8;
+  report.expenses.utilities = roundc(util);
+  spendCash(s, util);
+
+  // auto inventory reminder is player's job; small holding cost
+  var hold = inventoryValue(s) * 0.004;
+  report.expenses.holding = roundc(hold);
+  spendCash(s, hold);
+
+  loanTick(s, report);
+
+  // satisfaction & quality drift
+  var servedFeel = satW ? satAcc / satW : s.satisfaction;
+  var staffFeel = staffQuality(s);
+  var waitFeel = cap >= 0.8 ? 6 : cap >= 0.5 ? 0 : -8;
+  s.satisfaction = clamp(s.satisfaction * 0.72 + servedFeel * 0.18 + staffFeel * 0.08 + waitFeel, 0, 100);
+  // quality: equipment, supplier, craft
+  var sup = GT.SUPPLIERS.filter(function (x) { return x.id === s.supplierId; })[0] || GT.SUPPLIERS[1];
+  var qTarget = 45 + s.skills.craft * 3 + staffQuality(s) * 0.2 + (sup.quality || 0) + equipFactor(s) * 8;
+  s.quality = clamp(s.quality * 0.85 + qTarget * 0.15, 5, 100);
+  s.products.forEach(function (p) {
+    p.quality = clamp(p.quality * 0.8 + s.quality * 0.2, 5, 100);
+  });
+  s.reputation = clamp(s.reputation * 0.97 + (s.satisfaction * 0.6 + avgReview(s) * 8) * 0.03, 0, 100);
+
+  if (r() < 0.35) {
+    var stars = clamp(avgReview(s) * 0.3 + (s.satisfaction / 20) + randRange(r, -0.8, 0.8), 1, 5);
+    var phrases = stars >= 4.5 ? ["Really well run. I'll be back.","Worth the price."]
+      : stars >= 3.5 ? ["Solid. A few rough edges.","Did the job."]
+      : ["Not what I hoped.","Slow, and it showed."];
+    addReview(s, stars, pick(r, phrases));
+  }
+
+  var opex = 0;
+  Object.keys(report.expenses).forEach(function (k) { opex += fin(report.expenses[k]); });
+  var profit = roundc(report.revenue - report.cogs - opex);
+  report.profit = profit;
+  report.expensesTotal = roundc(opex);
+  s.ytdProfit = roundc(fin(s.ytdProfit) + profit);
+  s.ytdRevenue = roundc(fin(s.ytdRevenue) + report.revenue);
+  s.ytdOpex = roundc(fin(s.ytdOpex) + opex);
+  s.revenueRunRate = roundc(s.revenueRunRate * 0.8 + report.revenue * 0.2);
+  s.weeklyCost = roundc(s.weeklyCost * 0.7 + opex * 0.3);
+  if (profit > 0) GT.grant(s, "first-profit");
+  if (profit > 0 && s.satisfaction >= 90) GT.grant(s, "perfect-week");
+
+  taxTick(s, profit, report);
+  applyFlagTimers(s);
+
+  // mid-year annualized figures for valuation if first year
+  if (s.week < 52) {
+    var weeksLive = Math.max(1, s.week + 1);
+    s.annualRevenue = s.ytdRevenue * (52 / weeksLive);
+    s.annualProfit = s.ytdProfit * (52 / weeksLive);
+  }
+
+  s.pnl.push({week: s.week, rev: report.revenue, cogs: report.cogs, opex: report.expensesTotal, profit: profit, cash: s.cash});
+  if (s.pnl.length > 520) s.pnl.shift();
+  pushHistory(s, report.revenue, profit);
+
+  s.week += 1;
+  s._r = mulberry32(hashSeed(s.seed + ":w" + s.week + ":" + Math.round(s.cash * 10) + ":" + s.staff.length));
+
+  checkSoftGoals(s);
+  maybeBankrupt(s, report);
+  if (!s.ended) {
+    if (s.week >= 520 && !s.flags.decadeOffered) GT.endGame(s, "decade");
+    var nw = netWorth(s);
+    if (nw >= 1e9 && !s.flags.billionOffered) GT.endGame(s, "billionaire");
+    else if (nw >= 1e6 && !s.flags.millionOffered) GT.endGame(s, "millionaire");
+  }
+
+  maybeEvent(s, rngOf(s));
+  if (s.week % 4 === 0) refreshCandidates(s, rngOf(s));
+
+  // sanitize
+  s.cash = roundc(fin(s.cash));
+  s.quality = clamp(fin(s.quality, 50), 5, 100);
+  s.satisfaction = clamp(fin(s.satisfaction, 50), 0, 100);
+  if (!Number.isFinite(s.cash)) s.cash = 0;
+
+  report.cash = s.cash;
+  report.netWorth = netWorth(s);
+  report.event = s.pendingEvent;
+  s.lastReport = report;
+  return {state: s, report: report, event: s.pendingEvent};
+};
+
+/* ---------- player actions ---------- */
+GT.suppliers = function () { return GT.SUPPLIERS; };
+
+GT.setPrice = function (s, productId, price) {
+  price = clamp(fin(price), 0.25, 100000);
+  s.products.forEach(function (p) { if (p.id === productId) p.price = roundc(price); });
+  return s;
+};
+GT.setAllPricesMult = function (s, mult) {
+  mult = clamp(fin(mult), 0.4, 2.5);
+  s.products.forEach(function (p) { p.price = roundc(Math.max(0.25, p.basePrice * mult)); });
+  return s;
+};
+GT.setSupplier = function (s, id) {
+  var ok = GT.SUPPLIERS.filter(function (x) { return x.id === id; })[0];
+  if (ok) s.supplierId = id;
+  return s;
+};
+GT.orderStock = function (s, productId, qty) {
+  qty = Math.max(0, Math.round(fin(qty)));
+  if (!qty) return {ok: false, why: "No quantity."};
+  var p = s.products.filter(function (x) { return x.id === productId; })[0];
+  if (!p || p.baseCost <= 0.05) return {ok: false, why: "That item is not stocked that way."};
+  var sup = GT.SUPPLIERS.filter(function (x) { return x.id === s.supplierId; })[0] || GT.SUPPLIERS[1];
+  var unit = roundc(p.baseCost * sup.costMult);
+  var cost = unit * qty;
+  if (s.cash < cost) return {ok: false, why: "Not enough cash. Need " + GT.money(cost) + "."};
+  spendCash(s, cost);
+  var lead = sup.lead;
+  if (s.businessId === "sneakers" || s.businessId === "ecom") lead = Math.min(lead, 1);
+  if (s.businessId === "sneakers") lead = 0;
+  if (rngOf(s)() > sup.reliability && lead > 0) lead += 1;
+  var q = clamp(s.quality + sup.quality, 5, 100);
+  s.shipments.push({productId: p.id, qty: qty, unitCost: unit, quality: q, weeksLeft: lead});
+  addNews(s, "Ordered " + qty + " " + p.name + " from " + sup.name + " for " + GT.money(cost) + (lead ? (" (" + lead + " wk)") : " (arrives this week)."));
+  return {ok: true, cost: cost, lead: lead};
+};
+
+GT.setMarketing = function (s, channelId, amount) {
+  amount = clamp(fin(amount), 0, 20000);
+  var ch = null;
+  GT.CHANNELS.forEach(function (c) { if (c.id === channelId) ch = c; });
+  if (!ch) return s;
+  s.marketing[channelId] = Math.min(amount, ch.weeklyMax);
+  return s;
+};
+
+GT.hire = function (s, candidateId) {
+  var c = s.candidates.filter(function (x) { return x.id === candidateId; })[0];
+  if (!c) return {ok: false, why: "Candidate no longer available."};
+  // hiring bonus: one week wage
+  if (s.cash < c.wage) return {ok: false, why: "Need at least one week's wage in cash."};
+  spendCash(s, c.wage * 0.25);
+  c.morale = clamp(c.morale + 4, 0, 100);
+  s.staff.push(c);
+  s.candidates = s.candidates.filter(function (x) { return x.id !== candidateId; });
+  GT.grant(s, "first-hire");
+  addNews(s, "Hired " + c.name + " as " + c.roleName + " at " + GT.money(c.wage) + "/wk.");
+  return {ok: true};
+};
+GT.fire = function (s, staffId) {
+  var p = s.staff.filter(function (x) { return x.id === staffId; })[0];
+  if (!p) return {ok: false, why: "Not on payroll."};
+  var sev = p.wage;
+  spendCash(s, Math.min(sev, Math.max(0, s.cash)));
+  s.staff = s.staff.filter(function (x) { return x.id !== staffId; });
+  s.staff.forEach(function (x) { x.morale = clamp(x.morale - 4, 0, 100); });
+  addNews(s, "Let go " + p.name + ". Severance " + GT.money(sev) + ".");
+  return {ok: true};
+};
+GT.setWage = function (s, staffId, wage) {
+  wage = clamp(fin(wage), 50, 20000);
+  s.staff.forEach(function (p) {
+    if (p.id === staffId) {
+      var prev = p.wage;
+      p.wage = roundc(wage);
+      p.morale = clamp(p.morale + (wage > prev ? 8 : wage < prev * 0.95 ? -14 : 0), 0, 100);
+    }
+  });
+  return s;
+};
+GT.trainStaff = function (s, staffId) {
+  var p = s.staff.filter(function (x) { return x.id === staffId; })[0];
+  if (!p) return {ok: false, why: "Not on payroll."};
+  if (p.training > 0) return {ok: false, why: "Already in training."};
+  var cost = 280 + p.skill * 4;
+  if (s.cash < cost) return {ok: false, why: "Training costs " + GT.money(cost) + "."};
+  spendCash(s, cost);
+  p.training = 2;
+  addNews(s, p.name + " starts two weeks of training.");
+  return {ok: true, cost: cost};
+};
+
+GT.upgradeEquipment = function (s, equipId) {
+  var e = s.equipment.filter(function (x) { return x.id === equipId; })[0];
+  if (!e) return {ok: false, why: "No such equipment."};
+  if ((e.level || 1) >= (e.levels || 4)) return {ok: false, why: "Already at the top tier."};
+  var cost = e.cost * (0.55 + (e.level || 1) * 0.35);
+  if (s.flags.buyDiscount) cost *= s.flags.buyDiscount;
+  if (s.cash < cost) return {ok: false, why: "Need " + GT.money(cost) + "."};
+  spendCash(s, cost);
+  e.level = (e.level || 1) + 1;
+  e.cond = 100;
+  s.quality = clamp(s.quality + 2, 5, 100);
+  addNews(s, "Upgraded " + e.name + " to level " + e.level + ".");
+  return {ok: true, cost: cost};
+};
+GT.repairEquipment = function (s, equipId) {
+  var e = s.equipment.filter(function (x) { return x.id === equipId; })[0];
+  if (!e) return {ok: false, why: "No such equipment."};
+  var cost = Math.round((100 - fin(e.cond, 80)) / 100 * e.cost * 0.15) + 80;
+  if (s.cash < cost) return {ok: false, why: "Need " + GT.money(cost) + "."};
+  spendCash(s, cost);
+  e.cond = clamp(e.cond + 45, 0, 100);
+  addNews(s, "Repaired " + e.name + " for " + GT.money(cost) + ".");
+  return {ok: true, cost: cost};
+};
+
+GT.setRoute = function (s, hoodId) {
+  if (!biz(s).mobile) return {ok: false, why: "This business is not mobile."};
+  if (!GT.HOOD[hoodId]) return {ok: false, why: "Unknown neighborhood."};
+  s.routeId = hoodId;
+  addNews(s, "This week's route: " + GT.HOOD[hoodId].name + ".");
+  return {ok: true};
+};
+
+function loanMax(s, prod) {
+  var cap = prod.maxAmount;
+  cap *= 0.6 + Math.min(1.2, companyValue(s) / 80000);
+  cap *= 0.7 + s.creditScore / 1200;
+  cap *= 1 + (s.skills.finance - 5) * 0.04;
+  return Math.round(Math.max(1000, Math.min(prod.maxAmount * 1.2, cap)));
+}
+GT.loanOptions = function (s) {
+  return GT.LOAN_PRODUCTS.map(function (p) {
+    var ok = s.creditScore >= p.minCredit;
+    return {id: p.id, name: p.name, rate: p.rate, weeks: p.weeks, revolving: !!p.revolving, predatory: !!p.predatory, minCredit: p.minCredit, max: loanMax(s, p), ok: ok, why: ok ? "" : "Credit " + p.minCredit + "+ required."};
+  });
+};
+GT.takeLoan = function (s, typeId, amount) {
+  var p = GT.LOAN_PRODUCTS.filter(function (x) { return x.id === typeId; })[0];
+  if (!p) return {ok: false, why: "Unknown product."};
+  if (s.creditScore < p.minCredit) return {ok: false, why: "Credit score too low."};
+  var max = loanMax(s, p);
+  amount = clamp(fin(amount), 500, max);
+  // already have this revolving? just raise limit
+  if (p.revolving) {
+    var existing = s.loans.filter(function (l) { return l.revolving && l.typeId === typeId; })[0];
+    if (existing) {
+      existing.limit = Math.max(existing.limit, amount);
+      addNews(s, "Line of credit limit is now " + GT.money(existing.limit) + ".");
+      return {ok: true};
+    }
+  }
+  var fee = amount * (p.fee || 0);
+  var net = amount - fee;
+  var loan = makeLoan(typeId, amount, s, 1);
+  if (p.revolving) { loan.balance = 0; loan.limit = amount; net = 0; }
+  else earnCash(s, net);
+  if (fee && !p.revolving) { /* fee already netted */ }
+  s.loans.push(loan);
+  s.hadDebt = true;
+  addNews(s, (p.revolving ? "Opened a line of " : "Borrowed ") + GT.money(amount) + " via " + p.name + (fee && !p.revolving ? " (fee " + GT.money(fee) + ")" : "") + ".");
+  return {ok: true, amount: amount};
+};
+GT.payDown = function (s, amount) { return {ok: true, paid: payLoans(s, amount)}; };
+GT.drawLoc = function (s, amount) {
+  var got = drawCredit(s, amount);
+  if (!got) return {ok: false, why: "No open credit line, or nothing left on it."};
+  addNews(s, "Drew " + GT.money(got) + " on a credit line.");
+  return {ok: true, amount: got};
+};
+GT.depositTax = function (s, amount) {
+  amount = Math.min(fin(amount), Math.max(0, s.cash));
+  if (amount <= 0) return {ok: false, why: "No cash to set aside."};
+  spendCash(s, amount);
+  s.taxReserve = roundc(fin(s.taxReserve) + amount);
+  return {ok: true};
+};
+GT.renewPermits = function (s) {
+  var c = 180 + (biz(s).inspect ? 220 : 0);
+  if (s.cash < c) return {ok: false, why: "Need " + GT.money(c) + "."};
+  spendCash(s, c);
+  s.permitsOk = true;
+  s.flags.permitWeeks = 52;
+  addNews(s, "Permits renewed.");
+  return {ok: true};
+};
+
+GT.investorOffer = function (s) {
+  var val = companyValue(s);
+  var stage = s.investors.length === 0 ? "seed" : s.investors.length === 1 ? "series-a" : "series-b";
+  var want = stage === "seed" ? 0.18 : stage === "series-a" ? 0.2 : 0.15;
+  var check = stage === "seed" ? clamp(val * 0.22, 15000, 250000)
+    : stage === "series-a" ? clamp(val * 0.25, 80000, 2000000)
+    : clamp(val * 0.2, 200000, 8000000);
+  // investors need a story
+  var ready = s.week >= (stage === "seed" ? 8 : stage === "series-a" ? 40 : 80);
+  var story = s.businessId === "tech" || s.businessId === "app-studio" || s.businessId === "game-studio" || s.growthRate > 0.15 || s.revenueRunRate > 4000;
+  if (!ready) return {ok: false, why: "Too early for a priced round."};
+  if (!story && s.skills.finance < 7) return {ok: false, why: "Investors want either growth, a software story, or a stronger finance pitch."};
+  return {ok: true, stage: stage, valuation: val, check: Math.round(check), equity: want, name: stage === "seed" ? "Dockside Partners" : stage === "series-a" ? "Northline Capital" : "Open Harbor Fund"};
+};
+GT.takeInvestment = function (s, negotiate) {
+  var off = GT.investorOffer(s);
+  if (!off.ok) return off;
+  var eq = off.equity;
+  var check = off.check;
+  if (negotiate) {
+    var skill = s.skills.finance + s.skills.sales / 4;
+    if (skill >= 9) { eq *= 0.82; check *= 1.05; }
+    else if (skill >= 7) { eq *= 0.9; }
+    else { eq *= 1.08; check *= 0.95; }
+  }
+  eq = clamp(eq, 0.05, 0.4);
+  if (founderEquity(s) - eq < 0.15) return {ok: false, why: "That would leave you under 15% — they will not structure it that way, and you shouldn't either."};
+  s.founderEquity = roundc((founderEquity(s) - eq) * 1000) / 1000;
+  s.investors.push({name: off.name, stage: off.stage, equity: eq, check: check, week: s.week});
+  earnCash(s, check);
+  if (off.stage !== "seed") GT.grant(s, "series-a");
+  addNews(s, off.name + " invested " + GT.money(check) + " for " + Math.round(eq * 100) + "% in a " + off.stage + " round.");
+  return {ok: true, check: check, equity: eq};
+};
+
+GT.openLocation = function (s, hoodId) {
+  var h = GT.HOOD[hoodId];
+  if (!h) return {ok: false, why: "Unknown neighborhood."};
+  if (biz(s).mobile) return {ok: false, why: "Add routes, not storefronts — or franchise later."};
+  var cost = biz(s).startup * 0.55 * h.rentMult;
+  if (s.flags.buyDiscount) cost *= s.flags.buyDiscount;
+  cost = Math.round(cost);
+  if (s.locations.some(function (l) { return l.hoodId === hoodId && !l.franchise; })) {
+    return {ok: false, why: "You already operate there."};
+  }
+  if (s.cash < cost) return {ok: false, why: "Need " + GT.money(cost) + " to open."};
+  if (s.staff.length < s.locations.length + 1) return {ok: false, why: "Hire at least one more person before opening another floor."};
+  spendCash(s, cost);
+  var rent = roundc((fin(biz(s).rent, 800) / 4.333) * h.rentMult);
+  s.locations.push({id: "loc" + s.locations.length, name: h.name, hoodId: h.id, rent: rent, size: 1, quality: s.quality, owned: false, weeks: 0});
+  s.reputation = clamp(s.reputation + 2, 0, 100);
+  addNews(s, "Opened a new location in " + h.name + " for " + GT.money(cost) + ".");
+  return {ok: true, cost: cost};
+};
+
+GT.launchOnline = function (s) {
+  if (s.flags.online) return {ok: false, why: "Already live."};
+  var cost = 1800 + (biz(s).group === "digital" ? 0 : 800);
+  if (s.cash < cost) return {ok: false, why: "Need " + GT.money(cost) + "."};
+  spendCash(s, cost);
+  s.flags.online = true;
+  s.marketingHeat += 8;
+  GT.grant(s, "online");
+  addNews(s, "Your online channel is live.");
+  return {ok: true};
+};
+
+GT.goNational = function (s) {
+  if (s.flags.national) return {ok: false, why: "Already national."};
+  if (biz(s).group !== "digital") return {ok: false, why: "This is for software, apps, and games."};
+  if (s.week < 104) return {ok: false, why: "Prove the product locally first (two years)."};
+  var cost = 18000 + s.skills.sales * 200;
+  if (s.cash < cost) return {ok: false, why: "Need " + GT.money(cost) + " to go national."};
+  spendCash(s, cost);
+  s.flags.national = true;
+  s.flags.online = true;
+  s.marketingHeat += 12;
+  addNews(s, "You took the product national.");
+  return {ok: true, cost: cost};
+};
+
+GT.sellFranchise = function (s) {
+  if (s.week < 40) return {ok: false, why: "Build the brand first (40+ weeks)."};
+  if (s.reputation < 60 || avgReview(s) < 4) return {ok: false, why: "Franchisees want a 4.0+ review average and a known name."};
+  var fee = 12000 + s.reputation * 120;
+  earnCash(s, fee);
+  s.franchiseUnits = (s.franchiseUnits || 0) + 1;
+  addNews(s, "A franchise opened. You collected a " + GT.money(fee) + " fee.");
+  return {ok: true, fee: fee};
+};
+
+GT.addProductLine = function (s) {
+  if (s.flags.extraLine) return {ok: false, why: "You already added a line this chapter."};
+  var cost = 2400 + s.quality * 20;
+  if (s.cash < cost) return {ok: false, why: "Need " + GT.money(cost) + "."};
+  spendCash(s, cost);
+  var r = rngOf(s);
+  var names = ["Limited drop","House special","Premium tier","Weekday set","Add-on pack"];
+  s.products.push({
+    id: "xtra" + s.products.length,
+    name: pick(r, names),
+    baseCost: 6 + r() * 10,
+    basePrice: 18 + r() * 20,
+    unitCost: 6 + r() * 10,
+    price: 18 + r() * 20,
+    quality: s.quality,
+    stock: 40,
+    perish: biz(s).perishable ? 1 : 0,
+    sold: 0
+  });
+  s.flags.extraLine = true;
+  addNews(s, "You launched an additional product line.");
+  return {ok: true};
+};
+
+GT.pivotBusiness = function (s, newId) {
+  var b = GT.BIZ[newId];
+  if (!b) return {ok: false, why: "Unknown type."};
+  if (newId === s.businessId) return {ok: false, why: "That is already your business."};
+  var cost = 8000 + biz(s).startup * 0.2;
+  if (s.cash < cost) return {ok: false, why: "A pivot costs " + GT.money(cost) + "."};
+  spendCash(s, cost);
+  var old = biz(s).name;
+  s.businessId = newId;
+  s.products = b.products.map(function (p) {
+    return {id: p.id, name: p.name, baseCost: p.baseCost, basePrice: p.basePrice, unitCost: p.baseCost, price: p.basePrice, quality: s.quality, stock: 40, perish: p.perish || 0, sold: 0};
+  });
+  s.equipment = (b.equipment || []).map(function (e) {
+    return {id: e.id, name: e.name, cost: e.cost, level: 1, levels: e.levels || 4, cond: 80};
+  });
+  s.stage = (newId === "tech" || newId === "game-studio" || newId === "app-studio") ? "build" : "open";
+  s.project = newId === "game-studio" ? newProject(s, rngOf(s), "debut") : null;
+  GT.grant(s, "pivot");
+  addNews(s, "You pivoted from " + old + " to " + b.name + ".");
+  return {ok: true};
+};
+
+GT.buyProperty = function (s) {
+  if (s.businessId !== "realestate") return {ok: false, why: "Only a real-estate firm buys this way."};
+  var r = rngOf(s);
+  var val = 140000 + r() * 220000;
+  if (s.flags.buyDiscount) val *= s.flags.buyDiscount;
+  var down = val * 0.22;
+  if (s.cash < down) return {ok: false, why: "Need " + GT.money(down) + " down."};
+  spendCash(s, down);
+  s.properties.push({
+    id: uid(r),
+    name: randInt(r, 10, 90) + " " + pick(r, ["Willow","Dock","Cedar","Harbor","Mills","Lake"]) + " " + pick(r, ["St","Ave","Way","Ct"]),
+    value: Math.round(val),
+    mortgage: Math.round(val - down),
+    rate: s.rateEnv + 0.012,
+    rent: roundc(val * 0.00085 * randRange(r, 0.88, 1.16)),
+    cond: randInt(r, 55, 90),
+    vacant: r() < 0.2,
+    weeksVacant: 0
+  });
+  addNews(s, "Closed on another property.");
+  return {ok: true};
+};
+
+GT.startGameProject = function (s) {
+  if (s.businessId !== "game-studio") return {ok: false, why: "Only the game studio uses this."};
+  if (s.project) return {ok: false, why: "Finish the current project first."};
+  s.project = newProject(s, rngOf(s), "next");
+  addNews(s, "Preproduction begins on " + s.project.name + ".");
+  return {ok: true};
+};
+GT.setCrunch = function (s, on) {
+  if (s.project) s.project.crunch = !!on;
+  return s;
+};
+GT.startApp = function (s) {
+  if (s.businessId !== "app-studio") return {ok: false, why: "Only the app studio uses this."};
+  if (s.apps.filter(function (a) { return a.stage === "build"; }).length) return {ok: false, why: "Finish the app in development first."};
+  var cost = 1200;
+  if (s.cash < cost) return {ok: false, why: "Need " + GT.money(cost) + "."};
+  spendCash(s, cost);
+  s.apps.push(newApp(s, rngOf(s), false));
+  addNews(s, "A new app entered development.");
+  return {ok: true};
+};
+
+GT.solicitSale = function (s) {
+  if (s.week < 24) return {ok: false, why: "Build something worth buying first."};
+  var r = rngOf(s);
+  var val = companyValue(s);
+  var interested = val > 40000 && (avgReview(s) >= 3.5 || s.annualProfit > 0 || s.users > 2000);
+  if (!interested && r() > 0.25) return {ok: false, why: "No serious buyers this week.", offer: 0};
+  var offer = val * randRange(r, 0.8, 1.15);
+  s.flags.pendingBuyout = offer;
+  return {ok: true, offer: roundc(offer)};
+};
+GT.acceptSale = function (s) {
+  if (!s.flags.pendingBuyout) return {ok: false, why: "No offer on the table."};
+  GT.sellCompany(s, s.flags.pendingBuyout);
+  return {ok: true};
+};
+GT.declineSale = function (s) {
+  delete s.flags.pendingBuyout;
+  return {ok: true};
+};
+
+GT.listForIPO = function (s) { return GT.goPublic(s); };
+
+/* auto-order helper for bots and a player "restock week" button */
+GT.autoRestock = function (s, weeksCover) {
+  weeksCover = weeksCover || 3;
+  var results = [];
+  s.products.forEach(function (p) {
+    if (p.baseCost <= 0.05) return;
+    var est = Math.max(fin(p.sold), Math.round((biz(s).baseRev / Math.max(1, s.products.length)) / Math.max(0.5, p.price) * 0.45), 16);
+    var target = Math.max(30, Math.round(est * weeksCover + 16));
+    var need = target - p.stock;
+    (s.shipments || []).forEach(function (sh) { if (sh.productId === p.id) need -= sh.qty; });
+    if (need >= 8) {
+      var sup = GT.SUPPLIERS.filter(function (x) { return x.id === s.supplierId; })[0] || GT.SUPPLIERS[1];
+      var unit = p.baseCost * sup.costMult;
+      var incoming = 0;
+      (s.shipments || []).forEach(function (sh) { if (sh.productId === p.id) incoming += sh.qty; });
+      var reserve = staffPayroll(s) * 2 + weeklyRent(s) + 1500 + Math.max(0, fin(s.taxOwed) - fin(s.taxReserve));
+      if (p.stock + incoming <= 0) reserve = staffPayroll(s) + weeklyRent(s) + 400; // don't stock out
+      var maxSpend = Math.max(0, s.cash - reserve);
+      var maxQty = Math.floor(maxSpend / Math.max(0.01, unit));
+      need = Math.min(need, Math.max(0, maxQty));
+      if (need >= 8) results.push(GT.orderStock(s, p.id, need));
+    }
+  });
+  return results;
+};
+
+GT.staffCap = function (s) {
+  var caps = {
+    "food-truck": 3, "coffee": 5, "bakery": 5, "barbershop": 6,
+    "restaurant": 9, "gym": 8, "car-wash": 6, "landscaping": 8,
+    "sports": 6, "clothing": 7, "ecom": 6, "sneakers": 3,
+    "tech": 10, "app-studio": 8, "game-studio": 10, "realestate": 6
+  };
+  var cap = caps[s.businessId] || 6;
+  cap += Math.max(0, (s.locations.length || 1) - 1) * 2;
+  cap += Math.min(6, Math.floor((s.franchiseUnits || 0) / 3));
+  return cap;
+};
+
+/* ---------- save / bots / exports ---------- */
+GT.serialize = function (s) {
+  var copy = {};
+  Object.keys(s).forEach(function (k) {
+    if (k === "_r") return;
+    copy[k] = s[k];
+  });
+  return JSON.parse(JSON.stringify(copy));
+};
+GT.hydrate = function (raw) {
+  var s = raw;
+  if (typeof s === "string") s = JSON.parse(s);
+  s._r = mulberry32(hashSeed((s.seed || 1) + ":h" + s.week));
+  s.cash = fin(s.cash);
+  s.flags = s.flags || {};
+  s.news = s.news || [];
+  s.staff = s.staff || [];
+  s.products = s.products || [];
+  s.loans = s.loans || [];
+  return s;
+};
+
+GT.loadMeta = function (storage) {
+  storage = storage || (typeof localStorage !== "undefined" ? localStorage : null);
+  var empty = {achievements: {}, bestNetWorth: 0, bestEnding: null, plays: 0, lastVersion: GT.VERSION};
+  if (!storage) return empty;
+  try {
+    var m = JSON.parse(storage.getItem(GT.META_KEY) || "null");
+    if (!m || typeof m !== "object") return empty;
+    m.achievements = m.achievements || {};
+    m.bestNetWorth = fin(m.bestNetWorth);
+    return m;
+  } catch (e) { return empty; }
+};
+GT.saveMeta = function (meta, storage) {
+  storage = storage || (typeof localStorage !== "undefined" ? localStorage : null);
+  if (!storage) return;
+  try { storage.setItem(GT.META_KEY, JSON.stringify(meta)); } catch (e) {}
+};
+GT.mergeMeta = function (s, storage) {
+  var meta = GT.loadMeta(storage);
+  meta.plays = (meta.plays || 0) + (s.week === 0 ? 0 : 0);
+  var nw = netWorth(s);
+  if (nw > fin(meta.bestNetWorth)) {
+    meta.bestNetWorth = nw;
+    meta.bestEnding = s.ending || meta.bestEnding;
+    meta.bestName = s.name;
+    meta.bestWeek = s.week;
+  }
+  Object.keys(s.achievements || {}).forEach(function (k) { meta.achievements[k] = true; });
+  GT.saveMeta(meta, storage);
+  return meta;
+};
+GT.listSaves = function (storage) {
+  storage = storage || (typeof localStorage !== "undefined" ? localStorage : null);
+  var empty = [];
+  for (var i = 0; i < GT.MAX_SLOTS; i++) empty.push(null);
+  if (!storage) return empty;
+  try {
+    var arr = JSON.parse(storage.getItem(GT.SAVE_KEY) || "null");
+    if (!Array.isArray(arr)) return empty;
+    while (arr.length < GT.MAX_SLOTS) arr.push(null);
+    return arr.slice(0, GT.MAX_SLOTS);
+  } catch (e) { return empty; }
+};
+GT.saveSlot = function (s, slot, storage) {
+  storage = storage || (typeof localStorage !== "undefined" ? localStorage : null);
+  slot = clamp(slot | 0, 0, GT.MAX_SLOTS - 1);
+  var arr = GT.listSaves(storage);
+  var data = GT.serialize(s);
+  arr[slot] = {savedAt: Date.now(), name: s.name, type: s.businessId, week: s.week, cash: s.cash, netWorth: netWorth(s), ended: s.ended, data: data};
+  if (storage) {
+    try { storage.setItem(GT.SAVE_KEY, JSON.stringify(arr)); } catch (e) { return {ok: false, why: "Save failed (storage full?)."}; }
+  }
+  GT.mergeMeta(s, storage);
+  return {ok: true};
+};
+GT.loadSlot = function (slot, storage) {
+  var arr = GT.listSaves(storage);
+  var rec = arr[slot];
+  if (!rec || !rec.data) return null;
+  return GT.hydrate(rec.data);
+};
+GT.clearSlot = function (slot, storage) {
+  storage = storage || (typeof localStorage !== "undefined" ? localStorage : null);
+  var arr = GT.listSaves(storage);
+  arr[slot] = null;
+  if (storage) try { storage.setItem(GT.SAVE_KEY, JSON.stringify(arr)); } catch (e) {}
+};
+
+/* ---------- bot policies ---------- */
+function botRestock(s) {
+  var low = s.products.some(function (p) { return p.baseCost > 0.05 && p.stock < 10; });
+  if (low) s.supplierId = "premium";
+  else if (s.cash < 4000) s.supplierId = "budget";
+  else s.supplierId = "standard";
+  GT.autoRestock(s, s.businessId === "sneakers" ? 4 : 3);
+}
+function botPrices(s, style) {
+  s.products.forEach(function (p) {
+    var fair = fairPrice(p, s);
+    var m = style === "premium" ? 1.16 : style === "mid-high" ? 1.08 : style === "cheap" ? 0.9 : 1.02;
+    // nudge toward a healthy margin
+    var min = p.unitCost * (style === "cheap" ? 1.15 : 1.35);
+    p.price = roundc(Math.max(min, fair * m));
+  });
+}
+function botHire(s, maxStaff, minCash) {
+  var cap = Math.min(maxStaff, GT.staffCap(s));
+  if (biz(s).group === "digital" && (s.stage === "build" || (s.project && s.project.phase !== "launch"))) cap = Math.min(cap, 2);
+  if (s.businessId === "realestate" && (!s.properties || !s.properties.length)) cap = Math.min(cap, 1);
+  if (s.staff.length >= cap) return;
+  var payroll = staffPayroll(s);
+  var runway = payroll > 0 ? s.cash / payroll : 99;
+  if (runway < 10) return;
+  if (s.cash < (minCash || 4000)) return;
+  if (s.revenueRunRate > 0 && payroll > s.revenueRunRate * 0.38) return;
+  if (s.lastReport && s.lastReport.profit < 0 && s.staff.length >= 2) return;
+  var best = s.candidates.slice().sort(function (a, b) { return (b.skill / b.wage) - (a.skill / a.wage); })[0];
+  if (best && best.skill >= 45) GT.hire(s, best.id);
+}
+function botFireLazy(s) {
+  s.staff.slice().forEach(function (p) {
+    if (p.morale < 22 || (p.skill < 35 && s.staff.length > 1 && p.weeks > 8)) GT.fire(s, p.id);
+  });
+  // If payroll is crushing the shop, let the weakest go
+  while (s.staff.length > 2 && s.revenueRunRate > 0 && staffPayroll(s) > s.revenueRunRate * 0.52) {
+    var weak = s.staff.slice().sort(function (a, b) { return a.skill - b.skill; })[0];
+    if (!weak) break;
+    GT.fire(s, weak.id);
+  }
+}
+function botMarketing(s, budget) {
+  budget = Math.max(0, Math.min(budget, s.cash * 0.12));
+  var chans = GT.CHANNELS.filter(function (c) {
+    return !c.fit.length || c.fit.indexOf(s.businessId) >= 0 || c.fit.indexOf(biz(s).group) >= 0;
+  });
+  if (!chans.length) chans = GT.CHANNELS.slice(0, 3);
+  var each = budget / chans.length;
+  GT.CHANNELS.forEach(function (c) { s.marketing[c.id] = 0; });
+  chans.forEach(function (c) { s.marketing[c.id] = roundc(Math.min(c.weeklyMax, each)); });
+}
+function botTrain(s) {
+  if (s.cash < 5000) return;
+  var p = s.staff.filter(function (x) { return !x.training && x.skill < x.potential - 4; })[0];
+  if (p) GT.trainStaff(s, p.id);
+}
+function botRepair(s) {
+  s.equipment.forEach(function (e) {
+    if (e.cond < 45 && s.cash > 2000) GT.repairEquipment(s, e.id);
+    else if (e.cond > 70 && (e.level || 1) < (e.levels || 4) && s.cash > e.cost * 1.2 && s.week > 16) {
+      if (s.cash > 12000) GT.upgradeEquipment(s, e.id);
+    }
+  });
+}
+function botPermits(s) {
+  if (!s.permitsOk || (s.flags.permitWeeks != null && s.flags.permitWeeks < 2)) GT.renewPermits(s);
+}
+function botTaxes(s) {
+  if (s.taxOwed > s.taxReserve + 200 && s.cash > s.taxOwed + 3000) {
+    GT.depositTax(s, Math.min(s.taxOwed - s.taxReserve, s.cash * 0.1));
+  }
+}
+function botResolve(s, style) {
+  if (!s.pendingEvent) return;
+  var ev = s.pendingEvent;
+  var pickId = ev.choices[0] && ev.choices[0].id;
+  var prefer = {
+    viral: style === "aggressive" || style === "growth" ? "ads" : "lean",
+    shortage: style === "quality" ? "prem" : style === "cautious" ? "limit" : "sub",
+    recession: style === "aggressive" ? "expand" : style === "quality" ? "hold" : "cut",
+    boom: style === "aggressive" || style === "growth" ? "mkt" : style === "cautious" ? "save" : "staff",
+    lawsuit: style === "aggressive" ? "fight" : "fix",
+    "staff-raise": style === "cautious" ? "part" : "yes",
+    walkout: "bonus",
+    partnership: style === "cautious" ? "trial" : "yes",
+    buyout: style === "cautious" && (companyValue(s) > 200000) ? "take" : "no",
+    "rent-hike": "negotiate",
+    breakdown: style === "quality" || style === "aggressive" ? "upgrade" : "fix",
+    inspect: "prep",
+    audit: "pay",
+    festival: "booth",
+    "influencer-ask": style === "cautious" ? "trade" : "pay",
+    theft: "cam",
+    mentor: style === "quality" ? "hire" : "yes",
+    "review-bomb": "reply",
+    critic: style === "quality" ? "frame" : "raise",
+    interest: style === "cautious" ? "pay" : "refi",
+    poach: "match",
+    permit: "pay",
+    storm: s.flags.online ? "online" : "open",
+    "family-call": "show",
+    ip: "rename",
+    "acquire-chance": style === "aggressive" ? "buy" : "no",
+    unicorn: style === "cautious" ? "steady" : style === "growth" || style === "aggressive" ? "raise" : "ride"
+  };
+  if (prefer[ev.id]) pickId = prefer[ev.id];
+  // verify choice exists
+  if (!ev.choices.some(function (c) { return c.id === pickId; })) pickId = ev.choices[0].id;
+  GT.resolveEvent(s, pickId);
+}
+
+function botExpand(s, style) {
+  if (s.week < 30) return;
+  if (s.cash < 25000) return;
+  if (style === "cautious" && (s.cash < 40000 || s.week < 80)) return;
+  if (!s.flags.online && s.cash > 8000 && s.week > 16) GT.launchOnline(s);
+  if (biz(s).group === "digital" && !s.flags.national && s.week > 156 && s.cash > 60000) GT.goNational(s);
+  if (style !== "cautious" && s.locations.length < 3 && s.week > 50 && s.cash > biz(s).startup * 0.7) {
+    var ids = suggestedHoods(s.businessId).map(function (h) { return h.id; });
+    for (var i = 0; i < ids.length; i++) {
+      if (!s.locations.some(function (l) { return l.hoodId === ids[i]; })) {
+        var r = GT.openLocation(s, ids[i]);
+        if (r.ok) break;
+      }
+    }
+  }
+  if ((style === "aggressive" || style === "quality" || style === "growth") && s.week > 60 && s.reputation >= 62) {
+    if (s.week % (style === "aggressive" ? 6 : 10) === 0) GT.sellFranchise(s);
+  }
+  if (s.businessId === "realestate" && s.cash > 50000 && s.week % 8 === 0) GT.buyProperty(s);
+  if (s.businessId === "game-studio" && !s.project && s.liveGames.length < 4 && s.week > 10 && s.cash > staffPayroll(s) * 14 + 8000) GT.startGameProject(s);
+  if (s.businessId === "app-studio" && s.week % 26 === 0 && s.apps.length < 5) GT.startApp(s);
+  if (s.week > 40 && !s.flags.extraLine && s.cash > 15000) GT.addProductLine(s);
+}
+
+function botFinance(s, style) {
+  botTaxes(s);
+  botPermits(s);
+  if (style === "cautious") {
+    if (totalDebt(s) > 0 && s.cash > 12000) GT.payDown(s, Math.min(s.cash * 0.1, totalDebt(s)));
+    return;
+  }
+  if (style === "aggressive" || style === "growth") {
+    var off = GT.investorOffer(s);
+    if (off.ok && s.investors.length < (style === "growth" ? 3 : 1) && s.week > 12) GT.takeInvestment(s, true);
+    if (s.cash < 4000 && s.creditScore >= 660) {
+      var opts = GT.loanOptions(s).filter(function (o) { return o.ok && !o.predatory; });
+      if (opts.length && totalDebt(s) < companyValue(s) * 0.4) GT.takeLoan(s, opts[0].id, Math.min(opts[0].max * 0.4, 20000));
+    }
+  }
+  if (style === "chaotic") {
+    if (rngOf(s)() < 0.1) {
+      var opts = GT.loanOptions(s);
+      var o = opts[Math.floor(rngOf(s)() * opts.length)];
+      if (o.ok) GT.takeLoan(s, o.id, o.max * 0.5);
+    }
+  }
+}
+
+GT.botTurn = function (s, strategy) {
+  strategy = strategy || "balanced";
+  if (s.pendingEvent) botResolve(s, strategy);
+  if (s.ended) return s;
+  botPrices(s, strategy === "quality" ? "mid-high" : strategy === "aggressive" ? "cheap" : "mid");
+  botRestock(s);
+  botRepair(s);
+  botTrain(s);
+  botFireLazy(s);
+  var maxStaff = strategy === "cautious" ? 5 : strategy === "aggressive" ? 14 : strategy === "growth" ? 10 : strategy === "chaotic" ? 12 : 8;
+  botHire(s, maxStaff, strategy === "cautious" ? 8000 : 3500);
+  var mkt = strategy === "cautious" ? Math.min(s.cash * 0.03, s.revenueRunRate * 0.07) : strategy === "aggressive" || strategy === "growth" ? Math.max(120, s.revenueRunRate * 0.1) : strategy === "quality" ? Math.min(s.cash * 0.04, s.revenueRunRate * 0.08) : strategy === "chaotic" ? s.cash * rngOf(s)() * 0.15 : Math.min(s.cash * 0.045, s.revenueRunRate * 0.08);
+  if (s.stage === "build" || (s.project && !(s.liveGames && s.liveGames.length))) mkt = Math.min(mkt, 180);
+  if (s.lastReport && s.lastReport.profit < 0) mkt = Math.min(mkt, 90);
+  if (s.revenueRunRate < 100) mkt = Math.min(mkt, 160);
+  botMarketing(s, Math.max(0, mkt));
+  botFinance(s, strategy);
+  botExpand(s, strategy);
+  if (strategy === "quality" && s.week % 5 === 0) {
+    s.products.forEach(function (p) { p.price = roundc(Math.max(p.unitCost * 1.5, fairPrice(p, s) * 1.12)); });
+  }
+  if (biz(s).mobile) {
+    var spots = suggestedHoods(s.businessId);
+    s.routeId = spots[s.week % spots.length].id;
+  }
+  if (strategy !== "cautious" && GT.canIPO(s) && s.week > 200) GT.goPublic(s);
+  return s;
+};
+
+GT.STRATEGIES = ["cautious", "balanced", "quality", "aggressive", "growth", "chaotic"];
+
+GT.simulate = function (opts) {
+  opts = opts || {};
+  var strategy = opts.strategy || "balanced";
+  var weeks = opts.weeks || 520;
+  var s = GT.createGame({
+    seed: opts.seed,
+    backgroundId: opts.backgroundId,
+    businessId: opts.businessId,
+    companyName: opts.companyName || ("Bot " + strategy),
+    founderName: "Bot",
+    hoodId: opts.hoodId
+  });
+  var bugs = [];
+  function check(tag) {
+    if (!Number.isFinite(s.cash)) bugs.push(tag + ": cash NaN at week " + s.week);
+    if (!Number.isFinite(netWorth(s))) bugs.push(tag + ": netWorth NaN at week " + s.week);
+    if (!Number.isFinite(s.quality) || !Number.isFinite(s.satisfaction)) bugs.push(tag + ": quality/sat NaN at week " + s.week);
+    s.products.forEach(function (p) {
+      if (!Number.isFinite(p.price) || !Number.isFinite(p.stock)) bugs.push(tag + ": product NaN " + p.id + " w" + s.week);
+      if (p.stock < 0) bugs.push(tag + ": negative stock " + p.id);
+    });
+    if (s.users < 0) bugs.push("negative users");
+  }
+  check("init");
+  var reports = 0;
+  for (var i = 0; i < weeks; i++) {
+    if (s.ended) break;
+    GT.botTurn(s, strategy);
+    if (s.ended) break;
+    var res = GT.advanceWeek(s);
+    s = res.state;
+    reports++;
+    if (res.report && !Number.isFinite(res.report.profit)) bugs.push("profit NaN w" + s.week);
+    check("tick");
+    if (bugs.length > 12) break;
+  }
+  return {
+    seed: s.seed,
+    strategy: strategy,
+    businessId: s.businessId,
+    backgroundId: s.backgroundId,
+    week: s.week,
+    ended: s.ended,
+    ending: s.ending || (s.flags.billionOffered ? "billionaire" : s.flags.millionOffered ? "millionaire" : s.flags.decadeOffered ? "decade" : s.flags.public ? "ipo" : null),
+    cash: s.cash,
+    netWorth: netWorth(s),
+    equity: founderEquity(s),
+    revenue: s.annualRevenue || s.ytdRevenue,
+    profit: s.annualProfit || s.ytdProfit,
+    staff: s.staff.length,
+    locations: s.locations.length,
+    franchise: s.franchiseUnits,
+    public: !!s.flags.public,
+    bankrupt: s.ending === "bankrupt",
+    sold: s.ending === "sold",
+    ipo: !!s.flags.public,
+    million: !!s.achievements.million,
+    billion: !!s.achievements.billion,
+    decade: !!s.achievements.decade,
+    achievements: Object.keys(s.achievements || {}),
+    bugs: bugs,
+    reports: reports
+  };
+};
+
+if (typeof module !== "undefined" && module.exports) module.exports = GT;
+if (typeof window !== "undefined") window.GrokTycoon = GT;
+
+var state = null;
+var view = "dash";
+var wizard = {step:0, founderName:"", companyName:"", backgroundId:"saver", businessId:"coffee", hoodId:""};
+var storage = typeof localStorage !== "undefined" ? localStorage : null;
+var meta = GT.loadMeta(storage);
+var pendingReport = null;
+
+function $(id){ return document.getElementById(id); }
+function el(html){
+  var d=document.createElement("div"); d.innerHTML=html.trim(); return d.firstChild;
+}
+function escapeHtml(s){
+  return String(s==null?"":s).replace(/[&<>"']/g, function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[c];});
+}
+function stars(n){
+  n=GT.clamp(GT.fin(n,0),0,5);
+  var t=""; for(var i=1;i<=5;i++) t += i<=Math.round(n)?"★":"☆";
+  return t+" "+(Math.round(n*10)/10);
+}
+
+/* ---------- screens ---------- */
+function show(id){
+  ["screen-title","screen-new","screen-play"].forEach(function(s){ $(s).classList.toggle("hidden", s!==id); });
+}
+
+function renderTitle(){
+  meta = GT.loadMeta(storage);
+  var saves = GT.listSaves(storage);
+  var achHtml = GT.ACHIEVEMENTS.map(function(a){
+    var on = meta.achievements && meta.achievements[a.id];
+    return '<span class="ach'+(on?' on':'')+'" data-tip="'+escapeHtml(a.desc)+'">'+(on?a.name:a.name)+'</span>';
+  }).join("");
+  var saveHtml = saves.map(function(s,i){
+    if(!s) return '<div class="save-row"><div style="flex:1"><b>Slot '+(i+1)+'</b><div class="meta">Empty</div></div></div>';
+    return '<div class="save-row"><div style="flex:1"><b>'+escapeHtml(s.name)+'</b><div class="meta">'+escapeHtml((GT.BIZ[s.type]||{}).name||s.type)+' · '+GT.fmtWeek(s.week)+' · '+GT.money(s.netWorth)+'</div></div><button class="btn sm" data-act="load" data-slot="'+i+'">Load</button><button class="btn sm danger" data-act="wipe" data-slot="'+i+'">Delete</button></div>';
+  }).join("");
+  $("screen-title").innerHTML =
+    '<div class="hero-top"><a class="word" href="../../index.html">Grok Games</a><span class="muted">Tycoon v'+GT.VERSION+'</span></div>'+
+    '<div class="hero"><div class="hero-grid"><div>'+
+    '<h1>Grok Tycoon</h1>'+
+    '<p class="lede">Start a business in Harborline. Set prices, hire a crew, weather the week, and decide whether you want a quiet shop, a regional brand, or a shot at going public. There is no single winning path — only better and worse calls.</p>'+
+    '<div class="menu-col">'+
+    '<button class="btn primary wide" data-act="new">New game</button>'+
+    '<button class="btn wide" data-act="howto">How to play</button>'+
+    '<button class="btn wide" data-act="achs">Achievements</button>'+
+    '</div></div><div>'+
+    '<div class="scorebox"><h3>Best net worth</h3><div style="font-size:24px;font-weight:750">'+GT.money(meta.bestNetWorth||0)+'</div>'+
+    '<div class="muted" style="margin-top:4px">'+(meta.bestName?escapeHtml(meta.bestName)+" · "+GT.fmtWeek(meta.bestWeek||0):"No run recorded yet.")+'</div></div>'+
+    '<h3 style="margin:16px 0 6px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Saves</h3>'+
+    '<div class="saves">'+saveHtml+'</div>'+
+    '</div></div>'+
+    '<div class="footer-note">Fan-made, original, and not a copy of any commercial tycoon game. Works from a file or the Grok Games site. Multiple save slots stay on this device.</div>'+
+    '</div>'+
+    '<div style="margin-top:18px"><h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">Achievements</h3><div class="ach-list">'+achHtml+'</div></div>';
+  show("screen-title");
+  bindTips();
+}
+
+function renderWizard(){
+  var html = '<div class="hero-top"><a class="word" href="#" data-act="home">Grok Tycoon</a></div>';
+  html += '<div class="steps"><span class="'+(wizard.step===0?'on':'')+'">1. You</span><span class="'+(wizard.step===1?'on':'')+'">2. The business</span><span class="'+(wizard.step===2?'on':'')+'">3. The block</span></div>';
+  if(wizard.step===0){
+    html += '<div class="panel"><h2>Who is starting this?</h2>'+
+      '<div class="field"><label>Your name</label><input id="wn-founder" value="'+escapeHtml(wizard.founderName)+'" placeholder="Ava Hale"></div>'+
+      '<p class="muted">Your background sets starting cash, credit, and skills. Skills quietly change how well you run operations, craft, sales, finance, people, and tech.</p></div>'+
+      '<div class="card-grid">'+GT.BACKGROUNDS.map(function(b){
+        var sk = ["ops","craft","sales","finance","people","tech"].map(function(k){return k[0].toUpperCase()+b.skills[k];}).join(" ");
+        return '<button class="pick'+(wizard.backgroundId===b.id?' on':'')+'" data-act="bg" data-id="'+b.id+'"><h3>'+escapeHtml(b.name)+'</h3><p>'+escapeHtml(b.blurb)+'</p><div class="stat">'+GT.money(b.cash)+' cash · credit '+b.credit+(b.debt?' · '+GT.money(b.debt)+' loans':'')+'<br>'+sk+'</div></button>';
+      }).join("")+'</div>'+
+      '<div style="margin-top:14px"><button class="btn primary" data-act="wiz-next">Next</button></div>';
+  } else if(wizard.step===1){
+    html += '<div class="panel"><h2>What are you opening?</h2>'+
+      '<div class="field"><label>Company name</label><input id="wn-co" value="'+escapeHtml(wizard.companyName)+'" placeholder="Harbor Line Coffee"></div>'+
+      '<p class="muted">Each type has its own loop — a food truck lives on routes and weather, a gym on memberships, a studio on product and runway. Startup cost is a first test of your savings.</p></div>'+
+      '<div class="card-grid">'+GT.BUSINESSES.map(function(b){
+        return '<button class="pick'+(wizard.businessId===b.id?' on':'')+'" data-act="biz" data-id="'+b.id+'"><h3>'+escapeHtml(b.name)+'</h3><p>'+escapeHtml(b.blurb)+'</p><div class="stat">Startup about '+GT.money(b.startup)+(b.rent?' · rent '+GT.money(b.rent)+'/mo':' · mobile')+'</div></button>';
+      }).join("")+'</div>'+
+      '<div style="margin-top:14px;display:flex;gap:8px"><button class="btn" data-act="wiz-back">Back</button><button class="btn primary" data-act="wiz-next">Next</button></div>';
+  } else {
+    var hoods = GT.suggestedHoods(wizard.businessId);
+    if(!wizard.hoodId) wizard.hoodId = hoods[0].id;
+    html += '<div class="panel"><h2>Where do you set up?</h2><p class="muted">Harborline has different rent, traffic, and spend in each neighborhood. You can expand later.</p></div>'+
+      '<div class="card-grid">'+GT.NEIGHBORHOODS.map(function(h){
+        var rec = hoods.some(function(x){return x.id===h.id;});
+        return '<button class="pick'+(wizard.hoodId===h.id?' on':'')+'" data-act="hood" data-id="'+h.id+'"><h3>'+escapeHtml(h.name)+(rec?' · suggested':'')+'</h3><p>'+escapeHtml(h.vibe)+'</p><div class="stat">Rent ×'+h.rentMult+' · traffic ×'+h.traffic+' · spend ×'+h.spend+'</div></button>';
+      }).join("")+'</div>'+
+      '<div style="margin-top:14px;display:flex;gap:8px"><button class="btn" data-act="wiz-back">Back</button><button class="btn primary" data-act="wiz-start">Open the doors</button></div>';
+  }
+  $("screen-new").innerHTML = html;
+  show("screen-new");
+}
+
+function startGame(){
+  var founder = ($("wn-founder") && $("wn-founder").value) || wizard.founderName || "You";
+  var company = wizard.companyName || (($("wn-co")&&$("wn-co").value) || "");
+  wizard.founderName = founder;
+  if($("wn-co")) wizard.companyName = $("wn-co").value;
+  company = wizard.companyName || ((GT.BIZ[wizard.businessId]||{}).name+" Co.");
+  state = GT.createGame({
+    founderName: founder,
+    companyName: company,
+    backgroundId: wizard.backgroundId,
+    businessId: wizard.businessId,
+    hoodId: wizard.hoodId
+  });
+  view = "dash";
+  renderPlay();
+  maybeTutorial(true);
+}
+
+function renderPlay(){
+  if(!state) return renderTitle();
+  var s = state;
+  var b = GT.BIZ[s.businessId];
+  var nw = GT.netWorth(s);
+  var nav = [["dash","Dashboard"],["ops","Operations"],["staff","Staff"],["mkt","Marketing"],["fin","Finance"],["grow","Growth"],["mktplace","Market"],["news","News"],["menu","Menu"]];
+  var body = "";
+  if(view==="dash") body = viewDash(s,b);
+  else if(view==="ops") body = viewOps(s,b);
+  else if(view==="staff") body = viewStaff(s,b);
+  else if(view==="mkt") body = viewMkt(s,b);
+  else if(view==="fin") body = viewFin(s,b);
+  else if(view==="grow") body = viewGrow(s,b);
+  else if(view==="mktplace") body = viewMarket(s,b);
+  else if(view==="news") body = viewNews(s);
+  else body = viewMenu(s);
+
+  $("screen-play").innerHTML =
+    '<div class="topbar">'+
+      '<a class="brand" href="../../index.html">Grok Games</a>'+
+      '<h1>'+escapeHtml(s.name)+'</h1>'+
+      '<div class="kpis">'+
+        '<span data-tip="The in-game calendar. A year is 52 weeks."><b>'+GT.fmtWeek(s.week)+'</b></span>'+
+        '<span data-tip="Cash in the business account.">Cash <b class="'+(s.cash<0?'bad':'')+'">'+GT.money(s.cash)+'</b></span>'+
+        '<span data-tip="Your slice of the company, plus personal cash, minus leftover student or family debt.">Worth <b>'+GT.money(nw)+'</b></span>'+
+        '<span data-tip="Average customer review.">'+stars(GT.avgReview(s))+'</span>'+
+      '</div>'+
+      '<div class="top-actions">'+
+        '<button class="btn sm" data-act="hint" data-tip="A short tip for this week.">Hint</button>'+
+        '<button class="btn sm" data-act="save">Save</button>'+
+        '<button class="btn primary sm" data-act="week" '+(s.ended||s.pendingEvent?'disabled':'')+'>End week</button>'+
+      '</div>'+
+    '</div>'+
+    '<div class="play">'+
+      '<nav class="sidenav">'+nav.map(function(n){return '<button class="'+(view===n[0]?'on':'')+'" data-act="view" data-id="'+n[0]+'">'+n[1]+'</button>';}).join("")+'</nav>'+
+      '<div class="main" id="main-view">'+body+'</div>'+
+    '</div>';
+  show("screen-play");
+  drawCharts();
+  bindTips();
+  if(s.pendingEvent) openEvent();
+  if(s.ended) openEnding();
+  if(s.freshAchievements && s.freshAchievements.length && !s.pendingEvent && !s.ended){
+    var a = s.freshAchievements.shift();
+    toast("Achievement: "+a.name+" — "+a.desc);
+  }
+  if(s.flags.millionOffered && !s.flags.millionShown){ s.flags.millionShown=true; openMilestone("millionaire"); }
+  if(s.flags.billionOffered && !s.flags.billionShown){ s.flags.billionShown=true; openMilestone("billionaire"); }
+  if(s.flags.decadeOffered && !s.flags.decadeShown){ s.flags.decadeShown=true; openMilestone("decade"); }
+}
+
+function kpi(lbl,val,sub,tip){
+  return '<div class="kpi"'+(tip?' data-tip="'+escapeHtml(tip)+'"':'')+'><div class="lbl">'+lbl+'</div><div class="val">'+val+'</div>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>';
+}
+function viewDash(s,b){
+  var last = s.lastReport;
+  var profit = last?last.profit:0;
+  var html = '<div class="cards">'+
+    kpi("Cash", GT.money(s.cash), "Run rate "+GT.money(s.revenueRunRate)+"/wk", "Keep a cushion for rent, payroll, and surprises.")+
+    kpi("Net worth", GT.money(GT.netWorth(s)), "You own "+Math.round(s.founderEquity*100)+"%", "Valuation of your share plus personal cash.")+
+    kpi("Last profit", '<span class="'+(profit>=0?'good':'bad')+'">'+(last?GT.money(profit):"—")+'</span>', last?("Rev "+GT.money(last.revenue)):"End a week to see a P&amp;L", "Revenue minus costs last week.")+
+    kpi("Satisfaction", Math.round(s.satisfaction), "Quality "+Math.round(s.quality), "Happy customers come back and write better reviews.")+
+    '</div>';
+  html += '<div class="charts"><div class="panel"><h3>Cash</h3><canvas class="chart" id="c-cash"></canvas></div><div class="panel"><h3>Revenue & profit</h3><canvas class="chart" id="c-pnl"></canvas></div></div>';
+  html += '<div class="row"><div class="panel" style="flex:1;min-width:260px"><h2>This business</h2><p><b>'+escapeHtml(b.name)+'</b> in '+(s.locations[0]?escapeHtml(s.locations[0].name):"Harborline")+'.</p><p class="muted">'+escapeHtml(b.blurb)+'</p><p>Credit '+Math.round(s.creditScore)+' · Debt '+GT.money(GT.totalDebt(s))+' · Staff '+s.staff.length+' · Locations '+s.locations.length+(s.franchiseUnits?' · Franchises '+s.franchiseUnits:'')+(s.flags.public?' · Public':'')+'</p></div>';
+  html += '<div class="panel" style="flex:1;min-width:260px"><h2>Latest news</h2><ul class="news">'+s.news.slice(0,5).map(newsItem).join("")+'</ul></div></div>';
+  if(last) html += '<div class="panel"><h2>Last week P&amp;L</h2>'+pnlTable(last)+'</div>';
+  html += '<p class="muted">End the week when you have set prices, stock, staff, and spend. Press H anytime for a hint.</p>';
+  return html;
+}
+function pnlTable(r){
+  var rows = [["Revenue", r.revenue, ""]];
+  rows.push(["Cost of goods", -r.cogs, ""]);
+  Object.keys(r.expenses||{}).forEach(function(k){
+    if(k==="interest") return;
+    rows.push([k[0].toUpperCase()+k.slice(1), -r.expenses[k], ""]);
+  });
+  rows.push(["Profit", r.profit, r.profit>=0?"good":"bad"]);
+  return '<table><tbody>'+rows.map(function(x){return '<tr><td>'+x[0]+'</td><td class="mono '+(x[2]||(x[1]<0?'bad':''))+'">'+GT.money(x[1])+'</td></tr>';}).join("")+'</tbody></table>';
+}
+function newsItem(n){ return '<li><span class="wk">Wk '+(n.week+1)+'</span> '+escapeHtml(n.text)+'</li>'; }
+
+function viewOps(s,b){
+  var html = '<div class="panel"><h2>Products &amp; prices</h2><p class="muted">Fair prices follow quality. Too high and volume falls off a cliff; too low and you work for free.</p><table><tr><th>Item</th><th>Price</th><th>Unit cost</th><th>Stock</th><th>Sold last week</th><th></th></tr>';
+  s.products.forEach(function(p){
+    var fair = p.basePrice * (0.7+0.6*(p.quality/70));
+    html += '<tr><td><b>'+escapeHtml(p.name)+'</b><div class="muted">Quality '+Math.round(p.quality)+' · fair ~'+GT.money(fair)+'</div></td>'+
+      '<td><input style="width:80px" data-act="price" data-id="'+p.id+'" type="number" min="0.25" step="0.25" value="'+p.price+'"></td>'+
+      '<td class="mono">'+GT.moneyDec(p.unitCost)+'</td>'+
+      '<td class="mono">'+Math.round(p.stock)+'</td>'+
+      '<td class="mono">'+(p.sold||0)+'</td>'+
+      '<td>'+(p.baseCost>0.05?'<input style="width:70px" data-ord="'+p.id+'" type="number" min="0" step="1" placeholder="Order"><button class="btn sm" data-act="order" data-id="'+p.id+'">Order</button>':'')+'</td></tr>';
+  });
+  html += '</table><div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" data-act="restock" data-tip="Order about three weeks of stock, leaving a cash reserve.">Auto-restock</button>';
+  html += '<label class="muted">Supplier <select data-act="supplier">'+GT.SUPPLIERS.map(function(x){return '<option value="'+x.id+'"'+(s.supplierId===x.id?' selected':'')+'>'+x.name+' · cost ×'+x.costMult+' · lead '+x.lead+'w</option>';}).join("")+'</select></label></div>';
+  if(s.shipments&&s.shipments.length){
+    html += '<p class="muted" style="margin-top:8px">In transit: '+s.shipments.map(function(sh){return sh.qty+' ('+sh.weeksLeft+'w)';}).join(", ")+'</p>';
+  }
+  html += '</div>';
+  html += '<div class="panel"><h2>Equipment</h2><table><tr><th>Unit</th><th>Level</th><th>Condition</th><th></th></tr>';
+  s.equipment.forEach(function(e){
+    html += '<tr><td>'+escapeHtml(e.name)+'</td><td>'+e.level+' / '+e.levels+'</td><td><div class="bar"><i style="width:'+e.cond+'%"></i></div></td><td><button class="btn sm" data-act="repair" data-id="'+e.id+'">Repair</button> <button class="btn sm" data-act="upgrade" data-id="'+e.id+'">Upgrade</button></td></tr>';
+  });
+  html += '</table></div>';
+  if(b.mobile){
+    html += '<div class="panel"><h2>This week\'s route</h2><p class="muted">A food truck lives and dies on the spot you park.</p>';
+    GT.NEIGHBORHOODS.forEach(function(h){
+      html += '<button class="btn sm '+(s.routeId===h.id?'primary':'')+'" data-act="route" data-id="'+h.id+'">'+escapeHtml(h.name)+'</button> ';
+    });
+    html += '</div>';
+  }
+  if(s.businessId==="game-studio"){
+    html += '<div class="panel"><h2>Studio</h2>';
+    if(s.project) html += '<p><b>'+escapeHtml(s.project.name)+'</b> is in '+s.project.phase+' (week '+s.project.weeksIn+'). Quality '+Math.round(s.project.quality)+'.</p><button class="btn sm" data-act="crunch">'+(s.project.crunch?'End crunch':'Crunch (faster, morale hit)')+'</button>';
+    else html += '<p>No project in production.</p><button class="btn sm" data-act="new-game">Start a new game</button>';
+    if(s.liveGames&&s.liveGames.length) html += '<p>Live titles: '+s.liveGames.map(function(g){return escapeHtml(g.name)+' ('+g.rating.toFixed(1)+')';}).join(", ")+'</p>';
+    html += '</div>';
+  }
+  if(s.businessId==="app-studio"){
+    html += '<div class="panel"><h2>Apps</h2><ul>'+(s.apps||[]).map(function(a){return '<li>'+escapeHtml(a.name)+' — '+a.stage+', '+Math.round(a.users)+' users, '+GT.money(a.weeklyRev)+'/wk</li>';}).join("")+'</ul><button class="btn sm" data-act="new-app">Start another app</button></div>';
+  }
+  if(s.businessId==="tech"){
+    html += '<div class="panel"><h2>Product</h2><p>Stage: <b>'+s.stage+'</b> · Users '+Math.round(s.users||0)+' · Dev points '+Math.round(s.devPoints||0)+'</p><p class="muted">Engineers add progress. Launch happens once you have built enough. Revenue follows users, price, and quality — and you still have to cover the burn.</p></div>';
+  }
+  if(s.businessId==="realestate"){
+    html += '<div class="panel"><h2>Properties</h2><table><tr><th>Property</th><th>Value</th><th>Mortgage</th><th>Rent/wk</th><th>Status</th></tr>';
+    (s.properties||[]).forEach(function(p){
+      html += '<tr><td>'+escapeHtml(p.name)+'</td><td>'+GT.money(p.value)+'</td><td>'+GT.money(p.mortgage)+'</td><td>'+GT.money(p.rent)+'</td><td>'+(p.vacant?'Vacant':'Occupied')+'</td></tr>';
+    });
+    html += '</table><button class="btn sm" data-act="buy-prop">Buy another property</button></div>';
+  }
+  if(s.businessId==="gym"||s.businessId==="car-wash"){
+    html += '<div class="panel"><h2>Memberships</h2><p><b>'+Math.round(s.members||0)+'</b> members. Dues and churn show up each week — trainers, cleanliness, and price all matter.</p></div>';
+  }
+  return html;
+}
+
+function viewStaff(s,b){
+  var html = '<div class="panel"><h2>Payroll</h2><p class="muted">Skill does the work. Morale decides whether they stay. A raise or training is often cheaper than a replacement.</p>';
+  html += '<table><tr><th>Name</th><th>Role</th><th>Skill</th><th>Morale</th><th>Wage /wk</th><th></th></tr>';
+  s.staff.forEach(function(p){
+    html += '<tr><td>'+escapeHtml(p.name)+(p.training?' <span class="muted">training</span>':'')+'</td><td>'+escapeHtml(p.roleName)+'</td><td>'+Math.round(p.skill)+'</td><td>'+Math.round(p.morale)+'</td>'+
+      '<td><input style="width:80px" data-wage="'+p.id+'" type="number" min="50" step="10" value="'+Math.round(p.wage)+'"><button class="btn sm" data-act="setw" data-id="'+p.id+'">Set</button></td>'+
+      '<td><button class="btn sm" data-act="train" data-id="'+p.id+'">Train</button> <button class="btn sm danger" data-act="fire" data-id="'+p.id+'">Let go</button></td></tr>';
+  });
+  if(!s.staff.length) html += '<tr><td colspan="6" class="muted">Just you for now. Hire when the floor needs it — not before.</td></tr>';
+  html += '</table></div>';
+  html += '<div class="panel"><h2>Candidates this week</h2><p class="muted">The pool refreshes every four weeks, and when you end a month.</p><table><tr><th>Name</th><th>Role</th><th>Skill</th><th>Asking /wk</th><th></th></tr>';
+  s.candidates.forEach(function(p){
+    html += '<tr><td>'+escapeHtml(p.name)+'</td><td>'+escapeHtml(p.roleName)+'</td><td>'+Math.round(p.skill)+' (pot. '+Math.round(p.potential)+')</td><td>'+GT.money(p.wage)+'</td><td><button class="btn sm" data-act="hire" data-id="'+p.id+'">Hire</button></td></tr>';
+  });
+  html += '</table></div>';
+  return html;
+}
+
+function viewMkt(s){
+  var html = '<div class="panel"><h2>Weekly marketing spend</h2><p class="muted">Spend is charged when you end the week. Channels that fit your business go further. Heat fades if you stop.</p>';
+  html += '<p>Marketing heat: <b>'+Math.round(s.marketingHeat)+'</b></p><table><tr><th>Channel</th><th>This week</th><th>Cap</th><th></th></tr>';
+  GT.CHANNELS.forEach(function(c){
+    var fit = !c.fit.length || c.fit.indexOf(s.businessId)>=0 || c.fit.indexOf((GT.BIZ[s.businessId]||{}).group)>=0;
+    html += '<tr><td><b>'+escapeHtml(c.name)+'</b>'+(fit?'':' <span class="muted">weak fit</span>')+'</td>'+
+      '<td><input style="width:90px" data-mkt="'+c.id+'" type="number" min="0" step="25" value="'+Math.round(s.marketing[c.id]||0)+'"></td>'+
+      '<td class="muted">'+GT.money(c.weeklyMax)+'</td><td><button class="btn sm" data-act="setmkt" data-id="'+c.id+'">Set</button></td></tr>';
+  });
+  html += '</table></div>';
+  return html;
+}
+
+function viewFin(s){
+  var html = '<div class="cards">'+
+    kpi("Credit", Math.round(s.creditScore), "On-time payments help", "Lenders look at this before they say yes.")+
+    kpi("Debt", GT.money(GT.totalDebt(s)), s.bgDebt?("incl. "+GT.money(s.bgDebt)+" personal"):" ", "Loans, advances, and leftover school debt.")+
+    kpi("Tax owed", GT.money(s.taxOwed), "Reserve "+GT.money(s.taxReserve), "Set money aside. Quarterly payments come due.")+
+    kpi("Your equity", Math.round(s.founderEquity*100)+"%", s.investors.length?s.investors.length+" investor(s)":"Fully yours", "Every raise dilutes you.")+
+    '</div>';
+  html += '<div class="panel"><h2>Loans</h2>';
+  if(!s.loans.length) html += '<p class="muted">No business loans right now.</p>';
+  else {
+    html += '<table><tr><th>Product</th><th>Balance</th><th>Rate</th><th>Payment /wk</th></tr>';
+    s.loans.forEach(function(l){ html += '<tr><td>'+escapeHtml(l.name)+(l.revolving?' (line '+GT.money(l.limit)+')':'')+'</td><td>'+GT.money(l.balance)+'</td><td>'+Math.round(l.rate*1000)/10+'%</td><td>'+GT.money(l.payment||0)+'</td></tr>'; });
+    html += '</table><div style="margin-top:8px">Pay down <input id="paydown" type="number" min="0" step="100" style="width:120px" value="1000"> <button class="btn sm" data-act="paydown">Pay</button> <button class="btn sm" data-act="draw">Draw on a credit line</button></div>';
+  }
+  html += '<h3 style="margin-top:16px">Borrow</h3><table><tr><th>Product</th><th>APR</th><th>Max</th><th></th></tr>';
+  GT.loanOptions(s).forEach(function(o){
+    html += '<tr><td>'+escapeHtml(o.name)+(o.predatory?' <span class="bad">expensive</span>':'')+'</td><td>'+Math.round(o.rate*1000)/10+'%</td><td>'+(o.ok?GT.money(o.max):o.why)+'</td><td>'+(o.ok?'<input style="width:90px" data-loan="'+o.id+'" type="number" min="500" step="500" value="'+Math.min(8000,o.max)+'"> <button class="btn sm" data-act="borrow" data-id="'+o.id+'">Take</button>':'')+'</td></tr>';
+  });
+  html += '</table></div>';
+  html += '<div class="panel"><h2>Taxes, permits, investors</h2>'+
+    '<p>Set aside <input id="taxdep" type="number" min="0" step="100" style="width:110px" value="500"> <button class="btn sm" data-act="tax">Into tax reserve</button> · <button class="btn sm" data-act="permits">Renew permits ('+(s.permitsOk?'ok':'lapsed')+')</button></p>';
+  var off = GT.investorOffer(s);
+  if(off.ok) html += '<p>'+escapeHtml(off.name)+' would put in '+GT.money(off.check)+' for about '+Math.round(off.equity*100)+'% at a '+off.stage+' valuation near '+GT.money(off.valuation)+'. <button class="btn sm" data-act="raise">Take the round</button> <button class="btn sm" data-act="raise-neg">Negotiate first</button></p>';
+  else html += '<p class="muted">'+escapeHtml(off.why||"No investor interest this week.")+'</p>';
+  if(s.investors.length) html += '<p>Cap table: you '+Math.round(s.founderEquity*100)+'%; '+s.investors.map(function(i){return escapeHtml(i.name)+' '+Math.round(i.equity*100)+'%';}).join("; ")+'.</p>';
+  html += '</div>';
+  return html;
+}
+
+function viewGrow(s,b){
+  var html = '<div class="panel"><h2>Expand</h2><p class="muted">More locations, a franchise, an online channel, a new line, a pivot, or buying a tired rival. Growth costs cash and attention.</p>';
+  html += '<p><button class="btn sm" data-act="online"'+(s.flags.online?' disabled':'')+'>'+(s.flags.online?'Online is live':'Launch an online channel')+'</button> ';
+  if(b.group==="digital") html += '<button class="btn sm" data-act="national"'+(s.flags.national?' disabled':'')+'>'+(s.flags.national?'National':'Go national')+'</button> ';
+  html += '<button class="btn sm" data-act="franchise">Sell a franchise</button> <button class="btn sm" data-act="newline">Add a product line</button></p>';
+  html += '<h3>New location</h3><div class="card-grid">';
+  GT.NEIGHBORHOODS.forEach(function(h){
+    html += '<button class="pick" data-act="open-loc" data-id="'+h.id+'"><h3>'+escapeHtml(h.name)+'</h3><p>'+escapeHtml(h.vibe)+'</p></button>';
+  });
+  html += '</div></div>';
+  html += '<div class="panel"><h2>Pivot or sell</h2><p class="muted">A pivot changes your type at a cost. Selling ends the run with cash in your pocket. An IPO is only on the table once the company is big enough.</p>';
+  html += '<label>Pivot to <select id="pivot-to">'+GT.BUSINESSES.map(function(x){return '<option value="'+x.id+'">'+x.name+'</option>';}).join("")+'</select></label> <button class="btn sm" data-act="pivot">Pivot</button>';
+  html += '<p style="margin-top:12px"><button class="btn sm" data-act="solicit">Ask around for a buyout</button> ';
+  if(s.flags.pendingBuyout) html += '<button class="btn sm primary" data-act="accept-sale">Accept '+GT.money(s.flags.pendingBuyout)+'</button> <button class="btn sm" data-act="decline-sale">Decline</button>';
+  var ipo = GT.canIPO(s);
+  html += ' <button class="btn sm" data-act="ipo"'+(ipo?'':' disabled')+'>Go public</button></p>';
+  if(!ipo) html += '<p class="muted">IPO needs year 4+, a serious valuation, real revenue, and a decent reputation.</p>';
+  html += '</div>';
+  return html;
+}
+
+function viewMarket(s){
+  var html = '<div class="panel"><h2>Competitors</h2><table><tr><th>Name</th><th>Style</th><th>Strength</th><th></th></tr>';
+  s.competitors.forEach(function(c){
+    html += '<tr><td>'+escapeHtml(c.name)+'</td><td>'+(c.alive?c.style:'closed')+'</td><td>'+(c.alive?Math.round(c.strength):"—")+'</td><td></td></tr>';
+  });
+  html += '</table><p class="muted">Rivals react to your prices and the economy. A struggling one may take an offer — sometimes that offer appears as an event.</p></div>';
+  html += '<div class="panel"><h2>Reviews</h2><p>'+stars(GT.avgReview(s))+' from '+(s.reviews?s.reviews.length:0)+' recent reviews. Reputation '+Math.round(s.reputation)+'.</p><ul class="news">';
+  (s.reviews||[]).slice(0,8).forEach(function(r){ html += '<li>'+stars(r.stars)+' — '+escapeHtml(r.text)+'</li>'; });
+  html += '</ul></div>';
+  return html;
+}
+function viewNews(s){
+  return '<div class="panel"><h2>News &amp; ledger</h2><ul class="news">'+s.news.map(newsItem).join("")+'</ul></div>';
+}
+function viewMenu(s){
+  return '<div class="panel"><h2>Game</h2><p><button class="btn" data-act="save">Save</button> <button class="btn" data-act="howto">How to play</button> <button class="btn" data-act="home">Back to title</button></p><p class="muted">Saves stay on this device, in one of five slots. This is a single-file game and works offline from a downloaded copy.</p></div>';
+}
+
+function drawCharts(){
+  if(!state) return;
+  function line(id, series, colors){
+    var c=$(id); if(!c) return;
+    var w=c.width=c.clientWidth*2||600, h=c.height=280;
+    var ctx=c.getContext("2d");
+    ctx.clearRect(0,0,w,h);
+    ctx.strokeStyle="#e4ddd2"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(40,10); ctx.lineTo(40,h-24); ctx.lineTo(w-8,h-24); ctx.stroke();
+    var all=[]; series.forEach(function(s){ all=all.concat(s); });
+    if(!all.length) return;
+    var min=Math.min.apply(null,all), max=Math.max.apply(null,all);
+    if(min===max){min-=1;max+=1;}
+    series.forEach(function(arr,i){
+      ctx.strokeStyle=colors[i]||"#161410"; ctx.lineWidth=2; ctx.beginPath();
+      arr.forEach(function(v,x){
+        var px=40+(w-56)*x/Math.max(1,arr.length-1);
+        var py=h-24-(h-40)*(v-min)/(max-min);
+        if(x===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+      });
+      ctx.stroke();
+    });
+  }
+  var H=state.history||{cash:[],rev:[],profit:[]};
+  line("c-cash", [H.cash.slice(-80)], ["#1f6b46"]);
+  line("c-pnl", [H.rev.slice(-80), H.profit.slice(-80)], ["#1b2a38","#b0863c"]);
+}
+
+function bindTips(){
+  var tip=$("tip");
+  document.querySelectorAll("[data-tip]").forEach(function(node){
+    node.addEventListener("mouseenter", function(e){
+      tip.textContent=node.getAttribute("data-tip");
+      tip.classList.add("on");
+      moveTip(e);
+    });
+    node.addEventListener("mousemove", moveTip);
+    node.addEventListener("mouseleave", function(){ tip.classList.remove("on"); });
+  });
+}
+function moveTip(e){
+  var tip=$("tip");
+  tip.style.left=Math.min(window.innerWidth-280, e.clientX+12)+"px";
+  tip.style.top=Math.min(window.innerHeight-80, e.clientY+14)+"px";
+}
+
+function openModal(html){
+  $("modal-sheet").innerHTML=html;
+  $("modal").hidden=false;
+}
+function closeModal(){ $("modal").hidden=true; }
+
+function openEvent(){
+  var ev=state.pendingEvent; if(!ev) return;
+  var html='<h2>'+escapeHtml(ev.name)+'</h2><p>'+escapeHtml(ev.text)+'</p><div class="choices">';
+  ev.choices.forEach(function(c){
+    html+='<button class="choice" data-act="choose" data-id="'+c.id+'"><b>'+escapeHtml(c.label)+'</b><span>'+escapeHtml(c.rec||"")+'</span></button>';
+  });
+  html+='</div>';
+  openModal(html);
+}
+function openReport(r){
+  if(!r) return;
+  var html='<h2>Week report</h2><p class="muted">'+GT.fmtWeek(r.week)+'</p>'+pnlTable(r)+
+    '<p>Cash now <b>'+GT.money(r.cash)+'</b> · Net worth <b>'+GT.money(r.netWorth)+'</b></p>';
+  if(r.lines&&r.lines.length) html+='<ul>'+r.lines.map(function(l){return '<li>'+escapeHtml(l)+'</li>';}).join("")+'</ul>';
+  if(r.alerts&&r.alerts.length) html+='<p class="bad">'+r.alerts.map(escapeHtml).join(" ")+'</p>';
+  html+='<button class="btn primary wide" data-act="close">Continue</button>';
+  openModal(html);
+}
+function openEnding(){
+  if(!state||!state.ended) return;
+  openModal('<h2>'+escapeHtml(state.endingTitle||"The end")+'</h2><p>'+escapeHtml(state.endingText||"")+'</p><p>Net proceeds / worth: <b>'+GT.money(state.endingValue||GT.netWorth(state))+'</b></p><button class="btn primary wide" data-act="home">Back to title</button>');
+  GT.mergeMeta(state, storage);
+}
+function openMilestone(kind){
+  var map={millionaire:["Millionaire","Your stake just crossed a million. You can keep going."],billionaire:["Billionaire","The number has nine zeroes. Harborline will talk about this for a long time."],decade:["Ten years","Ten years in, and you are still standing. Keep going, or call it a career."]};
+  var m=map[kind]; if(!m) return;
+  openModal('<h2>'+m[0]+'</h2><p>'+m[1]+'</p><p>Net worth: <b>'+GT.money(GT.netWorth(state))+'</b></p><button class="btn primary wide" data-act="close">Keep playing</button>');
+  GT.mergeMeta(state, storage);
+}
+function toast(msg){ /* reuse modal only for big things; brief title news is enough */ }
+
+function howTo(){
+  openModal('<h2>How to play</h2>'+
+    '<p>You are a founder in Harborline. Each week you set prices, order stock, hire or train people, spend on marketing, and handle money. Then you end the week and the city reacts.</p>'+
+    '<p><b>Make a margin.</b> Fair prices follow quality. Cheap volume with no margin, or fancy prices nobody pays, will both sink you.</p>'+
+    '<p><b>Watch cash, not just profit.</b> Inventory, taxes, loans, and a slow week can empty an account that looked fine on paper. Keep a reserve.</p>'+
+    '<p><b>People and tools matter.</b> Understaffed shops fail inspections and reviews. Overstaffed shops drown in payroll. Repair and upgrade equipment before it dies on a Saturday.</p>'+
+    '<p><b>Events are choices, not flavor.</b> A lawsuit, a viral clip, a recession, or a buyout can change the year. Read the tradeoffs.</p>'+
+    '<p><b>Ways this can end:</b> bankruptcy; selling the company; an IPO (year 4+, real scale); lasting ten years; hitting a million or a billion in net worth. You can keep playing after some of those milestones.</p>'+
+    '<p>Press <b>H</b> in-game for a hint about what to do next. Saves use five slots on this device.</p>'+
+    '<button class="btn primary wide" data-act="close">Got it</button>');
+}
+
+function maybeTutorial(force){
+  if(!force && storage && storage.getItem(GT.TUT_KEY)) return;
+  openModal('<h2>Welcome to Harborline</h2>'+
+    '<p>This is your dashboard. Cash, net worth, and last week\'s profit live at the top. The gold-and-black buttons along the side open operations, staff, marketing, finance, and growth.</p>'+
+    '<p>Set a price and make sure you have stock, then press <b>End week</b>. After each week you will get a P&amp;L, and sometimes a decision that will not wait.</p>'+
+    '<p>There is no one trick. A careful shop, a debt-fueled expansion, and a software product with a short runway are all viable — and all can fail.</p>'+
+    '<button class="btn primary wide" data-act="tut-done">Start the first week</button>');
+}
+
+function hintText(){
+  if(!state) return "Start a new game first.";
+  var s=state, bits=[];
+  if(s.cash<3000) bits.push("Cash is tight. Cut marketing, delay a hire, or consider a small loan — not a merchant advance unless you must.");
+  if(s.permitsOk===false) bits.push("Renew your permits in Finance or the city may shut you down.");
+  if(s.taxOwed>s.taxReserve+500) bits.push("Set tax money aside. A quarterly bill is coming.");
+  var low=s.products.some(function(p){return p.baseCost>0.05 && p.stock<15;});
+  if(low) bits.push("You are short on stock. Order in Operations, or use Auto-restock.");
+  if(s.staff.length===0 && (GT.BIZ[s.businessId]||{}).group!=="digital") bits.push("A pair of hands would help capacity. Hire if you can cover the wage.");
+  if(s.staff.some(function(p){return p.morale<40;})) bits.push("Someone on the team is unhappy. A raise or a calmer week may keep them.");
+  if(s.equipment.some(function(e){return e.cond<40;})) bits.push("Equipment is wearing out. Repair it before a breakdown event does it for you.");
+  if(s.lastReport && s.lastReport.profit<0 && s.revenueRunRate>0) bits.push("Last week lost money. Check prices versus cost, payroll, and whether marketing is paying off.");
+  if(s.flags.recession) bits.push("The city is in a downturn. Volume is softer; don\'t expand just because you are bored.");
+  if(!bits.length) bits.push("You are in decent shape. Follow the gold arrow of your own goals: quality, a second location, a raise, or just a quiet profitable week.");
+  return bits[0];
+}
+
+function doSave(){
+  openModal('<h2>Save game</h2><p>Pick a slot. This overwrites whatever is there.</p>'+
+    GT.listSaves(storage).map(function(s,i){
+      return '<button class="btn wide" style="margin:6px 0" data-act="save-slot" data-slot="'+i+'">Slot '+(i+1)+' — '+(s?escapeHtml(s.name)+' · '+GT.fmtWeek(s.week):'empty')+'</button>';
+    }).join("")+
+    '<button class="btn wide" data-act="close">Cancel</button>');
+}
+
+function endWeek(){
+  if(!state||state.ended) return;
+  if(state.pendingEvent){ openEvent(); return; }
+  var res=GT.advanceWeek(state);
+  state=res.state;
+  pendingReport=res.report;
+  if(res.report) openReport(res.report);
+  else renderPlay();
+}
+
+/* events */
+document.addEventListener("click", function(e){
+  var t=e.target.closest("[data-act]"); if(!t) return;
+  var act=t.getAttribute("data-act"), id=t.getAttribute("data-id");
+  if(act==="close"){ closeModal(); renderPlay(); return; }
+  if(act==="home"){ closeModal(); if(state) GT.mergeMeta(state,storage); renderTitle(); return; }
+  if(act==="new"){ wizard.step=0; renderWizard(); return; }
+  if(act==="howto"){ howTo(); return; }
+  if(act==="achs"){ howTo(); return; }
+  if(act==="load"){ var sl=GT.loadSlot(+t.getAttribute("data-slot"), storage); if(sl){ state=sl; view="dash"; renderPlay(); } return; }
+  if(act==="wipe"){ GT.clearSlot(+t.getAttribute("data-slot"), storage); renderTitle(); return; }
+  if(act==="bg"){ wizard.backgroundId=id; if($("wn-founder")) wizard.founderName=$("wn-founder").value; renderWizard(); return; }
+  if(act==="biz"){ wizard.businessId=id; if($("wn-co")) wizard.companyName=$("wn-co").value; renderWizard(); return; }
+  if(act==="hood"){ wizard.hoodId=id; renderWizard(); return; }
+  if(act==="wiz-next"){
+    if(wizard.step===0 && $("wn-founder")) wizard.founderName=$("wn-founder").value;
+    if(wizard.step===1 && $("wn-co")) wizard.companyName=$("wn-co").value;
+    wizard.step=Math.min(2, wizard.step+1); renderWizard(); return;
+  }
+  if(act==="wiz-back"){ wizard.step=Math.max(0,wizard.step-1); renderWizard(); return; }
+  if(act==="wiz-start"){ startGame(); return; }
+  if(act==="view"){ view=id; renderPlay(); return; }
+  if(act==="week"){ endWeek(); return; }
+  if(act==="hint"){ openModal('<h2>Hint</h2><p>'+escapeHtml(hintText())+'</p><button class="btn primary wide" data-act="close">OK</button>'); return; }
+  if(act==="save"){ doSave(); return; }
+  if(act==="save-slot"){ var r=GT.saveSlot(state, +t.getAttribute("data-slot"), storage); closeModal(); var slotN=+t.getAttribute("data-slot")+1; openModal("<h2>"+(r.ok?"Saved":"Save failed")+"</h2><p>"+(r.ok?("Slot "+slotN+" is up to date. "):"")+(r.why||"")+"</p><button class=\"btn primary wide\" data-act=\"close\">OK</button>"); return; }
+  if(act==="tut-done"){ if(storage) storage.setItem(GT.TUT_KEY,"1"); closeModal(); renderPlay(); return; }
+  if(act==="choose"){ GT.resolveEvent(state, id); closeModal(); renderPlay(); return; }
+
+  if(!state) return;
+  var msg=null, res=null;
+  if(act==="price"){ return; }
+  if(act==="order"){
+    var inp=document.querySelector('input[data-ord="'+id+'"]');
+    res=GT.orderStock(state, id, inp?inp.value:0); msg=res.ok?("Ordered. Lead "+res.lead+" week(s)."):res.why;
+  }
+  if(act==="restock"){ GT.autoRestock(state,3); msg="Restocked what you can afford."; }
+  if(act==="repair"){ res=GT.repairEquipment(state,id); msg=res.ok?("Repaired for "+GT.money(res.cost)):res.why; }
+  if(act==="upgrade"){ res=GT.upgradeEquipment(state,id); msg=res.ok?("Upgraded for "+GT.money(res.cost)):res.why; }
+  if(act==="route"){ GT.setRoute(state,id); }
+  if(act==="crunch"){ GT.setCrunch(state, !(state.project&&state.project.crunch)); }
+  if(act==="new-game"){ res=GT.startGameProject(state); msg=res.ok?"":res.why; }
+  if(act==="new-app"){ res=GT.startApp(state); msg=res.ok?"":res.why; }
+  if(act==="buy-prop"){ res=GT.buyProperty(state); msg=res.ok?"":res.why; }
+  if(act==="hire"){ res=GT.hire(state,id); msg=res.ok?"":res.why; }
+  if(act==="fire"){ res=GT.fire(state,id); msg=res.ok?"":res.why; }
+  if(act==="train"){ res=GT.trainStaff(state,id); msg=res.ok?"":res.why; }
+  if(act==="setw"){ var w=document.querySelector('input[data-wage="'+id+'"]'); GT.setWage(state,id,w?w.value:0); }
+  if(act==="setmkt"){ var m=document.querySelector('input[data-mkt="'+id+'"]'); GT.setMarketing(state,id,m?m.value:0); }
+  if(act==="paydown"){ var a=$("paydown"); GT.payDown(state, a?a.value:0); }
+  if(act==="draw"){ res=GT.drawLoc(state, 2000); msg=res.ok?("Drew "+GT.money(res.amount)):res.why; }
+  if(act==="borrow"){ var amt=document.querySelector('input[data-loan="'+id+'"]'); res=GT.takeLoan(state,id,amt?amt.value:0); msg=res.ok?"":res.why; }
+  if(act==="tax"){ var d=$("taxdep"); res=GT.depositTax(state,d?d.value:0); msg=res.ok?"":res.why; }
+  if(act==="permits"){ res=GT.renewPermits(state); msg=res.ok?"":res.why; }
+  if(act==="raise"){ res=GT.takeInvestment(state,false); msg=res.ok?("Raised "+GT.money(res.check)):res.why; }
+  if(act==="raise-neg"){ res=GT.takeInvestment(state,true); msg=res.ok?("Raised "+GT.money(res.check)+" after a negotiation"):res.why; }
+  if(act==="online"){ res=GT.launchOnline(state); msg=res.ok?"":res.why; }
+  if(act==="national"){ res=GT.goNational(state); msg=res.ok?"":res.why; }
+  if(act==="franchise"){ res=GT.sellFranchise(state); msg=res.ok?("Fee "+GT.money(res.fee)):res.why; }
+  if(act==="newline"){ res=GT.addProductLine(state); msg=res.ok?"":res.why; }
+  if(act==="open-loc"){ res=GT.openLocation(state,id); msg=res.ok?"":res.why; }
+  if(act==="pivot"){ var pv=$("pivot-to"); res=GT.pivotBusiness(state,pv?pv.value:""); msg=res.ok?"":res.why; }
+  if(act==="solicit"){ res=GT.solicitSale(state); msg=res.ok?("Offer: "+GT.money(res.offer)):res.why; }
+  if(act==="accept-sale"){ GT.acceptSale(state); }
+  if(act==="decline-sale"){ GT.declineSale(state); }
+  if(act==="ipo"){ res=GT.goPublic(state); msg=res.ok?"":res.why; state.ended=false; }
+
+  if(msg){ openModal('<h2>Note</h2><p>'+escapeHtml(msg)+'</p><button class="btn primary wide" data-act="close">OK</button>'); return; }
+  renderPlay();
+});
+
+document.addEventListener("change", function(e){
+  if(!state) return;
+  var t=e.target;
+  if(t.getAttribute("data-act")==="price") GT.setPrice(state, t.getAttribute("data-id"), t.value);
+  if(t.getAttribute("data-act")==="supplier") GT.setSupplier(state, t.value);
+});
+
+document.addEventListener("keydown", function(e){
+  if(e.key==="h"||e.key==="H"){
+    if(e.target && /input|select|textarea/i.test(e.target.tagName)) return;
+    if(state && !$("modal").hidden===false) {}
+    if(state && $("screen-play") && !$("screen-play").classList.contains("hidden")){
+      e.preventDefault();
+      openModal('<h2>Hint</h2><p>'+escapeHtml(hintText())+'</p><button class="btn primary wide" data-act="close">OK</button>');
+    }
+  }
+});
+
+renderTitle();
+
+</script>
+</body>
+</html>
