@@ -1,8 +1,13 @@
 # Tour Sim (Grok Games hub copy)
 
-Tour Sim v1.14.3, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
+Tour Sim v1.14.4, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
 
 This folder is part of [grok-games](https://github.com/jamesgregory5-svg/grok-games). It uses the hub password gate (`../../auth.js`) and does not have a separate password of its own.
+
+## v1.14.4
+
+- **Realistic Rae's Creek bridges at Augusta.** The Hogan Bridge (left of the 12th green) and the Nelson Bridge (off the 13th tee) are now pale fieldstone spans with a gentle arch, three openings underneath, low parapets, and a turf deck, placed on the OSM crossings at a realistic scale. The Sarazen Bridge is a flat flagstone dam walkway (no arch, no turf) along the left side of the pond in front of the 15th green — it is not in OSM and is placed on the dam. Other OSM spans stay generic. Bridges stay visual-only (no new ball collision) and are drawn on every graphics preset.
+- Keeps the v1.14.3 hole-1 freeze fix, v1.14.2 chip / gear-aware distances, and the v1.14.1-hotfix graphics safety fallbacks.
 
 ## v1.14.3
 
