@@ -1,8 +1,14 @@
 # Tour Sim (Grok Games hub copy)
 
-Tour Sim v1.12.1, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
+Tour Sim v1.12.2, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
 
 This folder is part of [grok-games](https://github.com/jamesgregory5-svg/grok-games). It uses the hub password gate (`../../auth.js`) and does not have a separate password of its own.
+
+## v1.12.2
+
+- On St Andrews (and any other course with a double/shared green), the cup stays on this hole's lobe of the green instead of sometimes landing on the other hole's half. The flagstick, the cup in the turf, the capture point, the aim/caddie line, and the minimap pin all use that same position in career, quick play, and practice.
+- Pebble Beach 18: a forced “landmark” cypress was planted in the middle of the fairway (4 yd off the centerline) and, after the v1.12 tree-damping fix, was eating tee shots. The landmark tree right of the green stays; nothing is forced onto the landing zone. Carmel Bay remains along the left with the seawall/cliff at the shoreline.
+- Career driver distance: stock is unchanged (about 258 yd carry / 288 yd total, in line with v1.11.6). Combined shop/estate power, accuracy, and consistency now cap at 10, so a fully loaded bag is long (about 286 / 309) rather than long-drive territory (was about 314 / 331 with 21 stacked power points at +2.5% each).
 
 ## v1.12.1
 
