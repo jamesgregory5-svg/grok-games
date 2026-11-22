@@ -217,7 +217,7 @@ td.l,th.l{text-align:left}
 <div id="ldr" style="position:fixed;inset:0;z-index:9999;background:#0b1014;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;color:#e8eef2;font:700 28px/1 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:.18em;transition:opacity .6s ease"><div>LOADING</div><div style="width:min(420px,70vw)"><div style="height:10px;background:#1a2430;border-radius:999px;overflow:hidden;border:1px solid #2a3a44"><div id="ldrBar" style="height:100%;width:0%;background:linear-gradient(90deg,#3fe0b0,#7cf0d0);border-radius:999px;box-sizing:border-box;transition:none"></div></div><div id="ldrPct" style="margin-top:8px;text-align:center;font:800 14px/1.2 system-ui,sans-serif;letter-spacing:.12em;opacity:.85">0%</div></div></div><div id="fps"></div><div id="gimme"><div class="gb"><b>GIMME</b><span id="gimmeS"></span></div></div>
 <script type="text/x-tour" id="gsrc">
 'use strict';
-const VERSION='v1.12.3';
+const VERSION='v1.13';
 const TAU=Math.PI*2,DEG=Math.PI/180;
 const clamp=(v,a,b)=>v<a?a:v>b?b:v,lerp=(a,b,t)=>a+(b-a)*t,smooth=t=>t*t*(3-2*t);
 const pad=n=>String(n).padStart(2,'0');
@@ -4729,7 +4729,7 @@ function showEstate(){
   if(_sp){crSponsorPay=function(){const r=_sp.apply(this,arguments);try{const C=crLoad();if(r&&r.pay&&C&&C.est&&C.est.brand)r.pay=Math.round(r.pay*1.25)}catch(e){}return r}}}
 {const _tc=typeof crTrnCost==='function'?crTrnCost:null;
   if(_tc){crTrnCost=function(){const v=_tc.apply(this,arguments);try{const C=crLoad();if(C&&C.est&&C.est.home)return Math.round(v*.75)}catch(e){}return v}}}
-{const _inj=injTick;injTick=function(C){try{if(C&&C.inj&&C.est){if(C.est.physio&&C.inj.left>1){/* already shortened on buy; tick normally */}}}catch(e){}return _inj.apply(this,arguments)}}
+/* v1.13: removed a no-op injTick wrapper here: injTick is private to the career IIFE, so the reference threw and aborted the rest of this init block (crEnsure/purse/perf/casino hooks and window exports) */
 
 /* injury chance reduction: wrap whatever assigns inj if present later */
 function crInjRisk(C){
@@ -4813,7 +4813,7 @@ function tsPerfTick(now){
     if(TS_PERF.fps<36&&typeof T3ST==='object'){T3ST.n=Math.min(T3ST.n,0.5);TS_PERF.adj=2}
   }
 }
-{const _loop=loop;loop=function(now){try{tsPerfTick(now)}catch(e){}try{
+if(typeof loop==='function'){const _loop=loop;loop=function(now){try{tsPerfTick(now)}catch(e){}try{
     /* skip far wildlife when frames are tight */
     /* FPS object cut: wildlife sprites only. Never hide course bridges or building meshes (R.bld). */
     if(G.fps&&G.fps<40&&typeof list!=='undefined'&&list&&list.length>6){for(let i=6;i<list.length;i++)if(list[i]&&list[i].g&&!list[i].bridge&&list[i].k!=='bridge')list[i].g.visible=false}
@@ -5132,6 +5132,195 @@ window.ESTATE=ESTATE;window.SHOP_V12=SHOP_V12;window.crNeedHtml=crNeedHtml;windo
 }catch(e){console.warn('v1.12 init',e)}
 })();
 
+
+
+/* ================= v1.13: TV-broadcast shot cameras =================
+   Camera setting (ts.camset): 'broadcast' (default: chase, landing, green-side, putt follow, trouble cams, slow-mo + instant replay),
+   'classic' (the original single behind-the-ball follow cam) and 'behind' (stay behind the ball, no cuts, no auto replay).
+   The director only ever writes G.cam from inside updCam(): it never waits on, queues or swallows input. */
+const CAMSETS=['broadcast','classic','behind'];
+const CAMNAMES={broadcast:'Broadcast',classic:'Classic',behind:'Behind only'};
+const CAMDESC={broadcast:'TV-style cuts: tee-shot chase, landing cam, low green-side cam for approaches, putt follow with a behind-the-cup finish, trouble cams for water and trees, plus slow motion and an instant replay from a second angle on hole-outs, aces, eagles and lip-outs.',
+  classic:'The original camera: it just follows the ball from behind. No cuts, no automatic replays (the REPLAY button still works).',
+  behind:'Stays behind the ball for the whole shot and putt. No cuts, no slow motion, no automatic replays.'};
+function camSet(){const v=store('ts.camset');return CAMSETS.indexOf(v)>=0?v:'broadcast'}
+function setCamSet(v){if(CAMSETS.indexOf(v)<0)return;store('ts.camset',v);const b=$('bCam');if(b)b.title='Camera: '+CAMNAMES[v]+' (B)'}
+function cycleCamSet(){const n=CAMSETS[(CAMSETS.indexOf(camSet())+1)%CAMSETS.length];setCamSet(n);try{toast('Camera: '+CAMNAMES[n],n==='broadcast'?'TV cuts · slow-mo · instant replays':n==='classic'?'Follows the ball':'Stays behind the ball',1500)}catch(e){}return n}
+const BC={a:null,mode:null,from:null,bt:0,bT:1,out:null,bs:null,dirS:null,lift:0,fovS:null,stage:'',ts0:undefined,slowOn:false,noSlow:false,rq:null,rfrom:null,endedAt:0,stats:{}};
+const BC_MODES={round:1,range:1,ctp:1,ld:1};
+const BC_LAND=[[-6,16],[-6,-16],[8,18],[8,-18],[-18,14],[-18,-14],[0,24],[0,-24],[16,12],[16,-12],[-28,8],[-28,-8],[30,0],[-10,32],[-10,-32]];
+const BC_APP=[[-4,10],[-4,-10],[4,14],[4,-14],[-10,12],[-10,-12],[0,18],[0,-18],[8,9],[8,-9],[-14,7],[-14,-7],[0,26],[0,-26]];
+const BC_WATER=[[-8,10],[-8,-10],[-14,6],[-14,-6],[-4,16],[-4,-16],[-20,12],[-20,-12],[6,14],[6,-14],[-10,26],[-10,-26]];
+const BC_TREE=[[-12,12],[-12,-12],[-16,8],[-16,-8],[-8,16],[-8,-16],[-20,12],[-20,-12],[10,12],[10,-12],[-8,24],[-8,-24],[-22,0]];
+const BC_REPF=[[16,7],[16,-7],[22,0],[12,12],[12,-12],[26,10],[26,-10],[8,-18],[8,18],[34,0]];
+const BC_REPP=[[-1.4,2.6],[-1.4,-2.6],[.8,2.4],[.8,-2.4],[-3,3.2],[-3,-3.2],[2,4],[2,-4]];
+function bcBld(H,x,y,m){const B=H.blds;if(!B)return null;for(let i=0;i<B.length;i++){const b=B[i];if(x<b.bb[0]-m||x>b.bb[2]+m||y<b.bb[1]-m||y>b.bb[3]+m)continue;return b}return null}
+/* keep a camera eye above the terrain, out of tree canopies and building footprints, inside the hole box */
+function bcSafe(H,eye,minAbove,at){const e=eye.slice();e[0]=clamp(e[0],H.X0+1.5,H.X1-1.5);e[1]=clamp(e[1],H.Y0+1.5,H.Y1-1.5);
+  const b=bcBld(H,e[0],e[1],1.2);if(b){let ok=false;if(at){const dx=at[0]-e[0],dy=at[1]-e[1],dl=Math.hypot(dx,dy)||1;for(let s=1.5;s<=36;s+=1.5){const x=e[0]+dx/dl*s,y=e[1]+dy/dl*s;if(!bcBld(H,x,y,1.2)){e[0]=x;e[1]=y;ok=true;break}}}
+    if(!ok)e[2]=Math.max(e[2],H.hAt(e[0],e[1])+(b.h||12)+3)}
+  if(H.treeHit){for(let it=0;it<10;it++){const g=H.hAt(e[0],e[1]);const t=H.treeHit(e[0],e[1],e[2]-g);if(!t)break;
+      if(it>=3){e[2]=Math.max(e[2],g+t.h+1.2);continue}
+      let dx=e[0]-t.x,dy=e[1]-t.y;const d=Math.hypot(dx,dy);if(d<.01){dx=1;dy=0}else{dx/=d;dy/=d}const R=t.w*.5+1.2;e[0]=clamp(t.x+dx*R,H.X0+1.5,H.X1-1.5);e[1]=clamp(t.y+dy*R,H.Y0+1.5,H.Y1-1.5)}}
+  e[2]=Math.max(e[2],H.hAt(e[0],e[1])+minAbove);return e}
+/* count blockers (terrain, tree canopies, buildings) on the straight line eye -> target */
+function bcLos(H,e,t){const dx=t[0]-e[0],dy=t[1]-e[1],dz=t[2]-e[2],L=Math.hypot(dx,dy);const N=Math.max(2,Math.min(40,Math.ceil(L/2.5)));let bad=0;
+  for(let i=1;i<N;i++){const s=i/N,x=e[0]+dx*s,y=e[1]+dy*s,z=e[2]+dz*s;if(x<H.X0||x>H.X1||y<H.Y0||y>H.Y1)continue;const g=H.hAt(x,y);if(z<g+.12){bad+=3;continue}
+    if(H.treeHit&&H.treeHit(x,y,z-g))bad+=2;else{const b=bcBld(H,x,y,0);if(b&&z-g<(b.h||12))bad+=2}}return bad}
+function bcPathDist(a,x,y,i0){const P=a.P,n=a.n;let m=1e9;for(let i=Math.max(0,i0|0);i<n;i+=4){const d=Math.hypot(P[i*3]-x,P[i*3+1]-y);if(d<m)m=d}return m}
+/* pick the clearest candidate eye around an anchor: o={ux,uy,h,tgt,minPath,p0,water} */
+function bcPick(a,anchor,cands,o){const H=G.H;let best=null;
+  for(const [fw,sd] of cands){let ex=anchor.x+o.ux*fw+o.uy*sd,ey=anchor.y+o.uy*fw-o.ux*sd;ex=clamp(ex,H.X0+4,H.X1-4);ey=clamp(ey,H.Y0+4,H.Y1-4);
+    let sc=Math.abs(sd)*.02+Math.abs(fw)*.01+(sd<0?.4:0);const sf=H.surfAt(ex,ey);
+    if(sf===S_WATER||sf===S_DEEP)sc+=o.water?4:60;if(sf===S_OB)sc+=25;if(sf===S_SAND)sc+=.5;
+    const pd=bcPathDist(a,ex,ey,o.p0);if(pd<o.minPath)sc+=40+(o.minPath-pd)*4;
+    if(bcBld(H,ex,ey,2))sc+=80;const eye=[ex,ey,H.hAt(ex,ey)+o.h];if(H.treeHit&&H.treeHit(ex,ey,o.h))sc+=40;
+    let tg=o.tgt;if(o.rad){const dx=ex-tg[0],dy=ey-tg[1],dl=Math.hypot(dx,dy)||1;tg=[tg[0]+dx/dl*o.rad,tg[1]+dy/dl*o.rad,tg[2]]}
+    sc+=bcLos(H,eye,tg)*6;
+    if(H.treeHit&&o.clear){for(let k=0;k<8;k++){const an=k*.785,px=ex+Math.cos(an)*o.clear,py=ey+Math.sin(an)*o.clear,g=H.hAt(px,py);if(H.treeHit(px,py,eye[2]-g)||H.treeHit(px,py,eye[2]-g+4))sc+=5}}
+    if(!best||sc<best.sc)best={sc,x:ex,y:ey,z:eye[2],sf}}
+  return best}
+function bcHasCup(){const H=G.H;return G.cupOn!==false&&G.mode!=='range'&&G.mode!=='ld'&&!!H&&!!H.cup&&Number.isFinite(H.cup.x)}
+/* per-shot plan: which camera each part of this shot gets, from the same sampled path / landing prediction the ball uses */
+function bcPlan(a,mode){const H=G.H,P=a.P,n=a.n,fN=Math.max(1,a.flightN||1),from=a.from,res=a.res||{};const cup=H.cup;const hc=bcHasCup();
+  const pl={kind:'follow',ax:Math.cos(G.aim),ay:Math.sin(G.aim),fT:fN/60,cams:null};
+  const fin={x:P[(n-1)*3],y:P[(n-1)*3+1]},L=a.land&&Number.isFinite(a.land.x)?a.land:fin;
+  const carry=Math.hypot(L.x-from.x,L.y-from.y);pl.carry=carry;pl.fin=fin;pl.L=L;
+  const dcF=hc?Math.hypot(fin.x-cup.x,fin.y-cup.y):1e9,dcL=hc?Math.hypot(L.x-cup.x,L.y-cup.y):1e9;
+  pl.dcF=dcF;pl.sunk=res.kind==='sunk';pl.lip=!pl.sunk&&(res.lip==='lip'||res.lip==='pin')&&dcF<2.5;pl.hot=hc&&(pl.sunk||pl.lip);
+  let ai=0,mz=-1e9;if(!a.put){for(let i=0;i<fN;i++){const z=P[i*3+2]-H.hAt(P[i*3],P[i*3+1]);if(z>mz){mz=z;ai=i}}}
+  pl.apexT=ai/60;pl.apexH=Math.max(0,mz);
+  if(mode!=='broadcast'){pl.kind=a.put?'putt':'follow';pl.plain=true;return pl}
+  const ux0=L.x-from.x,uy0=L.y-from.y,ul=Math.hypot(ux0,uy0)||1,ux=ux0/ul,uy=uy0/ul;
+  const tee=!!(G.lastPos&&G.lastPos.surf===S_TEE),sfL=H.surfAt(L.x,L.y);
+  if(a.put){pl.kind='putt';const d0=hc?Math.hypot(from.x-cup.x,from.y-cup.y):0;pl.d0=d0;
+    if(hc&&d0>=3.2&&(pl.sunk||dcF<1)){for(let i=1;i<n;i++){const d=Math.hypot(P[i*3]-cup.x,P[i*3+1]-cup.y);if(d<2.6){pl.cupT=i/60;break}}}
+    if(pl.cupT!==undefined){const bp=ballAt(a,pl.cupT);let dx=cup.x-bp[0],dy=cup.y-bp[1];const dl=Math.hypot(dx,dy)||1;dx/=dl;dy/=dl;const back=Math.max(1.5,dcF+.9),cz=H.hAt(cup.x,cup.y);
+      pl.cupEye=[cup.x+dx*back-dy*.35,cup.y+dy*back+dx*.35,cz+.3]}
+    return pl}
+  let cands=null,h=3,tgt=[L.x,L.y,H.hAt(L.x,L.y)+1.5],minPath=8,anchor=L,cutF=.4,T=.6,list=BC_LAND;
+  if(res.kind==='water'&&carry>25){pl.kind='water';let W=L;for(let i=Math.max(1,ai);i<fN;i++){const sf=H.surfAt(P[i*3],P[i*3+1]);if(sf===S_WATER||sf===S_DEEP){W={x:P[i*3],y:P[i*3+1]};break}}
+    anchor=W;pl.W=W;list=BC_WATER;h=1;minPath=5;tgt=[W.x,W.y,H.hAt(W.x,W.y)+.4];cutF=.42;T=.55;pl.water=true}
+  else if(res.tree&&carry>20){pl.kind='tree';let bi=0,bd=1e9;for(let i=0;i<fN;i++){const d=Math.hypot(P[i*3]-L.x,P[i*3+1]-L.y);if(d<bd){bd=d;bi=i}}
+    anchor={x:L.x,y:L.y};pl.C=[L.x,L.y,P[bi*3+2]];list=BC_TREE;h=2.6;minPath=6;tgt=pl.C.slice();cutF=.45;T=.55;let tr=null,td=1e9;for(const q of H.trees){const d=Math.hypot(q.x-L.x,q.y-L.y);if(d<td){td=d;tr=q}}pl.rad=tr?Math.min(14,tr.w*.5+.5):3;pl.clear=3}
+  else if(res.kind==='ob'&&carry>40){pl.kind='ob';list=BC_LAND;h=5;cutF=.45;T=.55}
+  else if(hc&&carry>=35&&(sfL===S_GREEN||sfL===S_FRINGE||dcL<=32||dcF<=28)){pl.kind='approach';list=BC_APP;h=1.15;minPath=6;tgt=[L.x,L.y,H.hAt(L.x,L.y)+.5];cutF=.34;T=.8}
+  else if(tee&&carry>=150){pl.kind='tee';h=4;minPath=10;T=.7;cutF=0;pl.swingT=Math.max(.8,pl.apexT);pl.cutT=Math.max(pl.swingT+.4,pl.fT-.25)}
+  else if(carry>=110){pl.kind='landing';cutF=.38;T=.6}
+  else return pl;
+  pl.T=T;if(pl.cutT===undefined)pl.cutT=Math.max(.6,cutF*pl.fT);
+  if(pl.fT<1&&pl.kind!=='tee'){pl.kind='follow';return pl}
+  const pk=bcPick(a,anchor,list,{ux,uy,h,tgt,minPath,p0:Math.max(0,ai-2),water:false,rad:pl.rad,clear:pl.clear});
+  if(pk){pl.camEye=[pk.x,pk.y,pk.z];if(pl.water&&(pk.sf===S_WATER||pk.sf===S_DEEP))pl.camEye[2]=H.hAt(pk.x,pk.y)+7}else pl.kind='follow';
+  pl.tgt=tgt;return pl}
+function bcCut(T){BC.from=BC.out?{eye:BC.out.eye.slice(),at:BC.out.at.slice(),fov:BC.out.fov}:null;BC.bt=0;BC.bT=T;BC.pend=true}
+/* short camera moves are eased; a jump of more than ~55 yd is a straight TV cut with a quick dip so it never whips through the course */
+function bcDip(){try{let d=$('bcDip');if(!d){d=document.createElement('div');d.id='bcDip';d.style.cssText='position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:4';document.body.appendChild(d)}d.style.transition='none';d.style.opacity='.55';void d.offsetWidth;d.style.transition='opacity .4s ease-out';d.style.opacity='0'}catch(e){}}
+function bcFar(f,eye){return Math.hypot(f.eye[0]-eye[0],f.eye[1]-eye[1],f.eye[2]-eye[2])>55}
+function bcSlowTo(dt,target){const cur=G.ts||1;if(Math.abs(cur-target)<.004){return}if(!BC.slowOn){BC.slowOn=true;BC.ts0=G.ts}const k=1-Math.exp(-dt*9);G.ts=cur+(target-cur)*k}
+function bcSlowRestore(){if(BC.slowOn){G.ts=BC.ts0;BC.slowOn=false}}
+function bcBegin(a,mode){bcSlowRestore();BC.a=a;BC.mode=mode;BC.stage='chase';BC.bs=null;BC.dirS=null;BC.lift=0;BC.fovS=null;BC.noSlow=false;G.camBl=null;
+  if(!a.bcPlan||a.bcPlan.plain!==(mode!=='broadcast'))a.bcPlan=bcPlan(a,mode);
+  BC.out=G.cam?{eye:G.cam.eye.slice(),at:G.cam.at.slice(),fov:G.cam.fov}:null;bcCut(a.put?.6:.9);BC.stats.shots=(BC.stats.shots||0)+1}
+function bcFov(eye,bp,span){const d=Math.hypot(bp[0]-eye[0],bp[1]-eye[1],bp[2]-eye[2])||1;return clamp(2*Math.atan(span/d),.3,.85)}
+function bcStep(dt){const a=G.anim,H=G.H,mode=camSet();
+  if(a!==BC.a||mode!==BC.mode)bcBegin(a,mode);
+  const pl=a.bcPlan,t=a.t,bp=ballAt(a,t);
+  if(!BC.bs)BC.bs=bp.slice();else{const k=1-Math.exp(-dt*(a.put?10:7));for(let i=0;i<3;i++)BC.bs[i]+=(bp[i]-BC.bs[i])*k}
+  const bs=BC.bs;let stage='chase',eye,at,fov,minA=1.0;
+  if(pl.kind==='putt'){stage=pl.cupT!==undefined&&t>=pl.cupT?'cup':'pfollow'}
+  else if(pl.camEye&&t>=pl.cutT)stage='cam';else if(pl.kind==='tee'&&t>=pl.swingT)stage='swing';
+  if(stage!==BC.stage){BC.stage=stage;BC.sw=null;if(stage==='cup')bcCut(.45);else if(stage==='cam')bcCut(pl.T);BC.stats[stage]=(BC.stats[stage]||0)+1}
+  if(stage==='cup'){const cz=H.hAt(H.cup.x,H.cup.y);eye=pl.cupEye.slice();at=[bs[0],bs[1],Math.max(bs[2],cz)+.05];fov=bcFov(eye,at,.9);fov=clamp(fov,.4,.75);minA=.25}
+  else if(stage==='cam'){eye=pl.camEye.slice();const sinceCut=Math.max(0,t-pl.cutT);
+    if(pl.water){const W=pl.W,dx=W.x-eye[0],dy=W.y-eye[1],dl=Math.hypot(dx,dy)||1,pu=Math.min(3,sinceCut*.9);eye[0]+=dx/dl*pu;eye[1]+=dy/dl*pu}
+    eye[2]=Math.max(eye[2],H.hAt(eye[0],eye[1])+(pl.kind==='approach'?.9:pl.water?.8:1.2));
+    at=[bs[0],bs[1],bs[2]+.25];if(pl.water&&sinceCut>pl.fT-pl.cutT+.4)at=[pl.W.x,pl.W.y,H.hAt(pl.W.x,pl.W.y)+.3];
+    fov=bcFov(eye,at,pl.kind==='approach'?10:pl.kind==='tee'||pl.kind==='landing'?22:13);minA=.8}
+  else if(stage==='swing'){// tee shot: the camera holds back and swings its look-at from the ball to the landing area as the ball descends
+    if(!BC.sw)BC.sw={f:bs.slice()};const F=BC.sw.f,s=easeIO((t-pl.swingT)/Math.max(.5,pl.cutT-pl.swingT));const bE=[lerp(F[0],bs[0],.3),lerp(F[1],bs[1],.3),lerp(F[2],bs[2],.3)];
+    const air=Math.max(0,bE[2]-H.hAt(bE[0],bE[1]));const D=clamp(6+(pl.carry||60)*.06,7,17)+s*6;eye=[bE[0]-pl.ax*D,bE[1]-pl.ay*D,0];eye[2]=H.hAt(eye[0],eye[1])+2.2+Math.min(air,22)*.28+s*3;
+    const Lp=[pl.L.x,pl.L.y,H.hAt(pl.L.x,pl.L.y)+1];const w=s*.85;at=[lerp(bp[0],Lp[0],w),lerp(bp[1],Lp[1],w),lerp(bp[2],Lp[2],w)];
+    const mid=[lerp(bp[0],Lp[0],.5),lerp(bp[1],Lp[1],.5),lerp(bp[2],Lp[2],.5)];fov=clamp(bcFov(eye,mid,Math.max(18,Math.hypot(bp[0]-Lp[0],bp[1]-Lp[1])*.55)),.4,.85);minA=1.4}
+  else if(stage==='pfollow'){let vx=bp[0]-ballAt(a,Math.max(0,t-.15))[0],vy=bp[1]-ballAt(a,Math.max(0,t-.15))[1];const vl=Math.hypot(vx,vy);
+    const aim=[pl.ax,pl.ay];if(!BC.dirS)BC.dirS=aim.slice();
+    if(!pl.plain&&vl>.03){const k=1-Math.exp(-dt*5);BC.dirS[0]+=(vx/vl-BC.dirS[0])*k;BC.dirS[1]+=(vy/vl-BC.dirS[1])*k;const l=Math.hypot(BC.dirS[0],BC.dirS[1])||1;BC.dirS[0]/=l;BC.dirS[1]/=l}
+    const dx=BC.dirS[0],dy=BC.dirS[1];const sd=pl.plain?0:.55,bk=pl.plain?3.2:2.3;eye=[bs[0]-dx*bk-dy*sd,bs[1]-dy*bk+dx*sd,0];eye[2]=H.hAt(eye[0],eye[1])+(pl.plain?1.1:.42);
+    at=[bp[0]+dx*1.2,bp[1]+dy*1.2,bp[2]+.06];fov=.72;minA=.3}
+  else{// chase: behind the ball on the shot line, rising with the ball
+    const air=Math.max(0,bs[2]-H.hAt(bs[0],bs[1]));const D=clamp(6+(pl.carry||60)*.06,7,17);
+    eye=[bs[0]-pl.ax*D,bs[1]-pl.ay*D,0];const gz=H.hAt(eye[0],eye[1]);eye[2]=gz+2.2+Math.min(air,22)*.28;
+    at=[bp[0]+pl.ax*4,bp[1]+pl.ay*4,bp[2]+.3];fov=.72;minA=1.4}
+  // eased blend from the previous camera (address view, or the previous cut)
+  let ce=eye,ca=at,cf=fov;
+  if(BC.pend){BC.pend=false;if(BC.from&&bcFar(BC.from,eye)){BC.from=null;bcDip()}}
+  if(BC.from){BC.bt+=dt;const e=easeIO(BC.bt/BC.bT);const f=BC.from;ce=[0,0,0];ca=[0,0,0];for(let i=0;i<3;i++){ce[i]=lerp(f.eye[i],eye[i],e);ca[i]=lerp(f.at[i],at[i],e)}cf=lerp(f.fov,fov,e);if(BC.bt>=BC.bT)BC.from=null}
+  if(BC.fovS===null)BC.fovS=cf;else BC.fovS+=(cf-BC.fovS)*(1-Math.exp(-dt*(BC.from?30:6)));
+  // terrain / tree / building clearance with a smoothed lift so the view never pops
+  let tl=0;{const dx=ca[0]-ce[0],dy=ca[1]-ce[1],dz=ca[2]-ce[2];const L=Math.hypot(dx,dy);const N=Math.min(16,Math.max(3,Math.ceil(L/4)));for(let k=0;k<6;k++){let blk=false;for(let i=1;i<N;i++){const s=i/N;const x=ce[0]+dx*s,y=ce[1]+dy*s;if(x<H.X0||x>H.X1||y<H.Y0||y>H.Y1)continue;if(ce[2]+tl+dz*s<H.hAt(x,y)+.12){blk=true;break}}if(!blk)break;tl+=.8}}
+  BC.lift+=(tl-BC.lift)*(1-Math.exp(-dt*6));
+  const fe=bcSafe(H,[ce[0],ce[1],ce[2]+BC.lift],minA,ca);
+  BC.out={eye:fe,at:ca,fov:BC.fovS};G.cam={eye:fe.slice(),at:ca.slice(),fov:BC.fovS};
+  // slow motion into the cup (hole-outs, aces, eagles, lip-outs): only while the ball is about to drop
+  let want=1;if(!BC.noSlow&&mode==='broadcast'&&pl.hot&&G.mode==='round'){const dc=Math.hypot(bp[0]-H.cup.x,bp[1]-H.cup.y);
+    if(a.put){if(stage==='cup'||dc<1.6)want=.4}else if(t>=pl.apexT&&dc<22&&bp[2]-H.hAt(bp[0],bp[1])<16)want=.38;else if(t>=pl.fT&&dc<2.5)want=.4}
+  if(want<1||BC.slowOn)bcSlowTo(dt,want===1?(BC.ts0||1):want);if(BC.slowOn&&Math.abs((G.ts||1)-(BC.ts0||1))<.02&&want===1){bcSlowRestore()}
+  return true}
+function bcActive(){return !!(G.H&&G.anim&&BC_MODES[G.mode]&&(G.phase==='flight'||G.phase==='rest')&&G.anim.P)}
+/* ---- instant replay from a second angle ---- */
+function bcRepBegin(R){const a=R.a,H=G.H,cup=H.cup,from=a.from;const dx=cup.x-from.x,dy=cup.y-from.y,d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d;
+  const pk=bcPick(a,{x:cup.x,y:cup.y},a.put?BC_REPP:BC_REPF,{ux,uy,h:a.put?.55:2.6,tgt:[cup.x,cup.y,H.hAt(cup.x,cup.y)+.3],minPath:a.put?1.2:5,p0:0,water:false});
+  R.bc.eye=pk?[pk.x,pk.y,pk.z]:[cup.x+ux*14,cup.y+uy*14,H.hAt(cup.x,cup.y)+3];R.bc.bs=null;R.bc.bt=0;R.bc.fovS=null}
+function bcReplayCam(dt){const R=G.replay,a=R.a,H=G.H;if(!R.bc.eye)bcRepBegin(R);const B=R.bc,bp=ballAt(a,a.t);
+  if(!B.bs)B.bs=bp.slice();else{const k=1-Math.exp(-dt*(a.put?12:8));for(let i=0;i<3;i++)B.bs[i]+=(bp[i]-B.bs[i])*k}
+  const eye=B.eye.slice();eye[2]=Math.max(eye[2],H.hAt(eye[0],eye[1])+(a.put?.45:1.6));const at=[B.bs[0],B.bs[1],B.bs[2]+(a.put?.12:.4)];
+  let fov=bcFov(eye,at,a.put?2.2:11);if(B.fovS===null||B.fovS===undefined)B.fovS=fov;B.fovS+=(fov-B.fovS)*(1-Math.exp(-dt*5));
+  if(BC.rfrom&&!B.chk){B.chk=1;if(bcFar(BC.rfrom,eye)){BC.rfrom=null;bcDip()}}
+  let ce=eye,ca=at,cf=B.fovS;if(BC.rfrom){B.bt+=dt;const e=easeIO(B.bt/.8),f=BC.rfrom;ce=[0,0,0];ca=[0,0,0];for(let i=0;i<3;i++){ce[i]=lerp(f.eye[i],eye[i],e);ca[i]=lerp(f.at[i],at[i],e)}cf=lerp(f.fov,B.fovS,e);if(B.bt>=.8)BC.rfrom=null}
+  const fe=bcSafe(H,ce,a.put?.25:1.0,ca);G.cam={eye:fe,at:ca,fov:cf}}
+function bcRepSpeed(R){const a=R.a,H=G.H,bp=ballAt(a,a.t),dc=Math.hypot(bp[0]-H.cup.x,bp[1]-H.cup.y),air=bp[2]-H.hAt(bp[0],bp[1]);
+  let tgt=1;if(a.put){if(dc<2.4)tgt=.35}else if(a.t*60>a.flightN*.5&&dc<18&&air<18)tgt=.3;else if(a.t*60>=a.flightN&&dc<3)tgt=.38;
+  R.bc.sp=R.bc.sp===undefined?1:R.bc.sp;R.bc.sp+=(tgt-R.bc.sp)*.18;return R.bc.sp}
+function bcStartRep(){const rq=BC.rq;BC.rq=null;if(!rq)return false;const L=G.lastShot;if(!L||L.H!==G.H||L.a.P!==rq.P)return false;
+  const prev=G.cam?{eye:G.cam.eye.slice(),at:G.cam.at.slice(),fov:G.cam.fov}:null;startReplay();if(!G.replay)return false;
+  const R=G.replay;R.bc={ev:rq.ev,eye:null};const a=R.a,end=(a.n-1)/60;a.t=a.put?Math.max(0,end-6):Math.max(0,a.flightN/60-4.2);R.hold=0;BC.rfrom=prev;BC.stats.replays=(BC.stats.replays||0)+1;
+  return true}
+const _rpTickBC=replayTick;replayTick=function(dt){const R=G.replay;if(R&&R.bc){const a=R.a,end=(a.n-1)/60;if(a.t<end)a.t=Math.min(end,a.t+dt*bcRepSpeed(R));else{R.hold+=dt;if(R.hold>1.9)endReplay()}return}return _rpTickBC.apply(this,arguments)};
+const _rpCamBC=replayCam;replayCam=function(dt){if(G.replay&&G.replay.bc){bcReplayCam(dt);return}return _rpCamBC.apply(this,arguments)};
+const _endRepBC=endReplay;endReplay=function(){BC.endedAt=performance.now();BC.rfrom=null;const had=!!G.replay;const r=_endRepBC.apply(this,arguments);return r};
+const _startRepBC=startReplay;startReplay=function(){const r=_startRepBC.apply(this,arguments);if(G.replay&&!G.replay.bc)BC.rfrom=null;return r};
+/* queue an instant replay after notable finishes (broadcast setting, round play only) */
+const _fsBC=finishShot;finishShot=function(){const a=G.anim,H=G.H;const put=!!(a&&a.put),kind=a&&a.res&&a.res.kind,lip=a&&a.res&&a.res.lip;
+  let d0=0;try{d0=Math.hypot(a.from.x-H.cup.x,a.from.y-H.cup.y)}catch(e){}
+  const out=_fsBC.apply(this,arguments);
+  try{if(G.mode==='round'&&camSet()==='broadcast'&&bcHasCup()&&G.lastShot&&G.lastShot.a.P===a.P){let ev=null;
+    if(kind==='sunk'){if(!put)ev='holeout';else if(G.strokes<=H.par-2)ev='eagle';else if(d0*3>=30)ev='long'}
+    else if(kind==='rest'&&(lip==='lip'||lip==='pin')&&Math.hypot(G.ball.x-H.cup.x,G.ball.y-H.cup.y)<2.5)ev='lip';
+    if(ev)BC.rq={ev,P:a.P,t:0,wait:kind==='sunk'?1.5:.3}}}catch(e){console.warn('bc queue',e)}
+  return out};
+{const _uc=updCam;updCam=function(dt){
+  try{if(G.phase==='replay'&&G.replay&&G.replay.bc){bcSlowRestore();hideOffer();return _uc.apply(this,arguments)}
+    if(G.mode==='menu'||!G.H){bcSlowRestore();BC.rq=null;return _uc.apply(this,arguments)}
+    if(BC.rq){if(G.phase==='holed'||G.phase==='rest'){BC.rq.t+=dt;if(BC.rq.t>=BC.rq.wait&&camSet()==='broadcast'&&bcStartRep()){return _uc.apply(this,arguments)}}else BC.rq=null}
+    if(G.phase!=='flight'&&G.phase!=='rest')bcSlowRestore();
+    if(camSet()!=='classic'&&bcActive()){bcStep(dt);return}
+    if(BC.slowOn)bcSlowRestore();BC.a=null}catch(e){console.warn('bc cam',e);bcSlowRestore();BC.a=null}
+  return _uc.apply(this,arguments)}}
+/* taps skip slow motion; Enter right after skipping a replay still presses Next hole */
+addEventListener('pointerdown',()=>{if(BC.slowOn)BC.noSlow=true},true);
+addEventListener('keydown',e=>{if(e.key==='Enter'&&performance.now()-BC.endedAt<40){const n=$('next');if(n&&n.style.display==='block')n.click()}else if(BC.slowOn)BC.noSlow=true},true);
+/* options screen + in-game CAM button + menu entry */
+function showOptions(){const cur=camSet();
+  const s=show('scSetup',`<div class="pn"><div class="hdr"><h2>Options</h2><button class="ib" id="opX">✕</button></div>
+   <div class="sec">Shot camera</div><div class="seg" id="opCam">${CAMSETS.map(k=>`<button data-v="${k}" class="${k===cur?'sel':''}">${CAMNAMES[k]}</button>`).join('')}</div>
+   <div class="gnote" id="opCamD" style="margin-top:8px">${CAMDESC[cur]}</div>
+   <div class="gnote" style="margin-top:10px;opacity:.75">Works in every mode: career, quick play, practice, closest to the pin and long drive. You can also cycle it in-game with the CAM button or the B key. Tap anywhere to skip a replay.</div></div>`);
+  s.querySelector('#opX').onclick=showMenu;
+  s.querySelector('#opCam').onclick=e=>{const b=e.target.closest('button');if(!b)return;setCamSet(b.dataset.v);for(const x of s.querySelectorAll('#opCam button'))x.classList.toggle('sel',x===b);$('opCamD').textContent=CAMDESC[b.dataset.v]}}
+{const _smO=showMenu;showMenu=function(){const out=_smO.apply(this,arguments);try{const m=document.querySelector('#scMenu .menu');if(m&&!$('mOpt')){const b=document.createElement('button');b.className='btn alt';b.id='mOpt';b.innerHTML=`Options<small>Shot camera: ${CAMNAMES[camSet()]} · Broadcast · Classic · Behind only</small>`;b.onclick=showOptions;const anchor=$('mCust')||$('mPlay');if(anchor)anchor.after(b);else m.appendChild(b)}}catch(e){console.warn(e)}return out}}
+try{const bc=$('bCam');if(!bc){const v=$('bView');if(v){const b=document.createElement('button');b.className='ib';b.id='bCam';b.textContent='CAM';b.style.fontSize='13px';b.onclick=e=>{e.stopPropagation();cycleCamSet()};v.after(b)}}$('bCam').title='Camera: '+CAMNAMES[camSet()]+' (B)'}catch(e){console.warn('cam button',e)}
+addEventListener('keydown',e=>{if((e.key==='b'||e.key==='B')&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&G.mode&&G.mode!=='menu'&&(G.phase==='address'||G.phase==='putt')&&!G.sw&&!(e.target&&e.target.tagName==='INPUT'))cycleCamSet()});
+window.bcStep=bcStep;window.bcPlan=bcPlan;window.BC=BC;window.camSet=camSet;window.setCamSet=setCamSet;window.bcSafe=bcSafe;window.bcStartRep=bcStartRep;window.showOptions=showOptions;window.cycleCamSet=cycleCamSet;
 
 </script>
 <script>(function(){function boot(){var s=document.createElement('script');s.text=document.getElementById('gsrc').textContent;document.body.appendChild(s)}boot()})()</script>
