@@ -251,14 +251,11 @@
       <div class="userbar hidden" id="userbar"></div>
     </header>
     <section class="auth hidden" id="auth-panel">
-      <h2 id="auth-title">Set a password</h2>
-      <p class="lead" id="auth-lead">Enter a password once on this device. After that, the games open without asking again, even after you close the browser.</p>
+      <h2 id="auth-title">Enter password</h2>
+      <p class="lead" id="auth-lead">Enter the password once on this device. After that, the games open without asking again, even after you close the browser.</p>
       <form id="auth-form" autocomplete="on">
         <label>Password
-          <input id="auth-pass" name="password" type="password" autocomplete="new-password" required>
-        </label>
-        <label id="auth-confirm-wrap">Confirm password
-          <input id="auth-confirm" name="confirm" type="password" autocomplete="new-password">
+          <input id="auth-pass" name="password" type="password" autocomplete="current-password" required>
         </label>
         <p class="error" id="auth-error" role="alert"></p>
         <button type="submit" id="auth-submit">Unlock</button>
@@ -350,8 +347,6 @@
     const leadEl = document.getElementById("auth-lead");
     const form = document.getElementById("auth-form");
     const passInput = document.getElementById("auth-pass");
-    const confirmWrap = document.getElementById("auth-confirm-wrap");
-    const confirmInput = document.getElementById("auth-confirm");
     const errorEl = document.getElementById("auth-error");
     const submitBtn = document.getElementById("auth-submit");
 
@@ -387,23 +382,9 @@
       panel.classList.remove("hidden");
       errorEl.textContent = "";
       form.reset();
-      const hasAccount = GrokAuth.hasAccount();
-      if (hasAccount) {
-        titleEl.textContent = "Enter password";
-        leadEl.textContent = "Enter the password for this device once. After that, the games open without asking again, even after you close the browser.";
-        confirmWrap.classList.add("hidden");
-        confirmInput.required = false;
-        confirmInput.value = "";
-        submitBtn.textContent = "Unlock";
-        passInput.autocomplete = "current-password";
-      } else {
-        titleEl.textContent = "Set a password";
-        leadEl.textContent = "Enter a password once on this device. After that, the games open without asking again, even after you close the browser.";
-        confirmWrap.classList.remove("hidden");
-        confirmInput.required = true;
-        submitBtn.textContent = "Unlock";
-        passInput.autocomplete = "new-password";
-      }
+      titleEl.textContent = "Enter password";
+      leadEl.textContent = "Enter the password once on this device. After that, the games open without asking again, even after you close the browser.";
+      submitBtn.textContent = "Unlock";
       setTimeout(function () { try { passInput.focus(); } catch (e) {} }, 0);
     }
 
@@ -415,7 +396,7 @@
     form.addEventListener("submit", function (ev) {
       ev.preventDefault();
       errorEl.textContent = "";
-      GrokAuth.enterPassword(passInput.value, confirmInput.value).then(render).catch(function (err) {
+      GrokAuth.enterPassword(passInput.value).then(render).catch(function (err) {
         errorEl.textContent = (err && err.message) ? err.message : "Something went wrong.";
       });
     });

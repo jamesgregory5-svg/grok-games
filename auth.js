@@ -1,11 +1,11 @@
 /**
  * Grok Games auth.
  *
- * Default backend: one password per device, stored in localStorage as a
- * salted SHA-256 hash (WebCrypto). After the first correct entry, a
- * persistent unlock token is also stored in localStorage so the launcher
- * and every game stay unlocked on this browser, including after the
- * browser is closed.
+ * Default backend: one shared password, verified against a salted SHA-256
+ * hash baked into this file (the password itself is not stored here).
+ * After the first correct entry on a browser, a persistent unlock token is
+ * stored in localStorage so the launcher and every game stay unlocked,
+ * including after the browser is closed.
  *
  * To swap in an online backend later (for example Firebase, for cross-device
  * locking), implement the same methods as LocalBackend and call:
@@ -25,11 +25,14 @@
 (function (global) {
   "use strict";
 
-  var STORAGE_KEY = "gg.auth.v1";
-  var UNLOCK_KEY = "gg.unlock.v1";
+  // Salted SHA-256 of the shared password (salt || utf8(password)).
+  var SHARED_SALT = "5bc4e9078136a45961a630abf3de3bf6";
+  var SHARED_HASH = "42d65c99323d830f26c443e64c0af30c56d1a7e3723fe566ff9cedc4ae812c2e";
+
+  // v2 so pre-v1.11.3 per-user unlocks and hashes no longer count.
+  var UNLOCK_KEY = "gg.unlock.v2";
   var SESSION_KEY = "gg.session";
   var LOCK_MESSAGE = "This device is already linked to another account.";
-  var DEFAULT_USERNAME = "player";
 
   function bytesToHex(buf) {
     var u8 = new Uint8Array(buf);
@@ -62,64 +65,33 @@
     return err;
   }
 
-  function normalizeUsername(u) {
-    return String(u || "").trim();
+  function checkSharedPassword(password) {
+    if (!password) return Promise.reject(fail("VALIDATION", "Enter the password."));
+    return sha256Salted(password, hexToBytes(SHARED_SALT)).then(function (hash) {
+      if (hash !== SHARED_HASH) return Promise.reject(fail("BAD_PASSWORD", "Incorrect password."));
+      return { username: "player", at: Date.now() };
+    });
   }
 
   var LocalBackend = {
     name: "local",
 
-    loadAccount: function () {
-      try {
-        var raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : null;
-      } catch (e) {
-        return null;
-      }
-    },
-
-    saveAccount: function (account) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(account));
-    },
-
     hasDeviceLock: function () {
-      return !!this.loadAccount();
+      return true;
     },
 
     linkedUsername: function () {
-      var a = this.loadAccount();
-      return a ? a.username : null;
+      return "player";
     },
 
-    createAccount: function (username, password) {
-      if (this.hasDeviceLock()) return Promise.reject(fail("DEVICE_LOCKED", LOCK_MESSAGE));
-      var salt = crypto.getRandomValues(new Uint8Array(16));
-      var self = this;
-      return sha256Salted(password, salt).then(function (hash) {
-        var account = {
-          version: 1,
-          username: username,
-          usernameNorm: username.toLowerCase(),
-          salt: bytesToHex(salt),
-          hash: hash,
-          algo: "SHA-256",
-          createdAt: Date.now()
-        };
-        self.saveAccount(account);
-        return account;
-      });
+    createAccount: function () {
+      return Promise.reject(fail("DEVICE_LOCKED", LOCK_MESSAGE));
     },
 
     signIn: function (username, password) {
-      var account = this.loadAccount();
-      if (!account) return Promise.reject(fail("NO_ACCOUNT", "No account on this device."));
-      var linked = (account.usernameNorm || String(account.username).toLowerCase());
-      if (username.toLowerCase() !== linked) {
-        return Promise.reject(fail("DEVICE_LOCKED", LOCK_MESSAGE));
-      }
-      return sha256Salted(password, hexToBytes(account.salt)).then(function (hash) {
-        if (hash !== account.hash) return Promise.reject(fail("BAD_PASSWORD", "Incorrect password."));
-        return account;
+      var self = this;
+      return checkSharedPassword(password).then(function (account) {
+        return { username: self.linkedUsername() || username || "player", at: account.at };
       });
     }
   };
@@ -155,18 +127,10 @@
   }
 
   function persistUnlock(account) {
-    var session = { ok: true, username: account.username, at: Date.now() };
+    var session = { ok: true, username: account.username || "player", at: Date.now() };
     setUnlock(session);
     setSession(session);
     return account;
-  }
-
-  // If this tab still has a pre-v1.11.2 session, promote it to a persistent
-  // unlock so a mid-update reload does not re-prompt.
-  function migrateSessionUnlock() {
-    if (getUnlock()) return;
-    var s = getSession();
-    if (s && s.ok && s.username) setUnlock(s);
   }
 
   function launcherUrl() {
@@ -185,41 +149,30 @@
     setBackend: function (b) { backend = b; },
     getBackend: function () { return backend; },
 
-    hasAccount: function () { return backend.hasDeviceLock(); },
+    hasAccount: function () { return true; },
 
     isSignedIn: function () {
-      migrateSessionUnlock();
       var u = getUnlock();
       return !!(u && u.ok);
     },
 
     currentUser: function () {
-      migrateSessionUnlock();
       var u = getUnlock();
       return u && u.ok ? u.username : null;
     },
 
     linkedUsername: function () { return backend.linkedUsername(); },
 
-    createAccount: function (username, password, confirm) {
-      username = normalizeUsername(username) || DEFAULT_USERNAME;
-      if (!password) return Promise.reject(fail("VALIDATION", "Enter a password."));
-      if (password !== confirm) return Promise.reject(fail("VALIDATION", "Passwords do not match."));
-      if (password.length < 4) return Promise.reject(fail("VALIDATION", "Password must be at least 4 characters."));
-      return backend.createAccount(username, password).then(persistUnlock);
+    createAccount: function () {
+      return Promise.reject(fail("DEVICE_LOCKED", LOCK_MESSAGE));
     },
 
     signIn: function (username, password) {
-      username = normalizeUsername(username) || normalizeUsername(backend.linkedUsername());
-      if (!password) return Promise.reject(fail("VALIDATION", "Enter your password."));
-      if (!username) return Promise.reject(fail("VALIDATION", "Enter your password."));
       return backend.signIn(username, password).then(persistUnlock);
     },
 
-    // One-time password entry: set a new password, or unlock an existing one.
-    enterPassword: function (password, confirm) {
-      if (backend.hasDeviceLock()) return this.signIn(backend.linkedUsername(), password);
-      return this.createAccount(DEFAULT_USERNAME, password, confirm);
+    enterPassword: function (password) {
+      return checkSharedPassword(password).then(persistUnlock);
     },
 
     signOut: function () {
