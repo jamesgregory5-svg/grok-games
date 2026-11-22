@@ -1,8 +1,14 @@
 # Tour Sim (Grok Games hub copy)
 
-Tour Sim v1.14.1-hotfix, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
+Tour Sim v1.14.2, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
 
 This folder is part of [grok-games](https://github.com/jamesgregory5-svg/grok-games). It uses the hub password gate (`../../auth.js`) and does not have a separate password of its own.
+
+## v1.14.2
+
+- **Club distances use your actual bag.** The recommender, the club yardage list, and the landing-ring / meter projection all use the player's real distances, including career gear upgrades, build multipliers, and the current mode — not stock values. A maxed 3-wood is no longer listed or recommended as if it only went ~217 yd.
+- **Chips land where the meter says.** The chip meter maps to yards from the raw meter power, then the shot is inverted against those same actual distances, so a half-power chip is a short chip (about 10–30 yd) instead of a full-swing bomb.
+- Keeps the v1.14.1-hotfix graphics safety fallbacks (drop to Low on shader or context-loss failures, Auto starts at Medium).
 
 ## v1.14.1-hotfix
 
