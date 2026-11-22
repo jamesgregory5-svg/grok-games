@@ -76,7 +76,10 @@
     .thumb {
       height: 132px;
       background: var(--accent, #111);
+      display: grid;
+      place-items: center;
     }
+    .thumb svg { height: 92px; width: auto; display: block; }
     .body {
       padding: 18px 18px 16px;
       display: flex;
@@ -124,6 +127,7 @@
       .wrap { padding: 20px 0 16px; }
       header { margin-bottom: 20px; }
       .thumb { height: 84px; }
+      .thumb svg { height: 58px; }
       .body { padding: 14px 16px 14px; gap: 6px; }
       footer { margin-bottom: 16px; }
     }
@@ -280,7 +284,8 @@
         title: "Tour Sim",
         description: "A full golf career — tournaments, courses, and life on the tour.",
         href: "games/tour-sim/index.html",
-        accent: "linear-gradient(160deg, #e8f3ea 0%, #9cbc8a 52%, #2f5a38 100%)"
+        accent: "linear-gradient(160deg, #1d6244 0%, #164C35 55%, #0E3324 100%)",
+        mark: true
       },
       {
         id: "city-sim",
@@ -352,6 +357,8 @@
 
     let cardsBuilt = false;
 
+    /* Tour Sim "Modern Clean" flag-in-cup mark (cream on deep green) */
+    const TS_MARK = '<svg viewBox="10 0 70 108" xmlns="http://www.w3.org/2000/svg"><circle cx="36" cy="82" r="16" stroke="#F3F1EB" stroke-width="6" fill="none"/><circle cx="36" cy="82" r="7" fill="#0E3324"/><rect x="34" y="8" width="4" height="74" fill="#F3F1EB"/><circle cx="36" cy="8" r="2" fill="#F3F1EB"/><path d="M36 10L76 14.5L76 33.5L36 40Z" fill="#F3F1EB"/></svg>';
     function buildCards() {
       if (cardsBuilt) return;
       cardsBuilt = true;
@@ -359,7 +366,7 @@
         const el = document.createElement("article");
         el.className = "card";
         el.innerHTML =
-          '<div class="thumb" style="background:' + g.accent + '" aria-hidden="true"></div>' +
+          '<div class="thumb" style="background:' + g.accent + '" aria-hidden="true">' + (g.mark ? TS_MARK : '') + '</div>' +
           '<div class="body">' +
             '<h2>' + g.title + '</h2>' +
             '<p>' + g.description + '</p>' +
