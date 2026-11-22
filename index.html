@@ -248,26 +248,20 @@
         </svg>
         <h1 class="wordmark">GROK GAMES</h1>
       </div>
-      <div class="userbar hidden" id="userbar">
-        <span class="who" id="who"></span>
-        <button type="button" class="signout" id="signout">Sign out</button>
-      </div>
+      <div class="userbar hidden" id="userbar"></div>
     </header>
     <section class="auth hidden" id="auth-panel">
-      <h2 id="auth-title">Create account</h2>
-      <p class="lead" id="auth-lead">One account per device. Choose a username and password to get started.</p>
+      <h2 id="auth-title">Set a password</h2>
+      <p class="lead" id="auth-lead">Enter a password once on this device. After that, the games open without asking again, even after you close the browser.</p>
       <form id="auth-form" autocomplete="on">
-        <label>Username
-          <input id="auth-user" name="username" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" required>
-        </label>
         <label>Password
-          <input id="auth-pass" name="password" type="password" autocomplete="current-password" required>
+          <input id="auth-pass" name="password" type="password" autocomplete="new-password" required>
         </label>
         <label id="auth-confirm-wrap">Confirm password
           <input id="auth-confirm" name="confirm" type="password" autocomplete="new-password">
         </label>
         <p class="error" id="auth-error" role="alert"></p>
-        <button type="submit" id="auth-submit">Create account</button>
+        <button type="submit" id="auth-submit">Unlock</button>
       </form>
     </section>
     <main class="grid hidden" id="games"></main>
@@ -352,11 +346,9 @@
     const host = document.getElementById("games");
     const panel = document.getElementById("auth-panel");
     const userbar = document.getElementById("userbar");
-    const who = document.getElementById("who");
     const titleEl = document.getElementById("auth-title");
     const leadEl = document.getElementById("auth-lead");
     const form = document.getElementById("auth-form");
-    const userInput = document.getElementById("auth-user");
     const passInput = document.getElementById("auth-pass");
     const confirmWrap = document.getElementById("auth-confirm-wrap");
     const confirmInput = document.getElementById("auth-confirm");
@@ -385,8 +377,7 @@
     function showLauncher() {
       panel.classList.add("hidden");
       host.classList.remove("hidden");
-      userbar.classList.remove("hidden");
-      who.textContent = GrokAuth.currentUser() || "";
+      userbar.classList.add("hidden");
       buildCards();
     }
 
@@ -398,22 +389,22 @@
       form.reset();
       const hasAccount = GrokAuth.hasAccount();
       if (hasAccount) {
-        titleEl.textContent = "Sign in";
-        leadEl.textContent = "This device is linked to one account.";
+        titleEl.textContent = "Enter password";
+        leadEl.textContent = "Enter the password for this device once. After that, the games open without asking again, even after you close the browser.";
         confirmWrap.classList.add("hidden");
         confirmInput.required = false;
         confirmInput.value = "";
-        submitBtn.textContent = "Sign in";
+        submitBtn.textContent = "Unlock";
         passInput.autocomplete = "current-password";
       } else {
-        titleEl.textContent = "Create account";
-        leadEl.textContent = "One account per device. Choose a username and password to get started.";
+        titleEl.textContent = "Set a password";
+        leadEl.textContent = "Enter a password once on this device. After that, the games open without asking again, even after you close the browser.";
         confirmWrap.classList.remove("hidden");
         confirmInput.required = true;
-        submitBtn.textContent = "Create account";
+        submitBtn.textContent = "Unlock";
         passInput.autocomplete = "new-password";
       }
-      setTimeout(function () { try { userInput.focus(); } catch (e) {} }, 0);
+      setTimeout(function () { try { passInput.focus(); } catch (e) {} }, 0);
     }
 
     function render() {
@@ -424,19 +415,9 @@
     form.addEventListener("submit", function (ev) {
       ev.preventDefault();
       errorEl.textContent = "";
-      const username = userInput.value;
-      const password = passInput.value;
-      const task = GrokAuth.hasAccount()
-        ? GrokAuth.signIn(username, password)
-        : GrokAuth.createAccount(username, password, confirmInput.value);
-      task.then(render).catch(function (err) {
+      GrokAuth.enterPassword(passInput.value, confirmInput.value).then(render).catch(function (err) {
         errorEl.textContent = (err && err.message) ? err.message : "Something went wrong.";
       });
-    });
-
-    document.getElementById("signout").addEventListener("click", function () {
-      GrokAuth.signOut();
-      render();
     });
 
     render();

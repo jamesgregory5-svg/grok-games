@@ -1,8 +1,11 @@
 /**
  * Grok Games auth.
  *
- * Default backend: one account per device, stored in localStorage.
- * Username + salted SHA-256 password hash (WebCrypto). Session in sessionStorage.
+ * Default backend: one password per device, stored in localStorage as a
+ * salted SHA-256 hash (WebCrypto). After the first correct entry, a
+ * persistent unlock token is also stored in localStorage so the launcher
+ * and every game stay unlocked on this browser, including after the
+ * browser is closed.
  *
  * To swap in an online backend later (for example Firebase, for cross-device
  * locking), implement the same methods as LocalBackend and call:
@@ -23,8 +26,10 @@
   "use strict";
 
   var STORAGE_KEY = "gg.auth.v1";
+  var UNLOCK_KEY = "gg.unlock.v1";
   var SESSION_KEY = "gg.session";
   var LOCK_MESSAGE = "This device is already linked to another account.";
+  var DEFAULT_USERNAME = "player";
 
   function bytesToHex(buf) {
     var u8 = new Uint8Array(buf);
@@ -135,6 +140,35 @@
     else sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
   }
 
+  function getUnlock() {
+    try {
+      var raw = localStorage.getItem(UNLOCK_KEY);
+      var u = raw ? JSON.parse(raw) : null;
+      if (u && u.ok) return u;
+    } catch (e) {}
+    return null;
+  }
+
+  function setUnlock(session) {
+    if (!session) localStorage.removeItem(UNLOCK_KEY);
+    else localStorage.setItem(UNLOCK_KEY, JSON.stringify(session));
+  }
+
+  function persistUnlock(account) {
+    var session = { ok: true, username: account.username, at: Date.now() };
+    setUnlock(session);
+    setSession(session);
+    return account;
+  }
+
+  // If this tab still has a pre-v1.11.2 session, promote it to a persistent
+  // unlock so a mid-update reload does not re-prompt.
+  function migrateSessionUnlock() {
+    if (getUnlock()) return;
+    var s = getSession();
+    if (s && s.ok && s.username) setUnlock(s);
+  }
+
   function launcherUrl() {
     var scripts = document.getElementsByTagName("script");
     for (var i = 0; i < scripts.length; i++) {
@@ -154,48 +188,50 @@
     hasAccount: function () { return backend.hasDeviceLock(); },
 
     isSignedIn: function () {
-      var s = getSession();
-      return !!(s && s.ok && s.username);
+      migrateSessionUnlock();
+      var u = getUnlock();
+      return !!(u && u.ok);
     },
 
     currentUser: function () {
-      var s = getSession();
-      return s && s.ok ? s.username : null;
+      migrateSessionUnlock();
+      var u = getUnlock();
+      return u && u.ok ? u.username : null;
     },
 
     linkedUsername: function () { return backend.linkedUsername(); },
 
     createAccount: function (username, password, confirm) {
-      username = normalizeUsername(username);
-      if (!username) return Promise.reject(fail("VALIDATION", "Enter a username."));
+      username = normalizeUsername(username) || DEFAULT_USERNAME;
       if (!password) return Promise.reject(fail("VALIDATION", "Enter a password."));
       if (password !== confirm) return Promise.reject(fail("VALIDATION", "Passwords do not match."));
       if (password.length < 4) return Promise.reject(fail("VALIDATION", "Password must be at least 4 characters."));
-      return backend.createAccount(username, password).then(function (account) {
-        setSession({ ok: true, username: account.username, at: Date.now() });
-        return account;
-      });
+      return backend.createAccount(username, password).then(persistUnlock);
     },
 
     signIn: function (username, password) {
-      username = normalizeUsername(username);
-      if (!username || !password) {
-        return Promise.reject(fail("VALIDATION", "Enter your username and password."));
-      }
-      return backend.signIn(username, password).then(function (account) {
-        setSession({ ok: true, username: account.username, at: Date.now() });
-        return account;
-      });
+      username = normalizeUsername(username) || normalizeUsername(backend.linkedUsername());
+      if (!password) return Promise.reject(fail("VALIDATION", "Enter your password."));
+      if (!username) return Promise.reject(fail("VALIDATION", "Enter your password."));
+      return backend.signIn(username, password).then(persistUnlock);
+    },
+
+    // One-time password entry: set a new password, or unlock an existing one.
+    enterPassword: function (password, confirm) {
+      if (backend.hasDeviceLock()) return this.signIn(backend.linkedUsername(), password);
+      return this.createAccount(DEFAULT_USERNAME, password, confirm);
     },
 
     signOut: function () {
+      // Persistent unlock stays until the user clears site data. signOut only
+      // drops the leftover sessionStorage entry from the old scheme.
       setSession(null);
     },
 
     requireSession: function () {
       if (this.isSignedIn()) return true;
       // Chrome treats each file:// path as its own origin, so the launcher
-      // session cannot be read from a game page. Gate only the launcher then.
+      // unlock cannot be read from a game page. Gate only the launcher then.
       if (location.protocol === "file:") return true;
       var url = launcherUrl();
       try { location.replace(url); } catch (e) { location.href = url; }
