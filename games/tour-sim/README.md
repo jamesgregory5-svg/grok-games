@@ -1,8 +1,12 @@
 # Tour Sim (Grok Games hub copy)
 
-Tour Sim v1.12, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
+Tour Sim v1.12.1, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
 
 This folder is part of [grok-games](https://github.com/jamesgregory5-svg/grok-games). It uses the hub password gate (`../../auth.js`) and does not have a separate password of its own.
+
+## v1.12.1
+
+- Restored OSM cart-path bridge meshes (`f.br`) that were missing from the packed course data since the v2/v4 GEO rebuild (the draw/build code was still there, but every course's `br` list was empty). Bridges stay visible even if the frame-rate object cut trims wildlife.
 
 ## v1.12
 
