@@ -1,8 +1,13 @@
 # Tour Sim (Grok Games hub copy)
 
-Tour Sim v1.14.2, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
+Tour Sim v1.14.3, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
 
 This folder is part of [grok-games](https://github.com/jamesgregory5-svg/grok-games). It uses the hub password gate (`../../auth.js`) and does not have a separate password of its own.
+
+## v1.14.3
+
+- **Starting a new round no longer freezes on hole 1.** In v1.14 the carry-yardage cache declaration was dropped when that helper was rewritten. Starting a hole then threw inside `carryReset()` after the course and HUD were already on screen, so the intro/address loop never began and Space or a click did nothing. The cache is restored. The live frame loop and address camera are also hardened so a later exception cannot leave the meter or camera stuck, and the shader compiler is attached as `R.prog` so grass and post-processing can initialize. A downloaded zip opened as `file://` (including paths with spaces, like a GitHub "Download ZIP" of main) plays through a swing on hole 1.
+- Keeps the v1.14.2 chip / gear-aware distances and the v1.14.1-hotfix graphics safety fallbacks.
 
 ## v1.14.2
 
