@@ -1,8 +1,17 @@
 # Tour Sim (Grok Games hub copy)
 
-Tour Sim v1.13.1, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
+Tour Sim v1.14, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
 
 This folder is part of [grok-games](https://github.com/jamesgregory5-svg/grok-games). It uses the hub password gate (`../../auth.js`) and does not have a separate password of its own.
+
+## v1.14
+
+- **Graphics presets** in Options (and the G key): Low, Medium, High, Ultra, and Auto (the default). Auto runs a short startup benchmark aimed at about 60 fps and quietly steps down one notch mid-round if frames dip. The choice is saved.
+- **Performance:** terrain tile LOD, instanced grass on High/Ultra, fewer/simpler trees on Low (billboards only), next-hole precompute so the following hole is ready before you get there.
+- **Visuals:** fairway mowing stripes, green sheen, swaying rough grass, water reflections and waves (flat water on Low), distance fog, hemisphere/golden-hour lighting, bloom, colour grading and MSAA on High and Ultra. Low skips baked shadows and post-processing.
+- **FPS counter** in Options, also toggled with F (does not conflict with other keys).
+- Bridges stay visible on every preset. Tree, bridge and cup logic is unchanged.
+- The putt meter now draws reliably in the live frame loop: when you start putting, the same big meter switches to putt pace (no leftover swing meter).
 
 ## v1.13.1
 
