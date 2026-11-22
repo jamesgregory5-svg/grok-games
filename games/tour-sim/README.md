@@ -1,8 +1,12 @@
 # Tour Sim (Grok Games hub copy)
 
-Tour Sim v1.14, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
+Tour Sim v1.14.1-hotfix, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
 
 This folder is part of [grok-games](https://github.com/jamesgregory5-svg/grok-games). It uses the hub password gate (`../../auth.js`) and does not have a separate password of its own.
+
+## v1.14.1-hotfix
+
+- **Crash/blank-screen fix.** Graphics failures no longer leave a frozen or empty canvas. Post-processing (MSAA, bloom, grading) and instancing are wrapped in try/catch. If a shader fails to compile, a framebuffer can't be created, or the WebGL context is lost, the game drops to the Low preset (direct rendering, no post) and keeps going. Auto now starts at Medium rather than High, then may still step up if frames hold. Ultra MSAA is capped at 4x. The WebGL2 canvas listens for context loss and reloads cleanly after a restore.
 
 ## v1.14
 
