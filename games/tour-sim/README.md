@@ -1,21 +1,21 @@
 # Tour Sim (Grok Games hub copy)
 
-Tour Sim v1.13, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
+Tour Sim v1.13.1, the hub copy of the WebGL golf simulator. Play it from the Grok Games hub: https://jamesgregory5-svg.github.io/grok-games/ (open Tour Sim after unlocking the hub).
 
 This folder is part of [grok-games](https://github.com/jamesgregory5-svg/grok-games). It uses the hub password gate (`../../auth.js`) and does not have a separate password of its own.
 
-## v1.13
+## v1.13.1
 
-- **TV-broadcast shot cameras.** New camera setting: **Broadcast** (default), **Classic** (the original behind-the-ball follow camera) or **Behind only** (stays behind the ball, no cuts, no automatic replays). It is saved, changeable from **Options** on the main menu, the in-game **CAM** button or the **B** key, and works in every ball mode (career, quick play, practice/range, closest to the pin, long drive).
-- Broadcast cuts, all planned from the same sampled ball path and predicted landing the physics already produces:
-  - Tee-shot chase cam that starts behind the player, follows the ball up, then swings its look-at to the landing area as the ball descends, and cuts to a landing cam to watch the bounce and roll.
-  - Landing cam for long non-tee shots, beside the predicted landing spot.
-  - Low green-side cam for approaches, to see the ball check or spin back.
-  - Putt follow cam (low, tracking the roll) that moves to a behind-the-cup view looking back at the ball for the last few feet.
-  - Water and tree/trouble cams for balls headed for water, trees or out of bounds.
-  - Slow motion into the cup plus an instant replay from a second angle for hole-outs, aces, eagles, long putts and lip-outs. Tap, click or press any key to skip a replay; a tap also cancels slow motion.
-- Short camera moves are eased; long cuts are straight TV cuts with a quick dip. The camera is kept above the terrain, out of tree canopies and building footprints and inside the hole, and the camera never waits on or swallows input.
-- Fixed a v1.12 start-up bug: two references to variables that were private to other parts of the code (`injTick`, `loop`) threw while the v1.12 add-ons were loading, which aborted the rest of that block. The Career Casino, purse clamping, estate/shop hooks and several exports never actually started. They now load.
+- **Broadcast cameras removed.** The v1.13 TV-style cameras (chase, landing, approach, putt-follow and trouble cams), the slow motion, the automatic instant replays, the CAM button, the B key and the camera Options screen are all gone. The camera is back to the original behind-the-ball follow camera in every mode. The original manual REPLAY button is unchanged.
+- **New Modern Clean title screen:** Outfit font, the flag-in-cup mark with the "tour sim" wordmark, pill buttons, the live rolling-green course behind a light veil, a new favicon and a new launcher card.
+- **Bigger swing meter**, and the **putt meter is the very same meter** (same size and spot, showing putt length and the pace zone), so nothing resizes when you start putting. The strike/launch-contact panel sits beside the meter instead of on top of it or the launch monitor.
+- **Putt aiming fixed:** the pace zone and preview line follow the line you set (same 0.004 rad step, no camera jumps) and nudging is no longer laggy.
+- **Screen fit:** panels and menus fit 1280x720 to 1920x1080 without the page scrolling behind them, buttons wrap instead of truncating, and the left-hand buttons no longer overlap the shot panel.
+- Kept the v1.13 start-up fix: the Career Casino, purse clamping and estate/shop hooks load again (two stray references to private variables, `injTick` and `loop`, used to abort that block).
+
+## v1.13 (superseded by v1.13.1)
+
+- Added broadcast cameras (removed again in v1.13.1) and fixed the v1.12 start-up bug described above.
 
 ## v1.12.3
 
